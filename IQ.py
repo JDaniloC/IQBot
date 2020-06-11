@@ -31,6 +31,15 @@ class IQ_API:
                 time.sleep(1)
         return False
 
+    def mudar_treino(self):
+        self.API.change_balance("PRACTICE")
+    
+    def mudar_real(self):
+        self.API.change_balance("REAL")
+
+    def tipo_conta(self):
+        return self.API.get_balance_mode()
+
     def mudar_tipo_conta(self):
         '''
         Muda o tipo de conta.
@@ -110,6 +119,10 @@ Todas as carteiras:\n"""
         self.API.unsubscribe_strike_list(par, timeframe)
         return resultado
 
+    def payout_binaria(self, par):
+        payouts = self.API.get_all_profit()
+        return payouts[par]['binary'] * 100
+
     def abertas(self, tipo = "digital"):
         '''
         Exibe todas as paridades abertas
@@ -120,10 +133,10 @@ Todas as carteiras:\n"""
         '''
         print(f"\nParidades abertas\n")
         paridades = self.API.get_all_open_time()
-        payouts = self.API.get_all_profit()
         abertas = {}
 
         if tipo != "digital":
+            payouts = self.API.get_all_profit()
             for par in paridades["turbo"]:
                 if paridades['turbo'][par]["open"]: 
                     abertas[str(par)] = (payouts[par]['turbo'], payouts[par]['binary'])
@@ -163,3 +176,75 @@ Todas as carteiras:\n"""
             print()
 
         return lista
+    
+    def ordem(self, par, direcao = "call", tempo = 1, valor = 1, tipo = "binary"):
+        '''
+        Faz uma ordem e devolve o resultado.
+        Params:
+            par: paridade
+            direcao: "call" para comprar ou "put" para vender
+            tempo: 1, 10, 15
+            valor: dinheiro investido 2 - saldo
+            tipo: binary ou digital
+        return:
+            (resultado, lucro)
+        '''
+        if tipo == "binary":
+            status, identificador = self.API.buy(valor, par, direcao, tempo)
+            if status:
+                print(f"Operação realizada: {par}-{tipo} {direcao} ${valor} {tempo}s")
+
+                resultado, lucro = self.API.check_win_v4(identificador)
+
+                print(f"{resultado}: {round(lucro, 2)}")
+            else:
+                print("Um erro aconteceu!")
+                resultado, lucro = "error", 0
+        else:
+            identificador = self.API.buy_digital_spot(par, valor, direcao, tempo)
+            
+            if isinstance(identificador, int):
+                print(f"Operação realizada: {par}-{tipo} {direcao} ${valor} {tempo}s")
+
+                status = False
+                while not status:
+                    status, lucro = self.API.check_win_digital_v2(identificador)
+
+                if lucro > 0:
+                    resultado = "win"
+                    print(f"WIN: {round(lucro, 2)}")
+                else:
+                    resultado = "loose"
+                    print(f"LOSS: {round(lucro, 2)}")
+                verificador = False
+
+            else:
+                resultado, lucro = "erro", 0
+                print(identificador)
+        return resultado, round(lucro, 2)
+    
+    def esperarAte(self, horas, minutos, segundos = 0):
+        '''
+        '''
+        alvo = datetime.now().replace(hour = horas, minute = minutos, second = segundos, microsecond = 0)
+        segundos = alvo.timestamp() - datetime.now().timestamp()
+        time.sleep(segundos)
+    
+    def martingale(self, tipo_martin, payout, valor, perca, lucro = None):
+        '''
+        Calcula o martingale onde:
+            tipo_martin: simples (valor * 2.2) ou auto
+            payout: profit da paridade
+            valor: entrada do valor
+            lucro_esperado: alvo
+            perca: limite de LOSS
+        '''
+        if tipo_martin == "simples":
+            return round(valor * 2.25, 2)
+        else:
+            if lucro != None:
+                alvo = round(abs(perca) + lucro / payout, 2)
+            else:
+                alvo = round(abs(perca) + valor * payout, 2)
+            return round(alvo/payout, 2)
+    
