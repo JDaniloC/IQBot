@@ -1,4 +1,5 @@
-script.py
+config.txt
+entradas.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

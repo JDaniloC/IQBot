@@ -32,9 +32,11 @@ class IQ_API:
         return False
 
     def mudar_treino(self):
+        print("Usando a conta treino")
         self.API.change_balance("PRACTICE")
     
     def mudar_real(self):
+        print("Usando a conta real")
         self.API.change_balance("REAL")
 
     def tipo_conta(self):
@@ -223,28 +225,46 @@ Todas as carteiras:\n"""
                 print(identificador)
         return resultado, round(lucro, 2)
     
-    def esperarAte(self, horas, minutos, segundos = 0):
+    def codyTrade(self):
+        inicio = 1
+        final = 5
+        lista = self.API.get_leader_board('Worldwide', inicio, final, 0)
+        resultado = json.dumps(lista, indent = 1)
+
+
+    @staticmethod
+    def esperarAte(horas, minutos, segundos = 0):
         '''
+        Espera até determinada hora:minuto:segundo do dia
         '''
         alvo = datetime.now().replace(hour = horas, minute = minutos, second = segundos, microsecond = 0)
         segundos = alvo.timestamp() - datetime.now().timestamp()
-        time.sleep(segundos)
+        if segundos > 10:
+            print(f"Esperando até {alvo}")
+            time.sleep(segundos)
+            return True
+        return False
     
-    def martingale(self, tipo_martin, payout, valor, perca, lucro = None):
+    @staticmethod
+    def martingale(tipo_martin, payout, perca, valor = 1, lucro = 1):
         '''
         Calcula o martingale onde:
-            tipo_martin: simples (valor * 2.2) ou auto
+            tipo_martin: 
+                simples (valor * 2)
+                agressivo (perca * 2.3)
+                leve (vai manter o lucro inicial)
+                seguro (apenas recupera o valor)
             payout: profit da paridade
+            perca: valor perdido
             valor: entrada do valor
-            lucro_esperado: alvo
-            perca: limite de LOSS
+            lucro: alvo inicial
         '''
-        if tipo_martin == "simples":
-            return round(valor * 2.25, 2)
+        tipo_martin = tipo_martin.lower()
+        if tipo_martin == "agressivo":
+            return round(abs(perca) * 2.3, 2)
+        elif tipo_martin == "simples":
+            return round(valor * 2)
+        elif tipo_martin == "leve":
+            return (abs(perca) + lucro) / payout
         else:
-            if lucro != None:
-                alvo = round(abs(perca) + lucro / payout, 2)
-            else:
-                alvo = round(abs(perca) + valor * payout, 2)
-            return round(alvo/payout, 2)
-    
+            return round(abs(perca)/payout, 2)
