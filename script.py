@@ -1,7 +1,7 @@
 from IQ import IQ_API
 from configparser import RawConfigParser
 from sys import argv
-import re
+import re, threading
 
 print("\n[Comando para parar: Ctrl + C]\n")
 
@@ -62,14 +62,16 @@ def configuracoes():
         "tipo_par": arquivo.get("ENTRADAS", "tipo_par").lower(),
         "tempo": int(arquivo.get("ENTRADAS", "tempo")),
         "minimo": int(arquivo.get("ENTRADAS", "profit_minimo")),
-        "correcao": int(arquivo.get("ENTRADAS", "correcao_entrada"))
+        "correcao": int(arquivo.get("ENTRADAS", "correcao_entrada")),
+        "otc": bool(arquivo.get("ENTRADAS", "otc"))
     }
 
     return config
 
 class Operacao(IQ_API):
     def __init__(self, config, comandos):
-        
+        self.cadeado = threading._allocate_lock()
+
         self.config = config
         self.comandos = comandos
         self.ganhoTotal = 0
@@ -99,27 +101,36 @@ class Operacao(IQ_API):
 
         resultado, lucro = self.ordem(par, ordem, self.tempo, self.valor, self.tipo)
         if resultado == "win" and self.config['soros']:
-            print(f" [SOROS GALE] : {self.valor} -> {self.valor + lucro}")
+            print(f"\n [SOROS GALE] : {self.valor} -> {self.valor + lucro}")
             self.valor += lucro # Mudar a soros
-        if resultado != "win" and self.config['martin']:
-            valor = self.valor
+        if resultado == "loose" and self.config['martin']:
+            with self.cadeado:
+                valor = self.valor
             perda = 0
-            print(f" [MARTIN GALE]: {self.config['tipo_gale']}")
-            while resultado != "win" and self.perda < self.config['stoploss']:
+            print(f"[MARTIN GALE] do tipo {self.config['tipo_gale']} na operação {par}|{ordem}")
+            while resultado != "win" and perda < self.config['stoploss']:
                 perda += abs(lucro)
                 valor = self.martingale(self.config['tipo_gale'], payout, perda, valor, self.valor / payout)
                 resultado, lucro = self.ordem(par, ordem, self.tempo, valor, self.tipo)
             lucro = perda if resultado == 'loose' else 0
-        if resultado == "win":
-            self.ganhoTotal += lucro
-            self.perdaTotal -= lucro
-            self.perdaTotal = 0 if self.perdaTotal < 0 else self.perdaTotal
-        elif resultado == "loose":
-            self.perdaTotal += lucro
-            self.ganhoTotal -= lucro
-            self.ganhoTotal = 0 if self.ganhoTotal < 0 else self.ganhoTotal
+        if resultado not in ["error", "equal"]:
+            with self.cadeado:
+                if resultado == "win":
+                    self.ganhoTotal += lucro
+                    self.perdaTotal -= lucro
+                    self.perdaTotal = 0 if self.perdaTotal < 0 else self.perdaTotal
+                elif resultado == "loose":
+                    self.perdaTotal += lucro
+                    self.ganhoTotal -= lucro
+                    self.ganhoTotal = 0 if self.ganhoTotal < 0 else self.ganhoTotal
+                
+                print(f"\n | {round(self.ganhoTotal/self.config['goal'] * 100, 2)}% perto do objetivo | {round(self.perdaTotal/self.config['stoploss'] * 100, 2)} perto do stoploss |\n")
+        elif resultado == "error":
+            print(f"\nErro na operação das {threading.current_thread().name}")
 
     def computar(self):
+        espera = []
+
         for comando in self.comandos:
 
             horas, minutos = comando["hora"]
@@ -130,22 +141,27 @@ class Operacao(IQ_API):
                 else:
                     minutos -= 1
                 segundos = 60 - self.config['correcao']
-            
+            else:
+                segundos = 0
             if self.esperarAte(horas, minutos, segundos):
 
                 par = comando['par']
+                par += "-OTC" if self.config["otc"] else ""
                 ordem = comando['ordem']
                 
                 payout = self.payout_binaria(par) / 100 if self.tipo == "binary" else self.payout_digital(par) / 100
 
                 if self.config["minimo"] / 100 <= payout:
-                    self.operar(par, ordem, payout)
-
-                    print(f"\n | {round(self.ganhoTotal/self.config['goal'] * 100, 2)}% perto do objetivo | {round(self.perdaTotal/self.config['stoploss'] * 100, 2)} perto do stoploss |\n")
+                    thread = threading.Thread(target = self.operar, name = f"{horas}:{minutos}", args = (par, ordem, payout))
+                    espera.append(thread)
+                    thread.start()
 
                 if self.perdaTotal >= self.config['stoploss'] or self.ganhoTotal >= self.config['goal']:
                     break
         
+        for thread in espera:
+            thread.join()
+
         print(f"\nFim da operação ganho total: {self.ganhoTotal}\nPerda total {self.perdaTotal}")
 
 def recebe_comandos(comandos):
@@ -163,13 +179,18 @@ def recebe_comandos(comandos):
                 config = configuracoes()
                 for key, value in config.items():
                     print(key, value)
+            elif comandos[i] in ["-h", "ajuda"]:
+                with open("ajuda.txt", "r+") as file:
+                    for i in file:
+                        print(i.strip())
             else:
                 print('''
                 [COMANDOS]
                 Ajuda: -h
                 Testar a leitura do arquivo: -o nomeDoArquivo
                 Testar a leitura da configuração: -c
-                Verificar tipos de martingale: -m''')
+                Verificar tipos de martingale: -m
+                ''')
     else:
         config = configuracoes()
         comandos = abrir_arquivo(config["arquivo"])
@@ -185,3 +206,4 @@ if __name__ == "__main__":
         print("Se o erro persistir, chame o técnico.")
         with open("errors.log", "a") as file:
             file.write(f"{type(e)} - {e}\n")
+api.ordem("AUDCAD-OTC", "put", 1, 2, "binary")

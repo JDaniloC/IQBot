@@ -23,20 +23,20 @@ class IQ_API:
         '''
         for tentativas in range(tentativas):
             if self.API.check_connect():
-                print("Conectado com sucesso\n")
+                print("+ Conectado com sucesso!\n")
                 return True
             else:
-                print("Tentando se conectar")
+                print("Tentando se conectar...")
                 self.API.connect()
                 time.sleep(1)
         return False
 
     def mudar_treino(self):
-        print("Usando a conta treino")
+        print(" - Usando a conta treino -\n")
         self.API.change_balance("PRACTICE")
     
     def mudar_real(self):
-        print("Usando a conta real")
+        print(" - Usando a conta real -\n")
         self.API.change_balance("REAL")
 
     def tipo_conta(self):
@@ -198,9 +198,9 @@ Todas as carteiras:\n"""
 
                 resultado, lucro = self.API.check_win_v4(identificador)
 
-                print(f"{resultado}: {round(lucro, 2)}")
+                print(f"\n $$$ {resultado}: {round(lucro, 2)} $$$")
             else:
-                print("Um erro aconteceu!")
+                print(f"  ! Um erro aconteceu: {par}-{tipo} {direcao} {valor}!")
                 resultado, lucro = "error", 0
         else:
             identificador = self.API.buy_digital_spot(par, valor, direcao, tempo)
@@ -221,6 +221,7 @@ Todas as carteiras:\n"""
                 verificador = False
 
             else:
+                print(f"  ! Um erro aconteceu: {par}-{tipo} {direcao} {valor}!")
                 resultado, lucro = "erro", 0
                 print(identificador)
         return resultado, round(lucro, 2)
@@ -240,8 +241,12 @@ Todas as carteiras:\n"""
         alvo = datetime.now().replace(hour = horas, minute = minutos, second = segundos, microsecond = 0)
         segundos = alvo.timestamp() - datetime.now().timestamp()
         if segundos > 10:
-            print(f"Esperando até {alvo}")
+            print(f" [...] Esperando até {alvo} [...]")
             time.sleep(segundos)
+            return True
+        if segundos > -10:
+            if segundos < 0:
+                print(f"Fazendo operação {round(abs(segundos), 2)} atrasado")
             return True
         return False
     
