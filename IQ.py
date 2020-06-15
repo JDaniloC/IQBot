@@ -68,27 +68,80 @@ class IQ_API:
             self.API.change_balance("PRACTICE")
             print("usando a conta treino")
 
+    def perfil(self):
+        '''
+        Mostra o perfil de forma simplificada e devolve o dicionário com mais informações
+        return: dict
+        '''
+        profile = self.API.get_profile()['result']
+        resultado = f"""
+        [Perfil]
+Email: {profile['email']}
+Nome: {profile["name"]}
+TimeZone: {profile["tz"]} {profile["tz_offset"]}
+Diferença de tempo: {profile["timediff"]}\n
+Saldo: {profile["currency_char"]} {profile["balance"]}
+Todas as carteiras:\n"""
+        for tipo in profile['balances']:
+            resultado += tipo['currency'] + ": " + str(tipo["amount"]) + "\n"
+        print(resultado)
+        return profile
+
     def payout_digital(self, par, timeframe = 1):
         '''
         Devolve o payout de uma paridade digital
         '''
-        self.API.subscribe_strike_list(par, timeframe)
-        while True:
-            resultado = self.API.get_digital_current_profit(par, timeframe)
-            if resultado:
-                resultado = int(resultado)
-                break
-            time.sleep(1)
-        self.API.unsubscribe_strike_list(par, timeframe)
-        return resultado
+        try:
+            self.API.subscribe_strike_list(par, timeframe)
+            while True:
+                resultado = self.API.get_digital_current_profit(par, timeframe)
+                if resultado:
+                    resultado = int(resultado)
+                    break
+                time.sleep(1)
+            self.API.unsubscribe_strike_list(par, timeframe)
+            return resultado
+        except:
+            return False
 
     def payout_binaria(self, par):
         '''
         Devolve o payout de uma paridade binária
+        caso não tem esse par, então devolve False
         '''
         payouts = self.API.get_all_profit()
-        return payouts[par]['binary'] * 100
+        valor = payouts.get(par)
+        if valor == None:
+            return False
+        return valor['binary'] * 100 if valor.get("binary") else valor["turbo"] * 100
     
+    def abertas(self, tipo = "digital"):
+        '''
+        Exibe todas as paridades abertas
+        Devolve um dicionário onde a chave é a paridade
+        E o valor é a rentabilidade
+        return:
+            dict: tuple
+        '''
+        print(f"\nParidades abertas\n")
+        paridades = self.API.get_all_open_time()
+        abertas = {}
+
+        if tipo != "digital":
+            payouts = self.API.get_all_profit()
+            for par in paridades["turbo"]:
+                if paridades['turbo'][par]["open"]: 
+                    abertas[str(par)] = payouts[par]['turbo'] * 100
+                    
+                    print(f"[TURBO] {par} - {int(payouts[par]['turbo'] * 100) if type(payouts[par]['turbo']) != dict else '00'}%")
+        else:
+            for par in paridades["digital"]:
+                if paridades['digital'][par]["open"]: 
+                    abertas[str(par)] = self.payout_digital(par)
+                    print(f"[DIGITAL] {par} {self.payout_digital(par)}%")
+
+        return abertas
+
     def ordem(self, par, direcao = "call", tempo = 1, valor = 1, tipo = "binary"):
         '''
         Faz uma ordem e devolve o resultado.
@@ -116,7 +169,7 @@ class IQ_API:
             identificador = self.API.buy_digital_spot(par, valor, direcao, tempo)
             
             if isinstance(identificador, int):
-                print(f"Operação realizada: {par}-{tipo} {direcao} ${valor} {tempo}s")
+                print(f"Operação realizada: {par}-{tipo} {direcao} ${round(valor, 2)} {tempo}s")
 
                 status = False
                 while not status:
@@ -144,7 +197,7 @@ class IQ_API:
         alvo = datetime.now().replace(hour = horas, minute = minutos, second = segundos, microsecond = 0)
         segundos = alvo.timestamp() - datetime.now().timestamp()
         if segundos > 10:
-            print(f" [...] Esperando até {alvo} [...]")
+            print(f"\n [...] Esperando até {alvo} [...]")
             time.sleep(segundos)
             return True
         if segundos > -10:
