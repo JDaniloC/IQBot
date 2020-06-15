@@ -4,6 +4,9 @@ import time
 
 class IQ_API:
     def __init__(self, login, senha):
+        '''
+        Recebe o login, e tenta se conectar
+        '''
         self.login = login
         self.senha = senha
         self.API = IQ_Option(login, senha)
@@ -32,14 +35,23 @@ class IQ_API:
         return False
 
     def mudar_treino(self):
+        '''
+        Muda para a conta treino
+        '''
         print(" - Usando a conta treino -\n")
         self.API.change_balance("PRACTICE")
     
     def mudar_real(self):
+        '''
+        Muda para a conta real
+        '''
         print(" - Usando a conta real -\n")
         self.API.change_balance("REAL")
 
     def tipo_conta(self):
+        '''
+        Devolve o tipo de conta
+        '''
         return self.API.get_balance_mode()
 
     def mudar_tipo_conta(self):
@@ -218,20 +230,12 @@ Todas as carteiras:\n"""
                 else:
                     resultado = "loose"
                     print(f"LOSS: {round(lucro, 2)}")
-                verificador = False
 
             else:
                 print(f"  ! Um erro aconteceu: {par}-{tipo} {direcao} {valor}!")
                 resultado, lucro = "erro", 0
                 print(identificador)
         return resultado, round(lucro, 2)
-    
-    def codyTrade(self):
-        inicio = 1
-        final = 5
-        lista = self.API.get_leader_board('Worldwide', inicio, final, 0)
-        resultado = json.dumps(lista, indent = 1)
-
 
     @staticmethod
     def esperarAte(horas, minutos, segundos = 0):

@@ -1,7 +1,7 @@
 from IQ import IQ_API
 from configparser import RawConfigParser
 from sys import argv
-import re, threading
+import re, threading, traceback
 
 print("\n[Comando para parar: Ctrl + C]\n")
 
@@ -170,7 +170,8 @@ def recebe_comandos(comandos):
             if comandos[i] in ["-o", "arquivo"] and comandos[i:] != []:
                 comandos = abrir_arquivo(comandos[i+1])
                 for comando in comandos:
-                    print(f"Hora: {comando['hora']}\nParidade: {comando['par']}\nOrdem: {comando['ordem']}")
+                    hora = ":".join([str(x) for x in comando['hora']])
+                    print(f"Hora: {hora}\nParidade: {comando['par']}\nOrdem: {comando['ordem']}")
             elif comandos[i] in ["-m", "martin"]:
                 perdaInicial = float(input("Digite a perda inicial: "))
                 taxa = float(input("Digite a taxa (profit) [0 - 1]: "))
@@ -183,7 +184,7 @@ def recebe_comandos(comandos):
                 with open("ajuda.txt", "r+") as file:
                     for i in file:
                         print(i.strip())
-            else:
+            elif (i != 0 and comandos[i-1] not in ["-o", "-m", "-c", "-h"]) or i == 0:
                 print('''
                 [COMANDOS]
                 Ajuda: -h
@@ -202,8 +203,9 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         exit(0)
     except Exception as e:
-        print("Aconteceu um erro, tente novamente.")
+        print("\nAconteceu um erro, tente novamente.")
         print("Se o erro persistir, chame o técnico.")
+		
+        linhas = " -> ".join(re.findall(r'line \d+', str(traceback.extract_tb(e.__traceback__))))
         with open("errors.log", "a") as file:
-            file.write(f"{type(e)} - {e}\n")
-api.ordem("AUDCAD-OTC", "put", 1, 2, "binary")
+			file.write(f"{type(e)} - {e}:\n{linhas}\n")
