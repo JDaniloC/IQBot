@@ -1,0 +1,45 @@
+        [AJUDA]
+Arquivo de configuração:
+ - As opções estarão na forma de primeira|segunda, escolha uma ou outra.
+ - Caso tiver valor-outro significa uma sequência de qualquer valor. E inf significa infinito.
+O que significa:
+ - email: email da conta, ou número
+ - senha: senha da conta
+ - tipo: se é a conta treino ou real
+ - arquivo: nome do arquivo que vai estar as entradas
+ - tipo_par: se a paridade é binaria ou digital
+ - otc: se o tipo for binário e OTC
+ - valor: o valor da entrada
+ - tempo: o tempo da entrada
+ - profit_minimo: porcentagem da retorno
+ - correcao_entrada: segundos para se descontar do tempo de entrada
+ - goal: valor objetivo que para se alcançar
+ - soros: se vai realizar a sorosgale
+ - stoploss: valor limite de perdas
+ - martin: se vai realizar martingale
+ - tipo_gale: caso haver gale, rode o script com -m
+
+Exemplo:
+
+[CONTA]
+email = exemplo@email.com
+senha = exemplo
+tipo = treino|real
+
+[ENTRADAS]
+arquivo = entradas.txt
+tipo_par = binaria|digital
+otc = True|False
+valor = 1-inf
+tempo = 1|5|15
+profit_minimo = 0-100
+correcao_entrada = 0-60
+
+[WIN]
+goal = 2-inf
+soros = True|False
+
+[LOSS]
+stoploss = 1-inf
+martin = True|False
+tipo_gale = seguro|simples|leve|agressivo

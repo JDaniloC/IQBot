@@ -1,0 +1,22 @@
+[CONTA]
+email = exemplo@email.com
+senha = exemplo
+tipo = treino|real
+
+[ENTRADAS]
+arquivo = entradas.txt
+tipo_par = binaria|digital
+otc = True|False
+valor = 1-inf
+tempo = 1|5|15
+profit_minimo = 0-100
+correcao_entrada = 0-60
+
+[WIN]
+goal = 2-inf
+soros = True|False
+
+[LOSS]
+stoploss = 1-inf
+martin = True|False
+tipo_gale = seguro|simples|leve|agressivo
