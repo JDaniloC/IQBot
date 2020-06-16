@@ -190,11 +190,17 @@ Todas as carteiras:\n"""
         return resultado, round(lucro, 2)
     
     @staticmethod
-    def esperarAte(horas, minutos, segundos = 0):
+    def esperarAte(horas, minutos, segundos = 0, data = ()):
         '''
-        Espera até determinada hora:minuto:segundo do dia
+        Espera até determinada data/hora:minuto:segundo do dia
+        Se a data não for passada, será considerada a data atual
+        formato da data: (dia, mes, ano)
         '''
-        alvo = datetime.now().replace(hour = horas, minute = minutos, second = segundos, microsecond = 0)
+        if data == ():
+            data = datetime.now()
+        else:
+            data = datetime(*data[::-1])
+        alvo = data.replace(hour = horas, minute = minutos, second = segundos, microsecond = 0)
         segundos = alvo.timestamp() - datetime.now().timestamp()
         if segundos > 10:
             print(f"\n [...] Esperando até {alvo} [...]")

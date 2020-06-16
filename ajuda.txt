@@ -17,6 +17,7 @@ O que significa:
  - soros: se vai realizar a sorosgale
  - stoploss: valor limite de perdas
  - martin: se vai realizar martingale
+ - max_gale: máximo de martingales
  - tipo_gale: caso haver gale, rode o script com -m
 
 Exemplo:
@@ -42,4 +43,5 @@ soros = True|False
 [LOSS]
 stoploss = 1-inf
 martin = True|False
+max_gale = 1-inf
 tipo_gale = seguro|simples|leve|agressivo

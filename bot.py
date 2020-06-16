@@ -1,13 +1,14 @@
 from IQ import IQ_API
 from configparser import RawConfigParser
 from sys import argv
+from datetime import datetime
 import re, threading, traceback
 
 print("\n[Comando para parar: Ctrl + C]\n")
 
 class Operacao(IQ_API):
     def __init__(self, config, comandos):
-        self.cadeado = threading._allocate_lock()
+        self.cadeado = threading.Lock()
 
         self.config = config
         self.comandos = comandos
@@ -29,45 +30,48 @@ class Operacao(IQ_API):
 
             self.valor = config['valor']
             self.tempo = config['tempo']
+            self.max_gale = config["max_gale"]
 
             self.computar()
         except Exception as e:
-            print("Aconteceu um erro, tente novamente.")
+            print("Aconteceu na API, tente novamente.")
             print("Se o erro persistir, chame o técnico.")
+            
+            linhas = " -> ".join(re.findall(r'line \d+', str(traceback.extract_tb(e.__traceback__))))
             with open("errors.log", "a") as file:
-                file.write(f"{type(e)} - {e}\n")
+                file.write(f"{type(e)} - {e}:\n{linhas}\n")
 
-    def operar(self, par, ordem, payout, tipo):
+    def operar(self, valor, par, ordem, payout, tipo):
         '''
         Faz a operação e a depender da configuração faz:
         Martingale/Sorosgale e calcula o ganhoTotal/perdaTotal
         '''
-        resultado, lucro = self.ordem(par, ordem, self.tempo, self.valor, tipo)
+        resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo)
         if resultado == "win" and self.config['soros']:
-            print(f"\n [SOROS GALE] : {self.valor} -> {self.valor + lucro}")
-            self.valor += lucro # Mudar a soros
+            print(f"\n [SOROS GALE] : {valor} -> {valor + lucro}")
+            self.valor += lucro
         if resultado == "loose" and self.config['martin']:
-            with self.cadeado:
-                valor = self.valor
             perda = 0
+            num_gales = 0
             print(f"[MARTIN GALE] do tipo {self.config['tipo_gale']} na operação {par}|{ordem}")
-            while resultado != "win" and perda < self.config['stoploss']:
+            while resultado != "win" and perda < self.config['stoploss'] and self.max_gale > num_gales:
                 perda += abs(lucro)
-                valor = self.martingale(self.config['tipo_gale'], payout, perda, valor, self.valor / payout)
+                valor = self.martingale(self.config['tipo_gale'], payout, perda, valor, self.valor * payout)
                 resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo)
-            lucro = perda if resultado == 'loose' else 0
+                num_gales += 1
+        
         if resultado not in ["error", "equal"]:
             with self.cadeado:
                 if resultado == "win":
-                    self.ganhoTotal += lucro
-                    self.perdaTotal -= lucro
-                    self.perdaTotal = 0 if self.perdaTotal < 0 else self.perdaTotal
+                    self.ganhoTotal += abs(lucro)
+                    self.perdaTotal -= abs(lucro)
+                    self.perdaTotal = max(0, self.perdaTotal)
                 elif resultado == "loose":
-                    self.perdaTotal += lucro
-                    self.ganhoTotal -= lucro
-                    self.ganhoTotal = 0 if self.ganhoTotal < 0 else self.ganhoTotal
+                    self.perdaTotal += abs(lucro)
+                    self.ganhoTotal -= abs(lucro)
+                    self.ganhoTotal = max(0, self.ganhoTotal)
                 
-                print(f"\n | {round(self.ganhoTotal/self.config['goal'] * 100, 2)}% perto do objetivo | {round(self.perdaTotal/self.config['stoploss'] * 100, 2)} perto do stoploss |\n")
+            print(f"\n | {round(self.ganhoTotal/self.config['goal'] * 100, 2)}% perto do objetivo | {round(self.perdaTotal/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
         elif resultado == "error":
             print(f"\nErro na operação das {threading.current_thread().name}")
 
@@ -81,18 +85,15 @@ class Operacao(IQ_API):
         espera = []
 
         for comando in self.comandos:
-
+            
+            data = comando["data"]
             horas, minutos = comando["hora"]
             if self.config['correcao'] != 0:
-                if minutos == 0:
-                    horas -= 1
-                    minutos = 59
-                else:
-                    minutos -= 1
-                segundos = 60 - self.config['correcao']
+                novo = datetime.fromtimestamp(datetime(*data[::-1] + [horas, minutos]).timestamp() - self.config["correcao"])
+                horas, minutos, segundos = novo.hour, novo.minute, novo.second 
             else:
                 segundos = 0
-            if self.esperarAte(horas, minutos, segundos):
+            if self.esperarAte(horas, minutos, segundos, data):
 
                 binarias = self.abertas("binary") if self.tipo == "auto" else {}
                 digitais = self.abertas() if self.tipo == "auto" else {}
@@ -100,6 +101,7 @@ class Operacao(IQ_API):
                 par = comando['par']
                 par += "-OTC" if self.config["otc"] else ""
                 ordem = comando['ordem']
+                valor = self.valor
                 
                 if self.tipo == "auto":
                     if (binarias.get(par) and digitais.get(par)) and (binarias[par] < digitais[par]):
@@ -116,7 +118,11 @@ class Operacao(IQ_API):
                     tipo = self.tipo
                 
                 if self.config["minimo"] / 100 <= payout:
-                    thread = threading.Thread(target = self.operar, name = f"{horas}:{minutos}", args = (par, ordem, payout, tipo))
+                    thread = threading.Thread(
+                        target = self.operar, 
+                        name = f"{horas}:{minutos}", 
+                        args = (valor, par, ordem, payout, tipo)
+                        )
                     espera.append(thread)
                     thread.start()
 
@@ -126,19 +132,21 @@ class Operacao(IQ_API):
         for thread in espera:
             thread.join()
 
-        print(f"\nFim da operação ganho total: {self.ganhoTotal}\nPerda total {self.perdaTotal}")
+        print(f"\nFim da operação ganho total: {round(self.ganhoTotal, 2)}\nPerda total {round(self.perdaTotal, 2)}")
 
 def pegar_comando(texto):
     '''
     Recebe um texto e devolve a hora/par/ordem em forma de dicionário
     '''
-    # data = re.search(r'\d{2}\W\d{2}\W\d{4}', texto)
+    data = re.search(r'\d{2}\W\d{2}\W\d{4}', texto)[0]
+    data = [int(x) for x in re.split(r"\W", data)]
     hora = re.search(r'\d{2}:\d{2}', texto)[0]
     hora = [int(x) for x in re.split(r'\W', hora)]
     par = re.search(r'\w{6}', texto)[0]
     ordem = re.search(r'CALL|PUT|call|put', texto)[0].lower()
 
     comando = {
+        "data": data,
         "hora": hora,
         "par": par,
         "ordem": ordem
@@ -179,6 +187,7 @@ def configuracoes():
         "stoploss": float(arquivo.get("LOSS", "stoploss")),
         "martin": arquivo.get("LOSS", "martin").capitalize() == "True",
         "tipo_gale": arquivo.get("LOSS", "tipo_gale").lower(),
+        "max_gale": int(arquivo.get("LOSS", "max_gale")),
         "arquivo": arquivo.get("ENTRADAS", "arquivo"),
         "valor": float(arquivo.get("ENTRADAS", "valor").capitalize()),
         "tipo_par": arquivo.get("ENTRADAS", "tipo_par").lower(),
@@ -215,10 +224,11 @@ def recebe_comandos(comandos):
     if comandos != []:
         for i in range(len(comandos)):
             if comandos[i] in ["-o", "arquivo"] and comandos[i:] != []:
-                comandos = abrir_arquivo(comandos[i+1])
-                for comando in comandos:
-                    hora = ":".join([str(x) for x in comando['hora']])
-                    print(f"Hora: {hora}\nParidade: {comando['par']}\nOrdem: {comando['ordem']}")
+                operacoes = abrir_arquivo(comandos[i+1])
+                for operacao in operacoes:
+                    data = "/".join([str(x) for x in operacao['data']])
+                    hora = ":".join([str(x) for x in operacao['hora']])
+                    print(f"Data: {data}\nHora: {hora}\nParidade: {operacao['par']}\nOrdem: {operacao['ordem']}")
             elif comandos[i] in ["-m", "martin"]:
                 perdaInicial = float(input("Digite a perda inicial: "))
                 taxa = float(input("Digite a taxa (profit) [0 - 1]: "))
@@ -262,4 +272,4 @@ if __name__ == "__main__":
         with open("errors.log", "a") as file:
             file.write(f"{type(e)} - {e}:\n{linhas}\n")
     finally:
-        input("Digite Enter para sair")
+        input("\nDigite Enter para sair")

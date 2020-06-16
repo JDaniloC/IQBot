@@ -10,7 +10,7 @@ otc = True|False
 valor = 1-inf
 tempo = 1|5|15
 profit_minimo = 0-100
-correcao_entrada = 0-60
+correcao_entrada = 0-inf
 
 [WIN]
 goal = 2-inf
@@ -19,4 +19,5 @@ soros = True|False
 [LOSS]
 stoploss = 1-inf
 martin = True|False
+max_gale = 1-inf
 tipo_gale = seguro|simples|leve|agressivo
