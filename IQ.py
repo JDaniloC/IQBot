@@ -79,7 +79,7 @@ class IQ_API:
         Mostra o perfil de forma simplificada e devolve o dicionário com mais informações
         return: dict
         '''
-        profile = self.API.get_profile_ansyc()
+        profile = self.API.get_profile()['result']
         resultado = f"""
         [Perfil]
 Email: {profile['email']}
@@ -123,19 +123,32 @@ Todas as carteiras:\n"""
         return resultado
 
     def payout_digital(self, par, timeframe = 1):
-        self.API.subscribe_strike_list(par, timeframe)
-        while True:
-            resultado = self.API.get_digital_current_profit(par, timeframe)
-            if resultado:
-                resultado = int(resultado)
-                break
-            time.sleep(1)
-        self.API.unsubscribe_strike_list(par, timeframe)
-        return resultado
+        '''
+        Devolve o payout de uma paridade digital
+        '''
+        try:
+            self.API.subscribe_strike_list(par, timeframe)
+            while True:
+                resultado = self.API.get_digital_current_profit(par, timeframe)
+                if resultado:
+                    resultado = int(resultado)
+                    break
+                time.sleep(1)
+            self.API.unsubscribe_strike_list(par, timeframe)
+            return resultado
+        except:
+            return False
 
     def payout_binaria(self, par):
+        '''
+        Devolve o payout de uma paridade binária
+        caso não tem esse par, então devolve False
+        '''
         payouts = self.API.get_all_profit()
-        return payouts[par]['binary'] * 100
+        valor = payouts.get(par)
+        if valor == None:
+            return False
+        return valor['binary'] * 100 if valor.get("binary") else valor["turbo"] * 100
 
     def abertas(self, tipo = "digital"):
         '''
@@ -153,8 +166,9 @@ Todas as carteiras:\n"""
             payouts = self.API.get_all_profit()
             for par in paridades["turbo"]:
                 if paridades['turbo'][par]["open"]: 
-                    abertas[str(par)] = (payouts[par]['turbo'], payouts[par]['binary'])
-                    print(f"[TURBO] {par} - {int(payouts[par]['turbo'] * 100) if type(payouts[par]['turbo']) != dict else '00'}% {int(payouts[par]['binary'] * 100) if type(payouts[par]['binary']) != dict else '00'}%")
+                    abertas[str(par)] = payouts[par]['turbo'] * 100
+                    
+                    print(f"[TURBO] {par} - {int(payouts[par]['turbo'] * 100) if type(payouts[par]['turbo']) != dict else '00'}%")
         else:
             for par in paridades["digital"]:
                 if paridades['digital'][par]["open"]: 
@@ -218,7 +232,7 @@ Todas as carteiras:\n"""
             identificador = self.API.buy_digital_spot(par, valor, direcao, tempo)
             
             if isinstance(identificador, int):
-                print(f"Operação realizada: {par}-{tipo} {direcao} ${valor} {tempo}s")
+                print(f"Operação realizada: {par}-{tipo} {direcao} ${round(valor, 2)} {tempo}s")
 
                 status = False
                 while not status:
@@ -236,6 +250,13 @@ Todas as carteiras:\n"""
                 resultado, lucro = "erro", 0
                 print(identificador)
         return resultado, round(lucro, 2)
+    
+    def codyTrade(self):
+        inicio = 1
+        final = 5
+        lista = self.API.get_leader_board('Worldwide', inicio, final, 0)
+        resultado = json.dumps(lista, indent = 1)
+        return resultado
 
     @staticmethod
     def esperarAte(horas, minutos, segundos = 0):
@@ -245,7 +266,7 @@ Todas as carteiras:\n"""
         alvo = datetime.now().replace(hour = horas, minute = minutos, second = segundos, microsecond = 0)
         segundos = alvo.timestamp() - datetime.now().timestamp()
         if segundos > 10:
-            print(f" [...] Esperando até {alvo} [...]")
+            print(f"\n [...] Esperando até {alvo} [...]")
             time.sleep(segundos)
             return True
         if segundos > -10:
