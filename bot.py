@@ -260,4 +260,6 @@ if __name__ == "__main__":
 		
         linhas = " -> ".join(re.findall(r'line \d+', str(traceback.extract_tb(e.__traceback__))))
         with open("errors.log", "a") as file:
-			file.write(f"{type(e)} - {e}:\n{linhas}\n")
+            file.write(f"{type(e)} - {e}:\n{linhas}\n")
+    finally:
+        input("Digite Enter para sair")
