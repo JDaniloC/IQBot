@@ -80,9 +80,6 @@ class Operacao(IQ_API):
         '''
         espera = []
 
-        binarias = self.abertas("binary") if self.tipo == "auto" else {}
-        digitais = self.abertas() if self.tipo == "auto" else {}
-
         for comando in self.comandos:
 
             horas, minutos = comando["hora"]
@@ -96,6 +93,9 @@ class Operacao(IQ_API):
             else:
                 segundos = 0
             if self.esperarAte(horas, minutos, segundos):
+
+                binarias = self.abertas("binary") if self.tipo == "auto" else {}
+                digitais = self.abertas() if self.tipo == "auto" else {}
 
                 par = comando['par']
                 par += "-OTC" if self.config["otc"] else ""

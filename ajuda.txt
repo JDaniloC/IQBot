@@ -7,7 +7,7 @@ O que significa:
  - senha: senha da conta
  - tipo: se é a conta treino ou real
  - arquivo: nome do arquivo que vai estar as entradas
- - tipo_par: se a paridade é binaria ou digital
+ - tipo_par: se a paridade é binaria/digital, se colocar auto, ele vai ver qual está disponível, ou tem maior profit
  - otc: se o tipo for binário e OTC
  - valor: o valor da entrada
  - tempo: o tempo da entrada
@@ -28,7 +28,7 @@ tipo = treino|real
 
 [ENTRADAS]
 arquivo = entradas.txt
-tipo_par = binaria|digital
+tipo_par = binaria|digital|auto
 otc = True|False
 valor = 1-inf
 tempo = 1|5|15

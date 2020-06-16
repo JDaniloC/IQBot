@@ -5,7 +5,7 @@ tipo = treino|real
 
 [ENTRADAS]
 arquivo = entradas.txt
-tipo_par = binaria|digital
+tipo_par = binaria|digital|auto
 otc = True|False
 valor = 1-inf
 tempo = 1|5|15
