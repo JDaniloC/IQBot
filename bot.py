@@ -7,17 +7,56 @@ import re, threading, traceback
 print("\n[Comando para parar: Ctrl + C]\n")
 
 class Operacao(IQ_API):
+    logo = ('''
+                   ******                                               
+                ***********                                             
+               ************                                             
+                 ***********                                            
+                         *****       .,,,,,,,,,,,,,,,,,                 
+                            *****,,,,,/(((((((#(((((,,,,,,              
+                              ,*****/(((,,,,,,,,,((((#(,*,,             
+                             ,,,,*****,,,.*//,,,,,,,((((.,,,*           
+                           ,,*((((,*****,///(/((/,,,,((((,,,,*          
+                          ,,,(((,,,,//,,*,,,,/(((,,,,#(((,,,,*/         
+                         ,,,((((,,,////,,.,..////,,,/(((*,,,***         
+               @@@@@##   .,,//@@@@@//////(//(//..*@@@@@/,,,,,*. ((@@@@  
+               @&@@@@##  ,,,/@@@@@@/,,(///(/,,,,,*@@@@@@/,,,,, ((@@@@@  
+               @&*@@@@## ,,,@@*&@@@/,,,,,,,,,,/(//@@,@@@@/,,  ((@&*@@@  
+               @&**@@@@##,,@@*.@@@@/((//(((((((((*@@,,&@@@/  ((@@**@@@  
+               @&/* @@@@##@@*.,&@@@/(((((((*,,*,,*@@..,&@@@@/(@  **@@@  
+               @&/*  @@@@@@*   &@@@/,,,,,,,,,,,..*@@.  ,%@@@@@   **@@@  
+               @&/*   @@@@*    %@@@/......&(.....,@@    .#@@@    **@@@  
+               @&/,    @@*     %@@@      @*@      @@      /@      *@@@  
+                                                           
+''')
+
+    welcome = ('''
+  ____          _           _                                _             _             
+ / ___|   ___  (_)  __ _   | |__    ___  _ __ ___    __   __(_) _ __    __| |  ___       
+ \___ \  / _ \ | | / _` |  | '_ \  / _ \| '_ ` _ \   \ \ / /| || '_ \  / _` | / _ \      
+  ___) ||  __/ | || (_| |  | |_) ||  __/| | | | | |   \ V / | || | | || (_| || (_) |     
+ |____/  \___|_/ | \__,_|  |_.__/  \___||_| |_| |_|    \_/  |_||_| |_| \__,_| \___/      
+             |__/                                                                        
+                  ____         _               __  __     __  __       ___    ___  _____ 
+   __ _   ___    |  _ \  ___  | |__    ___    |  \/  |   |  \/  |     / _ \  / _ \|___  |
+  / _` | / _ \   | |_) |/ _ \ | '_ \  / _ \   | |\/| |   | |\/| |    | | | || | | |  / / 
+ | (_| || (_) |  |  _ <| (_) || |_) || (_) |  | |  | | _ | |  | |    | |_| || |_| | / /  
+  \__,_| \___/   |_| \_\\\\___/ |_.__/  \___/   |_|  |_|(_)|_|  |_|_____\___/  \___/ /_/   
+                                                                |_____|                  
+''')
     def __init__(self, config, comandos):
         self.cadeado = threading.Lock()
 
         self.config = config
         self.comandos = comandos
-        self.ganhoTotal = 0
-        self.perdaTotal= 0
+        self.total = 0
 
         try:
             super().__init__(config['email'], config['senha'])
             
+            print(self.logo, flush = True)
+            print(self.welcome, flush = True)
+
             if config['tipo_conta'] == "treino":
                 self.mudar_treino()
             else:
@@ -44,36 +83,32 @@ class Operacao(IQ_API):
     def operar(self, valor, par, ordem, payout, tipo):
         '''
         Faz a operação e a depender da configuração faz:
-        Martingale/Sorosgale e calcula o ganhoTotal/perdaTotal
+        Martingale/Sorosgale e calcula o total
         '''
         
-        resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo)
+        resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo, self.cadeado)
+        perda = 0
         if resultado == "win" and self.config['soros']:
             print(f"\n [SOROS GALE] : {valor} -> {valor + lucro}")
             with self.cadeado:
                 self.valor += lucro
         if resultado == "loose" and self.config['martin']:
-            perda = 0
             num_gales = 0
             print(f"[MARTIN GALE] do tipo {self.config['tipo_gale']} na operação {par}|{ordem}")
             while resultado != "win" and perda < self.config['stoploss'] and self.max_gale > num_gales:
                 perda += abs(lucro)
                 valor = self.martingale(self.config['tipo_gale'], payout, perda, valor, self.valor * payout)
-                resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo)
+                resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo, self.cadeado)
                 num_gales += 1
 
         if resultado not in ["error", "equal"]:
             with self.cadeado:
                 if resultado == "win":
-                    self.ganhoTotal += abs(lucro)
-                    self.perdaTotal -= abs(lucro)
-                    self.perdaTotal = max(0, self.perdaTotal)
-                elif resultado == "loose":
-                    self.perdaTotal += abs(lucro)
-                    self.ganhoTotal -= abs(lucro)
-                    self.ganhoTotal = max(0, self.ganhoTotal)
+                    self.total += round(lucro, 2) - perda
+                else:
+                    self.total -= round(perda, 2)
 
-            print(f"\n | {round(self.ganhoTotal/self.config['goal'] * 100, 2)}% perto do objetivo | {round(self.perdaTotal/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
+            print(f"\n | {round(self.total/self.config['goal'] * 100, 2)}% perto do objetivo | {round(-self.total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
         elif resultado == "error":
             print(f"\nErro na operação das {threading.current_thread().name}")
 
@@ -128,40 +163,32 @@ class Operacao(IQ_API):
                     espera.append(thread)
                     thread.start()
 
-                if self.perdaTotal >= self.config['stoploss'] or self.ganhoTotal >= self.config['goal']:
+                if not (-self.config['stoploss'] < self.total < self.config['goal']):
                     break
         
         for thread in espera:
             thread.join()
 
         with self.cadeado:
-            print(f"\nFim da operação ganho total: {round(self.valores.ganhoTotal, 2)}\nPerda total {round(self.valores.perdaTotal, 2)}")
-
-def ver_gales(perdaInicial, taxa):
-    '''
-    Mostra na tela os tipos de martingale até a 10° perda
-    '''
-    tipos = ["SIMPLES", "LEVE", "AGRESSIVO", "SEGURO"]
-    for tipo in tipos:
-        print(tipo, "\n")
-        perda = perdaInicial
-        valor = perdaInicial
-        for j in range(10):
-            valor = IQ_API.martingale(tipo, taxa, perda, valor, perdaInicial//taxa)
-            print(f"Perdeu {round(perda, 2)} vai investir {round(valor, 2)} se ganhar {round(valor * taxa, 2)} onde o lucro vai ser {round(valor * taxa - perda, 2)}")
-            perda += valor
-        print()
+            print(f"\nFim da operação resultado final: {round(self.total, 2)}\n")
 
 def pegar_comando(texto):
     '''
     Recebe um texto e devolve a hora/par/ordem em forma de dicionário
     '''
-    data = re.search(r'\d{2}\W\d{2}\W\d{4}', texto)[0]
-    data = [int(x) for x in re.split(r"\W", data)]
-    hora = re.search(r'\d{2}:\d{2}', texto)[0]
-    hora = [int(x) for x in re.split(r'\W', hora)]
-    par = re.search(r'\w{6}', texto)[0]
-    ordem = re.search(r'CALL|PUT|call|put', texto)[0].lower()
+    try:
+        data = re.search(r'\d{2}\W\d{2}\W\d{4}', texto)[0]
+        data = [int(x) for x in re.split(r"\W", data)]
+        hora = re.search(r'\d{2}:\d{2}', texto)[0]
+        hora = [int(x) for x in re.split(r'\W', hora)]
+        par = re.search(r'\w{6}', texto)[0]
+        ordem = re.search(r'CALL|PUT|call|put', texto)[0].lower()
+    except:
+        print("Ocorreu um erro no arquivo de entradas, revise-as por favor.")
+        data = [1, 1, 2000]
+        hora = [00, 00]
+        par = "EURUSD"
+        ordem = "PUT"
 
     comando = {
         "data": data,
@@ -184,30 +211,31 @@ def abrir_arquivo(nome):
     
     comandos = []
     for entrada in entradas:
-        if entrada != '':
+        if entrada not in ['', '\n']:
             comando = pegar_comando(entrada)
             comandos.append(comando)
     return comandos
 
-def configuracoes():
+def configuracoes(nome = None):
     '''
     Carrega o arquivo de configuração e devolve um dicionário
     '''
+    if nome == None: nome = "config.txt"
     arquivo = RawConfigParser()
-    arquivo.read("config.txt")
+    arquivo.read(nome)
 
     config = {
         "email": arquivo.get("CONTA", "email"),
         "senha": arquivo.get("CONTA", "senha"),
         "tipo_conta": arquivo.get("CONTA", "tipo").lower(),
-        "goal": float(arquivo.get("WIN", "goal")),
+        "goal": float(arquivo.get("WIN", "goal").replace(",", ".")),
         "soros": arquivo.get("WIN", "soros").capitalize() == "True",
-        "stoploss": float(arquivo.get("LOSS", "stoploss")),
+        "stoploss": float(arquivo.get("LOSS", "stoploss").replace(",", ".")),
         "martin": arquivo.get("LOSS", "martin").capitalize() == "True",
         "tipo_gale": arquivo.get("LOSS", "tipo_gale").lower(),
         "max_gale": int(arquivo.get("LOSS", "max_gale")),
         "arquivo": arquivo.get("ENTRADAS", "arquivo"),
-        "valor": float(arquivo.get("ENTRADAS", "valor").capitalize()),
+        "valor": float(arquivo.get("ENTRADAS", "valor").replace(",", ".")),
         "tipo_par": arquivo.get("ENTRADAS", "tipo_par").lower(),
         "tempo": int(arquivo.get("ENTRADAS", "tempo")),
         "minimo": int(arquivo.get("ENTRADAS", "profit_minimo")),
@@ -216,6 +244,21 @@ def configuracoes():
     }
 
     return config
+
+def ver_gales(perdaInicial, taxa):
+    '''
+    Mostra na tela os tipos de martingale até a 10° perda
+    '''
+    tipos = ["SIMPLES", "LEVE", "AGRESSIVO", "SEGURO"]
+    for tipo in tipos:
+        print(tipo, "\n")
+        perda = perdaInicial
+        valor = perdaInicial
+        for j in range(10):
+            valor = IQ_API.martingale(tipo, taxa, perda, valor, perdaInicial//taxa)
+            print(f"Perdeu {round(perda, 2)} vai investir {round(valor, 2)} se ganhar {round(valor * taxa, 2)} onde o lucro vai ser {round(valor * taxa - perda, 2)}")
+            perda += valor
+        print()
 
 def recebe_comandos(comandos):
     '''
@@ -226,21 +269,28 @@ def recebe_comandos(comandos):
     '''
     if comandos != []:
         for i in range(len(comandos)):
-            if comandos[i] in ["-o", "arquivo"] and comandos[i:] != []:
-                operacoes = abrir_arquivo(comandos[i+1])
+            if comandos[i] in ["-t", "teste"]:
+                config = configuracoes()
+                for key, value in config.items():
+                    print(key, value)
+                
+                print()
+                
+                operacoes = abrir_arquivo(config["arquivo"])
                 for operacao in operacoes:
                     data = "/".join([str(x) for x in operacao['data']])
                     hora = ":".join([str(x) for x in operacao['hora']])
                     print(f"Data: {data}\nHora: {hora}\nParidade: {operacao['par']}\nOrdem: {operacao['ordem']}")
+                
+                return config
             elif comandos[i] in ["-m", "martin"]:
                 perdaInicial = float(input("Digite a perda inicial: "))
                 taxa = float(input("Digite a taxa (profit) [0 - 1]: "))
                 ver_gales(perdaInicial, taxa)
-            elif comandos[i] in ['-c', 'config']:
-                config = configuracoes()
-                for key, value in config.items():
-                    print(key, value)
-                return config
+            elif comandos[i] in ['-c', 'config'] and len(comandos[i:]) != 1:
+                config = configuracoes(comandos[i+1])
+                comandos = abrir_arquivo(config["arquivo"])
+                Operacao(config, comandos)
             elif comandos[i] in ["-h", "ajuda"]:
                 with open("ajuda.txt", "r+") as file:
                     for i in file:
@@ -248,13 +298,14 @@ def recebe_comandos(comandos):
             elif comandos[i] in ["-p", "perfil"]:
                 config = configuracoes()
                 api = IQ_API(config["email"], config["senha"])
+                api.perfil()
                 return api
             elif (i != 0 and comandos[i-1] not in ["-o", "-m", "-c", "-h", "-p"]) or i == 0:
                 print('''
                 [COMANDOS]
                 Ajuda: -h
-                Testar a leitura do arquivo: -o nomeDoArquivo
-                Testar a leitura da configuração: -c
+                Testar a leitura do arquivo/configuração: -t
+                Rodar o bot a partir de uma configuração: -c nomeDoArquivo
                 Verificar tipos de martingale: -m
                 ''')
     else:

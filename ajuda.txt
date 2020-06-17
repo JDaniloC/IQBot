@@ -1,4 +1,13 @@
-        [AJUDA]
+            [RUN]
+Para rodar, irá aparecer todos os comandos do bot:
+        python bot.py -h
+Para rodar diversas contas, crie um arquivo de configuração
+para cada uma das contas, e coloque o nome dos arquivos nome
+contas.txt sem nenhum espaço no final, depois: 
+   - Windows
+        powershell ./multi.ps1
+
+            [CONFIG]
 Arquivo de configuração:
  - As opções estarão na forma de primeira|segunda, escolha uma ou outra.
  - Caso tiver valor-outro significa uma sequência de qualquer valor. E inf significa infinito.
