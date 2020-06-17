@@ -142,7 +142,7 @@ Todas as carteiras:\n"""
 
         return abertas
 
-    def ordem(self, par, direcao = "call", tempo = 1, valor = 1, tipo = "binary"):
+    def ordem(self, par, direcao = "call", tempo = 1, valor = 1, tipo = "binary", bloqueador = None):
         '''
         Faz uma ordem e devolve o resultado.
         Params:
@@ -151,11 +151,16 @@ Todas as carteiras:\n"""
             tempo: 1, 10, 15
             valor: dinheiro investido 2 - saldo
             tipo: binary ou digital
+            bloqueador: caso estiver trabalhando com threads, um threading.Lock para não pegar o mesmo resultado.
         return:
             (resultado, lucro)
         '''
         if tipo == "binary":
-            status, identificador = self.API.buy(valor, par, direcao, tempo)
+            if bloqueador != None:
+                with bloqueador:
+                    status, identificador = self.API.buy(valor, par, direcao, tempo)
+            else:
+                status, identificador = self.API.buy(valor, par, direcao, tempo)
             if status:
                 print(f"Operação realizada: {par}-{tipo} {direcao} ${valor} {tempo}s")
 
@@ -166,7 +171,11 @@ Todas as carteiras:\n"""
                 print(f"  ! Um erro aconteceu: {par}-{tipo} {direcao} {valor}!")
                 resultado, lucro = "error", 0
         else:
-            identificador = self.API.buy_digital_spot(par, valor, direcao, tempo)
+            if bloqueador:
+                with bloqueador:
+                    identificador = self.API.buy_digital_spot(par, valor, direcao, tempo)
+            else:        
+                identificador = self.API.buy_digital_spot(par, valor, direcao, tempo)
             
             if isinstance(identificador, int):
                 print(f"Operação realizada: {par}-{tipo} {direcao} ${round(valor, 2)} {tempo}s")
@@ -181,7 +190,6 @@ Todas as carteiras:\n"""
                 else:
                     resultado = "loose"
                     print(f"LOSS: {round(lucro, 2)}")
-                verificador = False
 
             else:
                 print(f"  ! Um erro aconteceu: {par}-{tipo} {direcao} {valor}!")

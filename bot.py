@@ -138,13 +138,20 @@ def pegar_comando(texto):
     '''
     Recebe um texto e devolve a hora/par/ordem em forma de dicionário
     '''
-    data = re.search(r'\d{2}\W\d{2}\W\d{4}', texto)[0]
-    data = [int(x) for x in re.split(r"\W", data)]
-    hora = re.search(r'\d{2}:\d{2}', texto)[0]
-    hora = [int(x) for x in re.split(r'\W', hora)]
-    par = re.search(r'\w{6}', texto)[0]
-    ordem = re.search(r'CALL|PUT|call|put', texto)[0].lower()
-
+    try:
+        data = re.search(r'\d{2}\W\d{2}\W\d{4}', texto)[0]
+        data = [int(x) for x in re.split(r"\W", data)]
+        hora = re.search(r'\d{2}:\d{2}', texto)[0]
+        hora = [int(x) for x in re.split(r'\W', hora)]
+        par = re.search(r'\w{6}', texto)[0]
+        ordem = re.search(r'CALL|PUT|call|put', texto)[0].lower()
+    except:
+        print("Ocorreu um erro no arquivo de entradas, revise-as por favor.")
+        data = [1, 1, 2000]
+        hora = [00, 00]
+        par = "EURUSD"
+        ordem = "PUT"
+    
     comando = {
         "data": data,
         "hora": hora,
@@ -166,7 +173,7 @@ def abrir_arquivo(nome):
     
     comandos = []
     for entrada in entradas:
-        if entrada != '':
+        if entrada not in ['', '\n']:
             comando = pegar_comando(entrada)
             comandos.append(comando)
     return comandos
@@ -182,14 +189,14 @@ def configuracoes():
         "email": arquivo.get("CONTA", "email"),
         "senha": arquivo.get("CONTA", "senha"),
         "tipo_conta": arquivo.get("CONTA", "tipo").lower(),
-        "goal": float(arquivo.get("WIN", "goal")),
+        "goal": float(arquivo.get("WIN", "goal").replace(",", ".")),
         "soros": arquivo.get("WIN", "soros").capitalize() == "True",
-        "stoploss": float(arquivo.get("LOSS", "stoploss")),
+        "stoploss": float(arquivo.get("LOSS", "stoploss").replace(",", ".")),
         "martin": arquivo.get("LOSS", "martin").capitalize() == "True",
         "tipo_gale": arquivo.get("LOSS", "tipo_gale").lower(),
         "max_gale": int(arquivo.get("LOSS", "max_gale")),
         "arquivo": arquivo.get("ENTRADAS", "arquivo"),
-        "valor": float(arquivo.get("ENTRADAS", "valor").capitalize()),
+        "valor": float(arquivo.get("ENTRADAS", "valor").replace(",", ".")),
         "tipo_par": arquivo.get("ENTRADAS", "tipo_par").lower(),
         "tempo": int(arquivo.get("ENTRADAS", "tempo")),
         "minimo": int(arquivo.get("ENTRADAS", "profit_minimo")),
