@@ -1,6 +1,0 @@
-<class 'TypeError'> - configuracoes() takes 0 positional arguments but 1 was given:
-line 317 -> line 290
-<class 'ValueError'> - could not convert string to float: '2-inf':
-line 318 -> line 291 -> line 231
-<class 'ValueError'> - could not convert string to float: '2-inf':
-line 318 -> line 291 -> line 231

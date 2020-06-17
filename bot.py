@@ -89,12 +89,12 @@ class Operacao(IQ_API):
         resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo, self.cadeado)
         perda = 0
         if resultado == "win" and self.config['soros']:
-            print(f"\n [SOROS GALE] : {valor} -> {valor + lucro}")
+            print(f"\n [SOROS GALE] : {self.valor} -> {self.valor + lucro}")
             self.valor += lucro
         if resultado == "loose" and self.config['martin']:
             num_gales = 0
-            print(f"[MARTIN GALE] do tipo {self.config['tipo_gale']} na operação {par}|{ordem}")
-            while resultado != "win" and perda < self.config['stoploss'] and self.max_gale > num_gales:
+            print(f"\n [MARTIN GALE] do tipo {self.config['tipo_gale']} na operação {par}|{ordem}")
+            while resultado != "win" and -(self.total - perda) < self.config['stoploss'] and self.max_gale > num_gales and self.config['goal'] > self.total:
                 perda += abs(lucro)
                 valor = self.martingale(self.config['tipo_gale'], payout, perda, valor, self.valor * payout)
                 resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo, self.cadeado)
@@ -130,6 +130,8 @@ class Operacao(IQ_API):
             else:
                 segundos = 0
             if self.esperarAte(horas, minutos, segundos, data):
+                if not (-self.config['stoploss'] < self.total < self.config['goal']):
+                    break
 
                 binarias = self.abertas("binary") if self.tipo == "auto" else {}
                 digitais = self.abertas() if self.tipo == "auto" else {}
@@ -161,12 +163,7 @@ class Operacao(IQ_API):
                         )
                     espera.append(thread)
                     thread.start()
-                
-                if -self.config['stoploss'] < self.total < self.config['goal']:
-                    pass
-                else:
-                    break
-        
+                        
         for thread in espera:
             thread.join()
 
@@ -223,7 +220,7 @@ def configuracoes(nome = None):
     if nome == None: nome = "config.txt"
     arquivo = RawConfigParser()
     arquivo.read(nome)
-
+ 
     config = {
         "email": arquivo.get("CONTA", "email"),
         "senha": arquivo.get("CONTA", "senha"),
