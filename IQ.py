@@ -142,6 +142,34 @@ Todas as carteiras:\n"""
 
         return abertas
 
+    def aberta_profit(self, par):
+        '''
+        Verifica se a paridade está aberta e devolve o profit
+        de forma que seja otimizado, devolvendo ambos os tipos
+        Se nao estiver aberta, irá devolver False, 0
+        Irá devolver (statusBinary, profitBinary, statusDigital, profitDigital)
+        Params:
+            - par: paridade
+        return:
+            {"binary": (bool, int), "digital": (bool, int)}
+        '''
+        abertas = self.API.get_all_open_time()
+
+        binary, profit_binary = False, 0
+        digital, profit_digital = False, 0
+        try:
+            if abertas["digital"][par]["open"]:
+                digital, profit_digital = True, self.payout_digital(par)
+        except: pass
+
+        try:
+            if abertas["turbo"][par]["open"]:
+                payouts_binary = self.API.get_all_profit()
+                binary, profit_binary = True, payouts_binary[par]["turbo"] * 100
+        except: pass
+
+        return {"binary": (binary, profit_binary), "digital": (digital, profit_digital)}
+
     def ordem(self, par, direcao = "call", tempo = 1, valor = 1, tipo = "binary", bloqueador = None):
         '''
         Faz uma ordem e devolve o resultado.
@@ -229,6 +257,7 @@ Todas as carteiras:\n"""
                 agressivo (perca * 2.3)
                 leve (vai manter o lucro inicial)
                 seguro (apenas recupera o valor)
+                porcento (vai aumentar uma porcentagem)
             payout: profit da paridade
             perca: valor perdido
             valor: entrada do valor
@@ -241,5 +270,7 @@ Todas as carteiras:\n"""
             return round(valor * 2)
         elif tipo_martin == "leve":
             return (abs(perca) + lucro) / payout
-        else:
+        elif tipo_martin == "seguro":
             return round(abs(perca)/payout, 2)
+        else:
+            return round((abs(perca) + abs(perca) * lucro)/payout, 2)

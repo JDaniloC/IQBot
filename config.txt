@@ -15,9 +15,11 @@ correcao_entrada = 0-inf
 [WIN]
 goal = 2-inf
 soros = True|False
+percent_soros = 0-inf
 
 [LOSS]
 stoploss = 1-inf
 martin = True|False
+percent_martin = 0-inf
 max_gale = 1-inf
-tipo_gale = seguro|simples|leve|agressivo
+tipo_gale = seguro|simples|leve|agressivo|porcento

@@ -89,23 +89,36 @@ class Operacao(IQ_API):
         resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo, self.cadeado)
         perda = 0
         if resultado == "win" and self.config['soros']:
-            print(f"\n [SOROS GALE] : {self.valor} -> {self.valor + lucro}")
-            self.valor += lucro
+            with self.cadeado:
+                novo = self.valor + lucro if self.config["percent_soros"] == 0 else self.valor + self.valor * self.config["percent_soros"] / 100
+                print(f"\n [SOROS GALE] : {self.valor} -> {novo}")
+                self.valor = novo
         if resultado == "loose" and self.config['martin']:
             num_gales = 0
             print(f"\n [MARTIN GALE] do tipo {self.config['tipo_gale']} na operação {par}|{ordem}")
-            while resultado != "win" and -(self.total - perda) < self.config['stoploss'] and self.max_gale > num_gales and self.config['goal'] > self.total:
+            while (
+                resultado != "win" and 
+                self.max_gale > num_gales and 
+                self.config['goal'] > self.total):
+                
+                with self.cadeado:
+                    self.total -= round(abs(lucro), 2)
+                    if self.total < -(self.config['stoploss']):
+                        break
+
                 perda += abs(lucro)
-                valor = self.martingale(self.config['tipo_gale'], payout, perda, valor, self.valor * payout)
+                lucro = self.valor * payout if self.config["tipo_gale"] != "porcento" else self.config["percent_martin"] / 100
+                valor = self.martingale(self.config['tipo_gale'], payout, perda, valor, lucro)
+                
                 resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo, self.cadeado)
                 num_gales += 1
         
         if resultado not in ["error", "equal"]:
             with self.cadeado:
                 if resultado == "win":
-                    self.total += round(lucro, 2) - perda
-                else:
-                    self.total -= round(perda, 2)
+                    self.total += round(lucro, 2)
+                elif not self.config["martin"]:
+                    self.total -= round(abs(lucro), 2)
                 
             print(f"\n | {round(self.total/self.config['goal'] * 100, 2)}% perto do objetivo | {round(-self.total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
         elif resultado == "error":
@@ -133,24 +146,24 @@ class Operacao(IQ_API):
                 if not (-self.config['stoploss'] < self.total < self.config['goal']):
                     break
 
-                binarias = self.abertas("binary") if self.tipo == "auto" else {}
-                digitais = self.abertas() if self.tipo == "auto" else {}
-
                 par = comando['par']
                 par += "-OTC" if self.config["otc"] else ""
+
+                abertas = self.aberta_profit(par) if self.tipo == "auto" else {}
+
                 ordem = comando['ordem']
                 valor = self.valor
                 
                 if self.tipo == "auto":
-                    if (binarias.get(par) and digitais.get(par)) and (binarias[par] < digitais[par]):
+                    if (abertas.get("binary")[0] and abertas.get("digital")[0]) and (abertas["binary"][1] < abertas["digital"][1]):
                         tipo = "digital"
-                        payout = digitais[par] / 100
-                    elif binarias.get(par):
+                        payout = abertas["digital"][1] / 100
+                    elif abertas.get("binary")[0]:
                         tipo = "binary"
-                        payout = binarias.get(par) / 100
+                        payout = abertas["binary"][1] / 100
                     else:
                         tipo = "digital"
-                        payout = digitais[par] / 100
+                        payout = abertas["digital"][1] / 100
                 else:
                     payout = self.payout_binaria(par) / 100 if self.tipo == "binary" else self.payout_digital(par) / 100
                     tipo = self.tipo
@@ -227,10 +240,12 @@ def configuracoes(nome = None):
         "tipo_conta": arquivo.get("CONTA", "tipo").lower(),
         "goal": float(arquivo.get("WIN", "goal").replace(",", ".")),
         "soros": arquivo.get("WIN", "soros").capitalize() == "True",
+        "percent_soros": float(arquivo.get("WIN", "percent_soros").replace(",", ".")),
         "stoploss": float(arquivo.get("LOSS", "stoploss").replace(",", ".")),
         "martin": arquivo.get("LOSS", "martin").capitalize() == "True",
         "tipo_gale": arquivo.get("LOSS", "tipo_gale").lower(),
         "max_gale": int(arquivo.get("LOSS", "max_gale")),
+        "percent_martin": float(arquivo.get("LOSS", "percent_martin").replace(",", ".")),
         "arquivo": arquivo.get("ENTRADAS", "arquivo"),
         "valor": float(arquivo.get("ENTRADAS", "valor").replace(",", ".")),
         "tipo_par": arquivo.get("ENTRADAS", "tipo_par").lower(),
@@ -246,14 +261,17 @@ def ver_gales(perdaInicial, taxa):
     '''
     Mostra na tela os tipos de martingale até a 10° perda
     '''
-    tipos = ["SIMPLES", "LEVE", "AGRESSIVO", "SEGURO"]
+    tipos = ["SIMPLES", "LEVE", "AGRESSIVO", "SEGURO", "PORCENTO"]
     for tipo in tipos:
         print(tipo, "\n")
+        if tipo == "PORCENTO":
+            lucro = float(input("Porcentagem encima da perda [0 - 1]: "))
+        lucro = perdaInicial//taxa if tipo != "PORCENTO" else lucro
         perda = perdaInicial
         valor = perdaInicial
         for j in range(10):
-            valor = IQ_API.martingale(tipo, taxa, perda, valor, perdaInicial//taxa)
-            print(f"Perdeu {round(perda, 2)} vai investir {round(valor, 2)} se ganhar {round(valor * taxa, 2)} onde o lucro vai ser {round(valor * taxa - perda, 2)}")
+            valor = IQ_API.martingale(tipo, taxa, perda, valor, lucro)
+            print(f"Perdeu {round(perda, 2)} vai investir {round(valor, 2)} e vai ganhar {round(valor * taxa, 2)} onde o lucro vai ser {round(valor * taxa - perda, 2)}")
             perda += valor
         print()
 
