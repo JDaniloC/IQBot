@@ -184,10 +184,11 @@ class Operacao(IQ_API):
                         )
                     espera.append(thread)
                     thread.start()
-
-                if time.time() - ultima_vez > 1800:
-                    paridades = [x["par"] for x in self.comandos[self.comandos.index(comando):]]
-                    payouts = self.aberta_profit(paridades, self.config["otc"])
+                        
+                if self.tipo == "auto":
+                    if time.time() - ultima_vez > 1800:
+                        paridades = [x["par"] for x in self.comandos[self.comandos.index(comando):]]
+                        payouts = self.aberta_profit(paridades, self.config["otc"])
         for thread in espera:
             thread.join()
 
