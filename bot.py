@@ -2,47 +2,45 @@ from IQ import IQ_API
 from configparser import RawConfigParser
 from sys import argv
 from datetime import datetime
-import re, threading, traceback
+import re, threading, traceback, time
 
 print("\n[Comando para parar: Ctrl + C]\n")
 
 class Operacao(IQ_API):
     logo = ('''
-                   ******                                               
-                ***********                                             
-               ************                                             
-                 ***********                                            
-                         *****       .,,,,,,,,,,,,,,,,,                 
-                            *****,,,,,/(((((((#(((((,,,,,,              
-                              ,*****/(((,,,,,,,,,((((#(,*,,             
-                             ,,,,*****,,,.*//,,,,,,,((((.,,,*           
-                           ,,*((((,*****,///(/((/,,,,((((,,,,*          
-                          ,,,(((,,,,//,,*,,,,/(((,,,,#(((,,,,*/         
-                         ,,,((((,,,////,,.,..////,,,/(((*,,,***         
-               @@@@@##   .,,//@@@@@//////(//(//..*@@@@@/,,,,,*. ((@@@@  
-               @&@@@@##  ,,,/@@@@@@/,,(///(/,,,,,*@@@@@@/,,,,, ((@@@@@  
-               @&*@@@@## ,,,@@*&@@@/,,,,,,,,,,/(//@@,@@@@/,,  ((@&*@@@  
-               @&**@@@@##,,@@*.@@@@/((//(((((((((*@@,,&@@@/  ((@@**@@@  
-               @&/* @@@@##@@*.,&@@@/(((((((*,,*,,*@@..,&@@@@/(@  **@@@  
-               @&/*  @@@@@@*   &@@@/,,,,,,,,,,,..*@@.  ,%@@@@@   **@@@  
-               @&/*   @@@@*    %@@@/......&(.....,@@    .#@@@    **@@@  
-               @&/,    @@*     %@@@      @*@      @@      /@      *@@@  
+       ******                                               
+    ***********                                             
+   ************                                             
+     ***********                                            
+             *****       .,,,,,,,,,,,,,,,,,                 
+                *****,,,,,/(((((((#(((((,,,,,,              
+                  ,*****/(((,,,,,,,,,((((#(,*,,             
+                 ,,,,*****,,,.*//,,,,,,,((((.,,,*           
+               ,,*((((,*****,///(/((/,,,,((((,,,,*          
+              ,,,(((,,,,//,,*,,,,/(((,,,,#(((,,,,*/         
+             ,,,((((,,,////,,.,..////,,,/(((*,,,***         
+   @@@@@##   .,,//@@@@@//////(//(//..*@@@@@/,,,,,*. ((@@@@  
+   @&@@@@##  ,,,/@@@@@@/,,(///(/,,,,,*@@@@@@/,,,,, ((@@@@@  
+   @&*@@@@## ,,,@@*&@@@/,,,,,,,,,,/(//@@,@@@@/,,  ((@&*@@@  
+   @&**@@@@##,,@@*.@@@@/((//(((((((((*@@,,&@@@/  ((@@**@@@  
+   @&/* @@@@##@@*.,&@@@/(((((((*,,*,,*@@..,&@@@@/(@  **@@@  
+   @&/*  @@@@@@*   &@@@/,,,,,,,,,,,..*@@.  ,%@@@@@   **@@@  
+   @&/*   @@@@*    %@@@/......&(.....,@@    .#@@@    **@@@  
+   @&/,    @@*     %@@@      @*@      @@      /@      *@@@  
                                                            
 ''')
 
-    welcome = ('''
-  ____          _           _                                _             _             
- / ___|   ___  (_)  __ _   | |__    ___  _ __ ___    __   __(_) _ __    __| |  ___       
- \___ \  / _ \ | | / _` |  | '_ \  / _ \| '_ ` _ \   \ \ / /| || '_ \  / _` | / _ \      
-  ___) ||  __/ | || (_| |  | |_) ||  __/| | | | | |   \ V / | || | | || (_| || (_) |     
- |____/  \___|_/ | \__,_|  |_.__/  \___||_| |_| |_|    \_/  |_||_| |_| \__,_| \___/      
-             |__/                                                                        
-                  ____         _               __  __     __  __       ___    ___  _____ 
-   __ _   ___    |  _ \  ___  | |__    ___    |  \/  |   |  \/  |     / _ \  / _ \|___  |
-  / _` | / _ \   | |_) |/ _ \ | '_ \  / _ \   | |\/| |   | |\/| |    | | | || | | |  / / 
- | (_| || (_) |  |  _ <| (_) || |_) || (_) |  | |  | | _ | |  | |    | |_| || |_| | / /  
-  \__,_| \___/   |_| \_\\\\___/ |_.__/  \___/   |_|  |_|(_)|_|  |_|_____\___/  \___/ /_/   
-                                                                |_____|                  
+    welcome = ('''                                                          
+  ___       _        _                      _         _         
+ / __| ___ (_)__ _  | |__  ___ _ __ _____ _(_)_ _  __| |___     
+ \__ \/ -_)| / _` | | '_ \/ -_) '  \___\ V / | ' \/ _` / _ \    
+ |___/\___|/ \__,_| |_.__/\___|_|_|_|   \_/|_|_||_\__,_\___/    
+         |__/                                                   
+             ___     _           __  __   __  __   __   __ ____ 
+  __ _ ___  | _ \___| |__  ___  |  \/  | |  \/  | /  \ /  \__  |
+ / _` / _ \ |   / _ \ '_ \/ _ \ | |\/| |_| |\/| || () | () |/ / 
+ \__,_\___/ |_|_\___/_.__/\___/ |_|  |_(_)_|  |_|_\__/ \__//_/  
+                                               |___|           
 ''')
 
     def __init__(self, config, comandos):
@@ -91,7 +89,7 @@ class Operacao(IQ_API):
         if resultado == "win" and self.config['soros']:
             with self.cadeado:
                 novo = self.valor + lucro if self.config["percent_soros"] == 0 else self.valor + self.valor * self.config["percent_soros"] / 100
-                print(f"\n [SOROS GALE] : {self.valor} -> {novo}")
+                print(f"\n [SOROS GALE] : {round(self.valor, 2)} -> {round(novo, 2)}")
                 self.valor = novo
         if resultado == "loose" and self.config['martin']:
             num_gales = 0
@@ -104,7 +102,8 @@ class Operacao(IQ_API):
                 with self.cadeado:
                     self.total -= round(abs(lucro), 2)
                     if self.total < -(self.config['stoploss']):
-                        break
+                        print(f"BATEU NO STOPLOSS: {self.total}!")
+                        exit(0)
 
                 perda += abs(lucro)
                 lucro = self.valor * payout if self.config["tipo_gale"] != "porcento" else self.config["percent_martin"] / 100
@@ -133,6 +132,13 @@ class Operacao(IQ_API):
         '''
         espera = []
 
+        if self.tipo == "auto":
+            ultima_vez = time.time()
+            paridades = [x["par"] for x in self.comandos]
+            for par in paridades:
+                self.API.subscribe_strike_list(par, self.config["otc"])
+            payouts = self.aberta_profit(paridades, self.config["otc"])
+
         for comando in self.comandos:
             
             data = comando["data"]
@@ -143,30 +149,32 @@ class Operacao(IQ_API):
             else:
                 segundos = 0
             if self.esperarAte(horas, minutos, segundos, data):
-                if not (-self.config['stoploss'] < self.total < self.config['goal']):
-                    break
 
                 par = comando['par']
                 par += "-OTC" if self.config["otc"] else ""
 
-                abertas = self.aberta_profit(par) if self.tipo == "auto" else {}
-
                 ordem = comando['ordem']
                 valor = self.valor
-                
+
                 if self.tipo == "auto":
-                    if (abertas.get("binary")[0] and abertas.get("digital")[0]) and (abertas["binary"][1] < abertas["digital"][1]):
+                    if ((payouts["binary"][par][0] and payouts["digital"][par][0]) 
+                        and 
+                        (payouts["binary"][par][1] < payouts["digital"][par][1])):
                         tipo = "digital"
-                        payout = abertas["digital"][1] / 100
-                    elif abertas.get("binary")[0]:
+                        payout = payouts["digital"][par][1]
+                    elif payouts["binary"][par][0]:
                         tipo = "binary"
-                        payout = abertas["binary"][1] / 100
+                        payout = payouts["binary"][par][1]
                     else:
                         tipo = "digital"
-                        payout = abertas["digital"][1] / 100
+                        payout = payouts["digital"][par][1]
                 else:
                     payout = self.payout_binaria(par) / 100 if self.tipo == "binary" else self.payout_digital(par) / 100
                     tipo = self.tipo
+
+                with self.cadeado:
+                    if not (-self.config['stoploss'] < self.total < self.config['goal']):
+                        break
                 
                 if self.config["minimo"] / 100 <= payout:
                     thread = threading.Thread(
@@ -176,11 +184,23 @@ class Operacao(IQ_API):
                         )
                     espera.append(thread)
                     thread.start()
-                        
+
+                if time.time() - ultima_vez > 1800:
+                    paridades = [x["par"] for x in self.comandos[self.comandos.index(comando):]]
+                    payouts = self.aberta_profit(paridades, self.config["otc"])
         for thread in espera:
             thread.join()
 
         print(f"\nFim da operação resultado final: {round(self.total, 2)}\n")
+
+        try:
+            if self.tipo == "auto":
+                for comando in self.comandos:
+                    par = comando["par"]
+                    par += "-OTC" if self.config["otc"] else ""
+                    self.API.unsubscribe_strike_list(par, self.config["tempo"])
+        except:
+            pass
 
 def pegar_comando(texto):
     '''

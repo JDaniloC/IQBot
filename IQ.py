@@ -83,7 +83,7 @@ Diferença de tempo: {profile["timediff"]}\n
 Saldo: {profile["currency_char"]} {profile["balance"]}
 Todas as carteiras:\n"""
         for tipo in profile['balances']:
-            resultado += tipo['currency'] + ": " + str(tipo["amount"]) + "\n"
+            resultado += tipo['currency'] + ": " + str(tipo["amount"]/1000000) + "\n"
         print(resultado)
         return profile
 
@@ -98,7 +98,7 @@ Todas as carteiras:\n"""
                 if resultado:
                     resultado = int(resultado)
                     break
-                time.sleep(1)
+                time.sleep(0.5)
             self.API.unsubscribe_strike_list(par, timeframe)
             return resultado
         except:
@@ -115,7 +115,7 @@ Todas as carteiras:\n"""
             return False
         return valor['binary'] * 100 if valor.get("binary") else valor["turbo"] * 100
     
-    def abertas(self, tipo = "digital"):
+    def abertas(self):
         '''
         Exibe todas as paridades abertas
         Devolve um dicionário onde a chave é a paridade
@@ -123,52 +123,64 @@ Todas as carteiras:\n"""
         return:
             dict: tuple
         '''
-        print(f"\nParidades abertas\n")
+        print(f"\nChecando as paridades abertas...\n")
         paridades = self.API.get_all_open_time()
         abertas = {}
 
-        if tipo != "digital":
-            payouts = self.API.get_all_profit()
-            for par in paridades["turbo"]:
-                if paridades['turbo'][par]["open"]: 
-                    abertas[str(par)] = payouts[par]['turbo'] * 100
-                    
-                    print(f"[TURBO] {par} - {int(payouts[par]['turbo'] * 100) if type(payouts[par]['turbo']) != dict else '00'}%")
-        else:
-            for par in paridades["digital"]:
-                if paridades['digital'][par]["open"]: 
-                    abertas[str(par)] = self.payout_digital(par)
-                    print(f"[DIGITAL] {par} {self.payout_digital(par)}%")
+        payouts = self.API.get_all_profit()
+        for par in paridades["turbo"]:
+            if paridades['turbo'][par]["open"]: 
+                abertas[str(par)] = payouts[par]['turbo'] * 100
+                
+                print(f"[TURBO] {par} - {int(payouts[par]['turbo'] * 100) if type(payouts[par]['turbo']) != dict else '00'}%")
+        for par in paridades["digital"]:
+            if paridades['digital'][par]["open"]: 
+                abertas[str(par)] = self.payout_digital(par)
+                print(f"[DIGITAL] {par} {self.payout_digital(par)}%")
 
         return abertas
 
-    def aberta_profit(self, par):
+    def aberta_profit(self, paridades, otc):
         '''
         Verifica se a paridade está aberta e devolve o profit
         de forma que seja otimizado, devolvendo ambos os tipos
         Se nao estiver aberta, irá devolver False, 0
         Irá devolver (statusBinary, profitBinary, statusDigital, profitDigital)
+        Lembrando que ele considera que você já se inscreveu na digital
         Params:
             - par: paridade
         return:
-            {"binary": (bool, int), "digital": (bool, int)}
+            {
+            "binary": {
+                "EURUSD": [True, 0.76]
+            },
+            "digital": {
+                "EURUSD": [False, 0.95]
+            }
+        }
         '''
+        print("Buscando pariadades...")
+        payouts = {"binary":{}, "digital":{}}
         abertas = self.API.get_all_open_time()
+        todos_binary = self.API.get_all_profit()
 
-        binary, profit_binary = False, 0
-        digital, profit_digital = False, 0
-        try:
-            if abertas["digital"][par]["open"]:
-                digital, profit_digital = True, self.payout_digital(par)
-        except: pass
-
-        try:
+        for par in paridades:
+            par += "-OTC" if otc else ""
+            
             if abertas["turbo"][par]["open"]:
-                payouts_binary = self.API.get_all_profit()
-                binary, profit_binary = True, payouts_binary[par]["turbo"] * 100
-        except: pass
+                payouts["binary"][par] = [True, todos_binary[par]["turbo"]]
+            else:
+                payouts["binary"][par] = [False]
 
-        return {"binary": (binary, profit_binary), "digital": (digital, profit_digital)}
+            if abertas['digital'][par]["open"]:
+                payout_digital = self.API.get_digital_current_profit(par, self.config["tempo"])
+                payouts["digital"][par] = [
+                    True, 
+                    payout_digital // 100 if payout_digital else 0.7
+                    ]
+            else:
+                payouts["digital"][par] = [False]
+        return payouts
 
     def ordem(self, par, direcao = "call", tempo = 1, valor = 1, tipo = "binary", bloqueador = None):
         '''
@@ -190,11 +202,14 @@ Todas as carteiras:\n"""
             else:
                 status, identificador = self.API.buy(valor, par, direcao, tempo)
             if status:
-                print(f"Operação realizada: {par}-{tipo} {direcao} ${valor} {tempo}s")
+                print(f"Operação realizada: {par}-{tipo} {direcao} ${round(valor, 2)} {tempo}s")
 
                 resultado, lucro = self.API.check_win_v4(identificador)
 
-                print(f"\n $$$ {resultado}: {round(lucro, 2)} $$$")
+                if resultado == "win":
+                    print(f"\n  WIN: \033[32m R${round(lucro, 2)} \033[0m  ")
+                else:
+                    print(f"\n  {resultado.capitalize()}: \033[31m R${round(lucro, 2)} \033[0m  ")
             else:
                 print(f"  ! Um erro aconteceu: {par}-{tipo} {direcao} {valor}!")
                 resultado, lucro = "error", 0
@@ -214,10 +229,10 @@ Todas as carteiras:\n"""
 
                 if lucro > 0:
                     resultado = "win"
-                    print(f"WIN: {round(lucro, 2)}")
+                    print(f"\n  WIN: \033[32m R${round(lucro, 2)} \033[0m  ")
                 else:
                     resultado = "loose"
-                    print(f"LOSS: {round(lucro, 2)}")
+                    print(f"\n  LOSS: \033[31m R${round(lucro, 2)} \033[0m  ")
 
             else:
                 print(f"  ! Um erro aconteceu: {par}-{tipo} {direcao} {valor}!")

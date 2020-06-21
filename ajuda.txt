@@ -7,6 +7,12 @@ contas.txt sem nenhum espaço no final, depois:
    - Windows
         powershell ./multi.ps1
 
+            [ERROS COMUNS]
+Se acontecer algum erro desses, apenas rode novamente:
+ - FileNotFoundError
+ - ssl.SSLEOFError
+ - ssl.SSLError
+
             [CONFIG]
 Arquivo de configuração:
  - As opções estarão na forma de primeira|segunda, escolha uma ou outra.
