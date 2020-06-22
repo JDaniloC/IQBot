@@ -91,7 +91,9 @@ Todas as carteiras:\n"""
         '''
         Devolve o payout de uma paridade digital
         '''
+        print("Procurando profit digital")
         try:
+            contador = 0
             self.API.subscribe_strike_list(par, timeframe)
             while True:
                 resultado = self.API.get_digital_current_profit(par, timeframe)
@@ -99,7 +101,12 @@ Todas as carteiras:\n"""
                     resultado = int(resultado)
                     break
                 time.sleep(0.5)
+                contador += 1
+                if contador == 60:
+                    print("Cancelando PROFIT")
+                    return False
             self.API.unsubscribe_strike_list(par, timeframe)
+            print("Devolvendo o PROFIT")
             return resultado
         except:
             return False

@@ -1,3 +1,5 @@
+Versão 1.7 - Config UI and reconnect if error
+
             [RUN]
 Para rodar, irá aparecer todos os comandos do bot:
         python bot.py -h
@@ -14,6 +16,7 @@ Se acontecer algum erro desses, apenas rode novamente:
  - ssl.SSLError
 
             [CONFIG]
+Caso quiser configurar via interface gráfica, rode o arquivo config.py!
 Arquivo de configuração:
  - As opções estarão na forma de primeira|segunda, escolha uma ou outra.
  - Caso tiver valor-outro significa uma sequência de qualquer valor. E inf significa infinito.

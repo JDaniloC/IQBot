@@ -6,6 +6,11 @@ import re, threading, traceback, time
 
 print("\n[Comando para parar: Ctrl + C]\n")
 
+def escreve_erros(erro):
+    linhas = " -> ".join(re.findall(r'line \d+', str(traceback.extract_tb(erro.__traceback__))))
+    with open("errors.log", "a") as file:
+        file.write(f"{type(erro)} - {erro}:\n{linhas}\n")
+
 class Operacao(IQ_API):
     logo = ('''
        ******                                               
@@ -43,41 +48,47 @@ class Operacao(IQ_API):
                                                |___|           
 ''')
 
-    def __init__(self, config, comandos):
+    def __init__(self, config, comandos, maximo = 0):
+        self.maximo = maximo
         self.cadeado = threading.Lock()
 
         self.config = config
         self.comandos = comandos
         self.total = 0
 
-        try:
-            super().__init__(config['email'], config['senha'])
-            
-            print(self.logo, flush = True)
-            print(self.welcome, flush = True)
+        if self.maximo < 3:
+            try:
+                super().__init__(config['email'], config['senha'])
+                
+                print(self.logo, flush = True)
+                print(self.welcome, flush = True)
 
-            if config['tipo_conta'] == "treino":
-                self.mudar_treino()
-            else:
-                self.mudar_real()
+                if config['tipo_conta'] == "treino":
+                    self.mudar_treino()
+                else:
+                    self.mudar_real()
 
-            if config['tipo_par'] == "auto":
-                self.tipo = config['tipo_par']
-            else:
-                self.tipo = "digital" if config['tipo_par'] == 'digital' else "binary"
+                if config['tipo_par'] == "auto":
+                    self.tipo = config['tipo_par']
+                else:
+                    self.tipo = "digital" if config['tipo_par'] == 'digital' else "binary"
 
-            self.valor = config['valor']
-            self.tempo = config['tempo']
-            self.max_gale = config["max_gale"]
+                self.valor = config['valor']
+                self.tempo = config['tempo']
+                self.max_gale = config["max_gale"]
 
-            self.computar()
-        except Exception as e:
-            print("Aconteceu na API, tente novamente.")
-            print("Se o erro persistir, chame o técnico.")
-            
-            linhas = " -> ".join(re.findall(r'line \d+', str(traceback.extract_tb(e.__traceback__))))
-            with open("errors.log", "a") as file:
-                file.write(f"{type(e)} - {e}:\n{linhas}\n")
+                self.computar()
+            except Exception as e:
+                print("Aconteceu um erro na API, tentando novamente.")
+                escreve_erros(e)
+                
+                try:
+                    print("Continuando as operações...")
+                    self.maximo += 1
+                    self.__init__(self.config, self.comandos, self.maximo)
+                except:
+                    print("Deu erro novamente! Finalizando o programa.")
+                    escreve_erros(e)
 
     def operar(self, valor, par, ordem, payout, tipo):
         '''
@@ -165,9 +176,12 @@ class Operacao(IQ_API):
                     elif payouts["binary"][par][0]:
                         tipo = "binary"
                         payout = payouts["binary"][par][1]
-                    else:
+                    elif payouts["digital"][par][0]:
                         tipo = "digital"
                         payout = payouts["digital"][par][1]
+                    else:
+                        print(f"{par} não está disponível nem binária nem digital")
+                        continue
                 else:
                     payout = self.payout_binaria(par) / 100 if self.tipo == "binary" else self.payout_digital(par) / 100
                     tipo = self.tipo
@@ -185,9 +199,11 @@ class Operacao(IQ_API):
                     espera.append(thread)
                     thread.start()
 
-                if time.time() - ultima_vez > 1800:
-                    paridades = [x["par"] for x in self.comandos[self.comandos.index(comando):]]
-                    payouts = self.aberta_profit(paridades, self.config["otc"])
+                if self.tipo == "auto":
+                    if time.time() - ultima_vez > 1800:
+                        print("Atualizando profits...")
+                        paridades = [x["par"] for x in self.comandos[self.comandos.index(comando):]]
+                        payouts = self.aberta_profit(paridades, self.config["otc"])
         for thread in espera:
             thread.join()
 
@@ -246,11 +262,10 @@ def abrir_arquivo(nome):
             comandos.append(comando)
     return comandos
 
-def configuracoes(nome = None):
+def configuracoes(nome = "config.txt"):
     '''
     Carrega o arquivo de configuração e devolve um dicionário
     '''
-    if nome == None: nome = "config.txt"
     arquivo = RawConfigParser()
     arquivo.read(nome)
  
@@ -357,8 +372,6 @@ if __name__ == "__main__":
         print("\nAconteceu um erro, tente novamente.")
         print("Se o erro persistir, chame o técnico.")
 		
-        linhas = " -> ".join(re.findall(r'line \d+', str(traceback.extract_tb(e.__traceback__))))
-        with open("errors.log", "a") as file:
-            file.write(f"{type(e)} - {e}:\n{linhas}\n")
+        escreve_erros(e)
     finally:
         input("\nDigite Enter para sair")
