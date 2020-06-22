@@ -235,7 +235,7 @@ def pegar_comando(texto):
         hora = [00, 00]
         par = "EURUSD"
         ordem = "PUT"
-    
+
     comando = {
         "data": data,
         "hora": hora,
