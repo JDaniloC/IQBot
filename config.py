@@ -5,12 +5,18 @@ from tkinter import messagebox
 from tkinter import ttk
 from tkinter.filedialog import askopenfilename
 
+DEFAULTFILE = "./config/config.txt"
+
 class Config(Frame):
+    '''
+    Objeto para facilitar a configuração
+    '''
     def __init__(self, janela):
         super().__init__(janela)
         self.janela = janela
         self.pack(fill=X, padx=5, pady=5)
         
+        # Um mapeamento para facilitar
         self.traducao = {
                 "entries":
                 {
@@ -44,6 +50,11 @@ class Config(Frame):
         self.widgets()
 
     def widgets(self):
+        '''
+        Coloca os widgets no Frame, e no fim
+        roda o método carregar.
+        '''
+        
         self.entradas = {
             "E-mail": None, 
             "Senha": None, 
@@ -111,9 +122,13 @@ class Config(Frame):
         Button(self, text = "Salvar", command = self.salvar).grid(row = pos, column = 1, columnspan = 2)
         Button(self, text = "Operar", command = self.operar).grid(row = pos, column = 2, columnspan = 2)
         
-        self.carregar("config.txt")
+        self.carregar(DEFAULTFILE)
 
     def carregar(self, nome = None):
+        '''
+        Método que carrega o arquivo do disco na interface
+        Vai até onde pode.
+        '''
         try:
             if nome == None: nome = askopenfilename()
             info = configuracoes(nome)
@@ -140,6 +155,9 @@ class Config(Frame):
             pass
 
     def salvar(self):
+        '''
+        Método que pega as informações da interface e guarda no arquivo
+        '''
         for key, value in self.entradas.items():
             if value.get() == "":
                 messagebox.showwarning(
@@ -194,7 +212,9 @@ class Config(Frame):
         messagebox.showinfo("Resultado", "Arquivo salvo!")
     
     def operar(self):
-        
+        '''
+        Método que usa as informações da interface para operar
+        '''
         tudo = {}
         tudo.update(self.entradas)
         tudo.update(self.condicionais)
@@ -212,6 +232,9 @@ class Config(Frame):
         Operacao(resultado, comandos)
 
     def parsear(self, dic):
+        '''
+        Método que faz os casts para operar
+        '''
         dic["tipo_conta"] = dic["tipo_conta"].lower()
         dic["goal"] = float(dic["goal"].replace(",", "."))
         dic["stoploss"] = float(dic["stoploss"].replace(",", "."))
@@ -225,6 +248,9 @@ class Config(Frame):
         return dic
 
     def numerico(self, x):
+        '''
+        Verifica se a string pode ser convertida para float
+        '''
         try:
             float(x)
             return True
@@ -232,6 +258,9 @@ class Config(Frame):
             return False
 
     def mudar_entrada(self):
+        '''
+        Método que seleciona o arquivo de entradas
+        '''
         self.entradas["Arquivo de entradas"].delete(0, 'end')
         self.entradas["Arquivo de entradas"].insert(END, askopenfilename())
 

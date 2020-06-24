@@ -7,8 +7,6 @@ class IQ_API:
         '''
         Recebe o login, e tenta se conectar
         '''
-        self.login = login
-        self.senha = senha
         self.API = IQ_Option(login, senha)
         self.conectar()
 
@@ -91,7 +89,6 @@ Todas as carteiras:\n"""
         '''
         Devolve o payout de uma paridade digital
         '''
-        print("Procurando profit digital")
         try:
             contador = 0
             self.API.subscribe_strike_list(par, timeframe)
@@ -103,10 +100,8 @@ Todas as carteiras:\n"""
                 time.sleep(0.5)
                 contador += 1
                 if contador == 60:
-                    print("Cancelando PROFIT")
                     return False
             self.API.unsubscribe_strike_list(par, timeframe)
-            print("Devolvendo o PROFIT")
             return resultado
         except:
             return False
@@ -214,9 +209,9 @@ Todas as carteiras:\n"""
                 resultado, lucro = self.API.check_win_v4(identificador)
 
                 if resultado == "win":
-                    print(f"\n  WIN: \033[32m R${round(lucro, 2)} \033[0m  ")
+                    print(f"\n  WIN: R${round(lucro, 2)}  ")
                 else:
-                    print(f"\n  {resultado.capitalize()}: \033[31m R${round(lucro, 2)} \033[0m  ")
+                    print(f"\n  {resultado.capitalize()}: R${round(lucro, 2)}  ")
             else:
                 print(f"  ! Um erro aconteceu: {par}-{tipo} {direcao} {valor}!")
                 resultado, lucro = "error", 0
@@ -236,10 +231,10 @@ Todas as carteiras:\n"""
 
                 if lucro > 0:
                     resultado = "win"
-                    print(f"\n  WIN: \033[32m R${round(lucro, 2)} \033[0m  ")
+                    print(f"\n  WIN: R${round(lucro, 2)}  ")
                 else:
                     resultado = "loose"
-                    print(f"\n  LOSS: \033[31m R${round(lucro, 2)} \033[0m  ")
+                    print(f"\n  LOSS: R${round(lucro, 2)}  ")
 
             else:
                 print(f"  ! Um erro aconteceu: {par}-{tipo} {direcao} {valor}!")
@@ -266,7 +261,7 @@ Todas as carteiras:\n"""
             return True
         if segundos > -10:
             if segundos < 0:
-                print(f"Fazendo operação {round(abs(segundos), 2)} atrasado")
+                print(f"Fazendo operação {round(abs(segundos), 2)} segundos atrasado")
             return True
         return False
     
