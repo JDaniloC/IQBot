@@ -70,9 +70,9 @@ class Config(Frame):
             self.entradas[key] = Entry(self, width = 40)
             if key == "Senha":
                 self.entradas["Senha"]["show"] = "*"
-            self.entradas[key].grid(row = pos, column = 1, columnspan = 4)
+            self.entradas[key].grid(row = pos, column = 1, columnspan = 5)
             pos += 1
-        Button(self, text = "Selecionar", command = self.mudar_entrada).grid(row = 2, column = 4)
+        Button(self, text = "Selecionar", command = self.mudar_entrada).grid(row = 2, column = 5)
 
         self.condicionais = {
             "OTC?": BooleanVar(value = False), 
@@ -113,14 +113,16 @@ class Config(Frame):
             cont = 0
             for escolha in self.alternativos[key]:
                 ttk.Radiobutton(self, text = escolha, variable = variavel, value = escolha).grid(row = pos, column = cont)
+                if escolha == "Porcento":
+                    Entry(self, width = 10, textvariable = variavel).grid(row = pos, column = cont + 1)
                 cont += 1
             variavel.set(self.alternativos[key][0])
             self.alternativos[key] = variavel
             pos += 1
         
-        Button(self, text = "Carregar", command = self.carregar).grid(row = pos, column = 0, columnspan = 2)
-        Button(self, text = "Salvar", command = self.salvar).grid(row = pos, column = 1, columnspan = 2)
-        Button(self, text = "Operar", command = self.operar).grid(row = pos, column = 2, columnspan = 2)
+        Button(self, text = "Carregar", command = self.carregar).grid(row = pos, column = 0, columnspan = 4)
+        Button(self, text = "Salvar", command = self.salvar).grid(row = pos, column = 1, columnspan = 4)
+        Button(self, text = "Operar", command = self.operar).grid(row = pos, column = 2, columnspan = 4)
         
         self.carregar(DEFAULTFILE)
 
@@ -203,7 +205,7 @@ class Config(Frame):
             "martin": tudo["Martingale?"].get(),
             "percent_martin": tudo["Percentual do martin"].get(),
             "max_gale": tudo["Máximo de martingales"].get(),
-            "tipo_gale": tudo["tipo de martingale"].get()
+            "tipo_gale": tudo["tipo de martingale"].get().lower().replace(",", ".")
         }
         
         with open(askopenfilename(), "w") as arquivo:
@@ -229,7 +231,11 @@ class Config(Frame):
         self.janela.destroy()
         resultado = self.parsear(resultado)
         comandos = abrir_arquivo(resultado["arquivo"])
-        Operacao(resultado, comandos)
+        try:
+            Operacao(resultado, comandos)
+        except:
+            print("Ocorreu um erro, entrando novamente.")
+            Operacao(resultado, comandos)
 
     def parsear(self, dic):
         '''
@@ -238,7 +244,7 @@ class Config(Frame):
         dic["tipo_conta"] = dic["tipo_conta"].lower()
         dic["goal"] = float(dic["goal"].replace(",", "."))
         dic["stoploss"] = float(dic["stoploss"].replace(",", "."))
-        dic["tipo_gale"] = dic["tipo_gale"].lower()
+        dic["tipo_gale"] = dic["tipo_gale"].lower() if not self.numerico(dic['tipo_gale'].replace(",", ".")) else float(dic['tipo_gale'].replace(",", "."))
         dic["max_gale"] = int(dic["max_gale"])
         dic["valor"] = float(dic["valor"].replace(",", "."))
         dic["tipo_par"] = dic["tipo_par"].lower()

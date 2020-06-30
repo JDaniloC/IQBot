@@ -1,0 +1,14 @@
+{
+  "tipo_conta": "treino",
+  "valor": 2.0,
+  "profit_minimo": 78,
+  "goal": 60.0,
+  "soros": false,
+  "percent_soros": 0,
+  "stoploss": 60.0,
+  "martin": true,
+  "percent_martin": 250,
+  "max_gale": 1,
+  "tipo_gale": "leve",
+  "minimo": 75
+}

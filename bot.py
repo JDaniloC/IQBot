@@ -1,7 +1,7 @@
 from utils.operar import Operacao, escreve_erros, IQ_API
 from configparser import RawConfigParser
 from sys import argv
-import re, logging
+import re, logging, json, datetime
 
 logging.disable(level = (logging.DEBUG))
 
@@ -12,14 +12,25 @@ print("\n[Comando para parar: Ctrl + C]\n")
 
 def pegar_comando(texto):
     '''
-    Recebe um texto e devolve a hora/par/ordem em forma de dicionário
+    Recebe um texto e devolve:
+    {
+        "data": [dia, mes, ano],
+        "hora": [hora, minuto]
+        "par": par,
+        "ordem": ordem
+    }
+    No qual o conteúdo das listas são inteiros
     '''
     try:
-        data = re.search(r'\d{2}\W\d{2}\W\d{4}', texto)[0]
-        data = [int(x) for x in re.split(r"\W", data)]
+        data = re.search(r'\d{2}\W\d{2}\W\d{4}', texto)
+        if data:
+            data = [int(x) for x in re.split(r"\W", data[0])]
+        else:
+            hoje = datetime.datetime.now()
+            data = [hoje.day, hoje.month, hoje.year]
         hora = re.search(r'\d{2}:\d{2}', texto)[0]
         hora = [int(x) for x in re.split(r'\W', hora)]
-        par = re.search(r'\w{6}', texto)[0]
+        par = re.search(r'[A-Za-z]{6}', texto.replace("/", ""))[0]
         ordem = re.search(r'CALL|PUT|call|put', texto)[0].lower()
     except:
         print(f"Ocorreu um erro no arquivo de entradas, revise o comando {texto}")
@@ -57,6 +68,16 @@ def abrir_arquivo(nome):
             comandos.append(comando)
     return comandos
 
+def numerico(x):
+    '''
+    Verifica se a string pode ser convertida para float
+    '''
+    try:
+        float(x)
+        return True
+    except:
+        return False
+
 def configuracoes(nome = LOCALCONFIG):
     '''
     Carrega o arquivo de configuração e devolve um dicionário
@@ -84,6 +105,8 @@ def configuracoes(nome = LOCALCONFIG):
         "correcao": int(arquivo.get("ENTRADAS", "correcao_entrada")),
         "otc": arquivo.get("ENTRADAS", "otc").capitalize() == "True"
     }
+
+    config["tipo_gale"] = config["tipo_gale"] if not numerico(config['tipo_gale'].replace(",", ".")) else float(config['tipo_gale'].replace(",", "."))
 
     return config
 
@@ -121,7 +144,7 @@ def recebe_comandos(comandos):
                 
                 print()
                 
-                operacoes = abrir_arquivo(config["arquivo"])
+                operacoes = abrir_arquivo("config/entradas")
                 for operacao in operacoes:
                     data = "/".join([str(x) for x in operacao['data']])
                     hora = ":".join([str(x) for x in operacao['hora']])
@@ -145,6 +168,21 @@ def recebe_comandos(comandos):
                 api = IQ_API(config["email"], config["senha"])
                 api.perfil()
                 return api
+            elif comandos[i] in ['-o', 'online'] and len(comandos[i:]) != 2:
+                # Carrega o arquivo de configurações a partir do e-mail
+                with open(comandos[i + 1] + ".json") as file:
+                    config =  json.load(file)
+                config['email'] = comandos[i + 1]
+                config['senha'] = comandos[i + 2]
+
+                # Une com as informações gerais
+                with open("clients/default.json") as file:
+                    config.update(json.load(file))
+                
+                # Define o arquivo de entradas a partir do gale máximo
+                config['arquivo'] = "entradas" + str(config['max_gale'])
+                comandos = abrir_arquivo(config["arquivo"])
+                Operacao(config, comandos)
             elif (i != 0 and comandos[i-1] not in ["-o", "-m", "-c", "-h", "-p"]) or i == 0:
                 print('''
                 [COMANDOS]

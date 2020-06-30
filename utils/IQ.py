@@ -204,7 +204,7 @@ Todas as carteiras:\n"""
             else:
                 status, identificador = self.API.buy(valor, par, direcao, tempo)
             if status:
-                print(f"Operação realizada: {par}-{tipo} {direcao} ${round(valor, 2)} {tempo}s")
+                print(f"Operação realizada: {par}-{tipo} {direcao} ${round(valor, 2)} {tempo}min")
 
                 resultado, lucro = self.API.check_win_v4(identificador)
 
@@ -223,7 +223,7 @@ Todas as carteiras:\n"""
                 identificador = self.API.buy_digital_spot(par, valor, direcao, tempo)
             
             if isinstance(identificador, int):
-                print(f"Operação realizada: {par}-{tipo} {direcao} ${round(valor, 2)} {tempo}s")
+                print(f"Operação realizada: {par}-{tipo} {direcao} ${round(valor, 2)} {tempo}min")
 
                 status = False
                 while not status:
@@ -243,7 +243,7 @@ Todas as carteiras:\n"""
         return resultado, round(lucro, 2)
     
     @staticmethod
-    def esperarAte(horas, minutos, segundos = 0, data = ()):
+    def esperarAte(horas, minutos, segundos = 0, data = (), correcao = 0):
         '''
         Espera até determinada data/hora:minuto:segundo do dia
         Se a data não for passada, será considerada a data atual
@@ -259,9 +259,7 @@ Todas as carteiras:\n"""
             print(f"\n [...] Esperando até {alvo} [...]")
             time.sleep(segundos)
             return True
-        if segundos > -10:
-            if segundos < 0:
-                print(f"Fazendo operação {round(abs(segundos), 2)} segundos atrasado")
+        if segundos > (-10 - correcao):
             return True
         return False
     
@@ -269,17 +267,21 @@ Todas as carteiras:\n"""
     def martingale(tipo_martin, payout, perca, valor = 1, lucro = 1):
         '''
         Calcula o martingale onde:
-            tipo_martin: 
-                simples (valor * 2)
-                agressivo (perca * 2.3)
-                leve (vai manter o lucro inicial)
-                seguro (apenas recupera o valor)
-                porcento (vai aumentar uma porcentagem)
+            tipo_martin:
+                type: float (valor * tipo_martin)
+                type: string
+                    simples (valor * 2)
+                    agressivo (perca * 2.3)
+                    leve (vai manter o lucro inicial)
+                    seguro (apenas recupera o valor)
+                    porcento (vai aumentar uma porcentagem)
             payout: profit da paridade
             perca: valor perdido
             valor: entrada do valor
             lucro: alvo inicial
         '''
+        if type(tipo_martin) == float:
+            return round(valor * tipo_martin, 2)
         tipo_martin = tipo_martin.lower()
         if tipo_martin == "agressivo":
             return round(abs(perca) * 2.3, 2)

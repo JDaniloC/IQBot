@@ -1,6 +1,6 @@
 from datetime import datetime
 from utils.IQ import IQ_API
-import threading, traceback, time, re
+import threading, traceback, time, re, sys
 
 LOCALERROR = "config/errors.log"
 
@@ -56,6 +56,7 @@ class Operacao(IQ_API):
 
         if self.maximo < 3:
             try:
+                print(f"Entrando na {config['email']}")
                 super().__init__(config['email'], config['senha'])
                 
                 print(self.logo, flush = True)
@@ -100,7 +101,7 @@ class Operacao(IQ_API):
                 novo = self.valor + lucro if self.config["percent_soros"] == 0 else self.valor + self.valor * self.config["percent_soros"] / 100
                 print(f"\n [SOROS GALE] : {round(self.valor, 2)} -> {round(novo, 2)}")
                 self.valor = novo
-        if resultado == "loose" and self.config['martin']:
+        if resultado == "loose" and self.config['martin'] and self.total - round(abs(lucro), 2) > -(self.config['stoploss']):
             num_gales = 0
             print(f"\n [MARTIN GALE] do tipo {self.config['tipo_gale']} na operação {par}|{ordem}")
             while (
@@ -110,9 +111,9 @@ class Operacao(IQ_API):
                 
                 with self.cadeado:
                     self.total -= round(abs(lucro), 2)
-                    if self.total < -(self.config['stoploss']):
-                        print(f"BATEU NO STOPLOSS: {self.total}!")
-                        exit(0)
+                    if self.total <= -(self.config['stoploss']):
+                        print(f"MARTINGALE CANCELADO: BATEU NO STOPLOSS: {self.total}!")
+                        sys.exit(0)
 
                 perda += abs(lucro)
                 lucro = self.valor * payout if self.config["tipo_gale"] != "porcento" else self.config["percent_martin"] / 100
@@ -120,7 +121,9 @@ class Operacao(IQ_API):
                 
                 resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo, self.cadeado)
                 num_gales += 1
-        
+        elif resultado == "loose":
+            self.total -= round(abs(lucro), 2)
+
         if resultado not in ["error", "equal"]:
             with self.cadeado:
                 if resultado == "win":
@@ -148,6 +151,11 @@ class Operacao(IQ_API):
                 self.API.subscribe_strike_list(par, self.config["otc"])
             payouts = self.aberta_profit(paridades, self.config["otc"])
 
+            def atualizar_profits(comando):
+                print("Atualizando profits...")
+                paridades = [x["par"] for x in self.comandos[self.comandos.index(comando):]]
+                payouts.update(self.aberta_profit(paridades, self.config["otc"]))
+
         for comando in self.comandos:
             
             data = comando["data"]
@@ -157,7 +165,7 @@ class Operacao(IQ_API):
                 horas, minutos, segundos = novo.hour, novo.minute, novo.second 
             else:
                 segundos = 0
-            if self.esperarAte(horas, minutos, segundos, data):
+            if self.esperarAte(horas, minutos, segundos, data, self.config['correcao']):
 
                 par = comando['par']
                 par += "-OTC" if self.config["otc"] else ""
@@ -199,9 +207,10 @@ class Operacao(IQ_API):
 
                 if self.tipo == "auto":
                     if time.time() - ultima_vez > 1800:
-                        print("Atualizando profits...")
-                        paridades = [x["par"] for x in self.comandos[self.comandos.index(comando):]]
-                        payouts = self.aberta_profit(paridades, self.config["otc"])
+                        threading.Thread(
+                        target = atualizar_profits,
+                        args = (comando,)
+                        ).start()
         for thread in espera:
             thread.join()
 
