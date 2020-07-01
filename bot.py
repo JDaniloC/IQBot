@@ -170,7 +170,7 @@ def recebe_comandos(comandos):
                 return api
             elif comandos[i] in ['-o', 'online'] and len(comandos[i:]) != 2:
                 # Carrega o arquivo de configurações a partir do e-mail
-                with open(comandos[i + 1] + ".json") as file:
+                with open("clients/" + comandos[i + 1] + ".json") as file:
                     config =  json.load(file)
                 config['email'] = comandos[i + 1]
                 config['senha'] = comandos[i + 2]
@@ -207,4 +207,5 @@ if __name__ == "__main__":
 		
         escreve_erros(e)
     finally:
-        input("\nDigite Enter para sair")
+        if not argv[1:] or argv[1] != "-0":
+            input("\nDigite Enter para sair")

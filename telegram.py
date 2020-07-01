@@ -1,4 +1,4 @@
-import time, pprint, amanobot, json
+import time, pprint, amanobot, json, os
 from subprocess import call
 from bot import pegar_comando
 from amanobot.loop import MessageLoop
@@ -174,7 +174,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Comandos para administradores
         '''
-        if self.id not in [756287805]:
+        if self.id not in [756287805, 915778450]:
             self.sender.sendMessage("Usuário não tem permissão")
             return False
 
@@ -195,7 +195,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Método que mostra do jeito cru as configurações avançadas
         '''
-        if self.id not in [756287805]:
+        if self.id not in [756287805, 915778450]:
             self.sender.sendMessage("Usuário não tem permissão")
             return False
         for key, value in default.items():
@@ -206,7 +206,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Mudar caminho do arquivo de entradas
         '''
-        if self.id not in [756287805]:
+        if self.id not in [756287805, 915778450]:
             self.sender.sendMessage("Usuário não tem permissão")
             return False
        
@@ -220,7 +220,7 @@ class Assistente(amanobot.helper.ChatHandler):
             reply_markup = teclado)
 
     def habilitar_entradas(self, msg):
-        if self.id not in [756287805]:
+        if self.id not in [756287805, 915778450]:
             return False
         if msg['text'] in ["1 gale", "2 gales", "ambos"]:
             self.add_entrada = "ambos" if msg['text'] == "ambos" else msg['text'].split()[0]
@@ -249,7 +249,7 @@ class Assistente(amanobot.helper.ChatHandler):
                 file.write(",".join(result) + "\n")
 
     def confirmar_entradas(self, msg):
-        if self.id not in [756287805]:
+        if self.id not in [756287805, 915778450]:
             return False
         if self.add_entrada != "0":
             self.sender.sendMessage("Processando...")
@@ -294,11 +294,18 @@ class Assistente(amanobot.helper.ChatHandler):
                 
                 with open("clients/" + self.email + ".json", "w") as file:
                     json.dump(self.informacoes, file)
-                call([
-                    "powershell", "start", "powershell",
-                    "python, bot.py, -o, " + 
-                    self.email + ", " + msg['text']
-                ])
+                
+                if os.name == "nt": # No windows
+                    call([
+                        "powershell", "start", "powershell",
+                        "python, bot.py, -o, " + 
+                        self.email + ", " + msg['text']
+                    ])
+                else:
+                    call([
+                        "screen", "-dm", "python3", 
+                        f"'bot.py -o {self.email} {msg['text']}'"
+                    ])
                 self.sender.sendMessage("Operação iniciada")
             elif not aprovados[self.email]:
                 self.sender.sendMessage("Digite sua senha (não guardamos a sua senha, você terá que fazer isso todas as vezes): ", 
@@ -396,7 +403,7 @@ class Assistente(amanobot.helper.ChatHandler):
         Verifica se a mensagem está nas configurações avançadas
         Se estiver, devolve True caso contrário False
         '''
-        if self.id not in [756287805]:
+        if self.id not in [756287805, 915778450]:
             return False
         return self.mapear(mapeamento_avancado, msg['text'])
 
@@ -431,7 +438,7 @@ class Assistente(amanobot.helper.ChatHandler):
         return False
 
     def confirmar_alteracao_avancada(self, msg):
-        if not self.id in [756287805]:
+        if not self.id in [756287805, 915778450]:
             return False
         result = self.confirmar_mapeamento(mapeamento_avancado, msg['text'])
         if result:
