@@ -304,7 +304,7 @@ class Assistente(amanobot.helper.ChatHandler):
                 else:
                     call([
                         "screen", "-dm", "python3", 
-                        f"'bot.py -o {self.email} {msg['text']}'"
+                        "bot.py", "-o", self.email, msg['text']
                     ])
                 self.sender.sendMessage("Operação iniciada")
             elif not aprovados[self.email]:
