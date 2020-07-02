@@ -1,16 +1,33 @@
 import time, pprint, amanobot, json, os
 from subprocess import call
-from bot import pegar_comando
+from bot import pegar_comando, escreve_erros
 from amanobot.loop import MessageLoop
 from amanobot.namedtuple import (
     ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove)
 from amanobot.delegate import (
     pave_event_space, per_chat_id, create_open)
 
+# Funções
 def strDateHour(number):
+    '''
+    Converte números de 1 dígito para 2 dígitos:
+        0:0 -> 00:00
+        2/1/2000 -> 02/01/2000
+    params:
+        number = tipo int
+    return:
+        string do resultado
+    '''
     return str(number) if len(str(number)) != 1 else "0" + str(number)
 
 def carregar_entradas(opcao):
+    '''
+    Abre o arquivo de entradas e organiza de forma legível
+    Params:
+        opcao = 1 ou 2, para entrar no arquivo de entradas1/entradas2.txt
+    return:
+        lista de strings dessas entradas
+    '''
     lista_entradas = []
     with open("config/entradas" + str(opcao) + ".txt") as file:
         lista = file.readlines()
@@ -25,6 +42,7 @@ def carregar_entradas(opcao):
             ''')
     return lista_entradas
 
+# Carregar arquivos iniciais do bot
 with open("misc/dados.json", encoding = "utf-8") as file:
     dados = json.load(file)
     aprovados = dados["aprovados"]
@@ -43,6 +61,7 @@ mapeamento_avancado = {
     "Mudar a correção": ["correcao", False, int]
 }
 
+# O bot em si
 class Assistente(amanobot.helper.ChatHandler):
     def __init__(self, *args, **kwargs):
         super(Assistente, self).__init__(*args, **kwargs)
@@ -95,10 +114,12 @@ class Assistente(amanobot.helper.ChatHandler):
             self.nome_usuario = msg['chat']['username']
         print(f"Usuário {self.nome_usuario} começou conversa.\n")
 
-        self.sender.sendMessage("Olá, eu sou seu assistente do robô MM_007.", 
-            reply_markup = ReplyKeyboardMarkup(
-                keyboard = [[KeyboardButton(text = "Entrar")]]
-        ))
+        self.sender.sendMessage("Olá, desculpe, estou em manutenção no momento, volte mais tarde.")
+
+        # self.sender.sendMessage("Olá, eu sou seu assistente do robô MM_007.", 
+        #     reply_markup = ReplyKeyboardMarkup(
+        #         keyboard = [[KeyboardButton(text = "Entrar")]]
+        # ))
 
     def login(self, msg):
         '''
@@ -220,6 +241,9 @@ class Assistente(amanobot.helper.ChatHandler):
             reply_markup = teclado)
 
     def habilitar_entradas(self, msg):
+        '''
+        Método que habilita a espera por uma nova lista
+        '''
         if self.id not in [756287805, 915778450]:
             return False
         if msg['text'] in ["1 gale", "2 gales", "ambos"]:
@@ -229,6 +253,10 @@ class Assistente(amanobot.helper.ChatHandler):
                 reply_markup = ReplyKeyboardRemove())            
 
     def pegar_entrada(self, entradas):
+        '''
+        Método que recebe as entradas e verifica se há um comando
+        Devolve a lista de entradas que conseguiu extrair
+        '''
         lista = []
         for linha in entradas:
             nova = pegar_comando(linha)
@@ -237,6 +265,9 @@ class Assistente(amanobot.helper.ChatHandler):
         return lista
 
     def guarda_entrada(self, lista, opcao):
+        '''
+        Método que guarda a lista de entradas no arquivo de entradas1/2
+        '''
         with open("config/entradas" + str(opcao) + ".txt", "w") as file:
             for entrada in lista:
                 result = [
@@ -249,6 +280,9 @@ class Assistente(amanobot.helper.ChatHandler):
                 file.write(",".join(result) + "\n")
 
     def confirmar_entradas(self, msg):
+        '''
+        Método que recebe a mensagem de entradas, trata e salva.
+        '''
         if self.id not in [756287805, 915778450]:
             return False
         if self.add_entrada != "0":
@@ -296,16 +330,9 @@ class Assistente(amanobot.helper.ChatHandler):
                     json.dump(self.informacoes, file)
                 
                 if os.name == "nt": # No windows
-                    call([
-                        "powershell", "start", "powershell",
-                        "python, bot.py, -o, " + 
-                        self.email + ", " + msg['text']
-                    ])
+                    os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}")
                 else:
-                    call([
-                        "screen", "-dm", "python3", 
-                        "bot.py", "-o", self.email, msg['text']
-                    ])
+                    os.system(f"screen -dm python3 bot.py -o {self.email} {msg['text']}")
                 self.sender.sendMessage("Operação iniciada")
             elif not aprovados[self.email]:
                 self.sender.sendMessage("Digite sua senha (não guardamos a sua senha, você terá que fazer isso todas as vezes): ", 
@@ -433,11 +460,17 @@ class Assistente(amanobot.helper.ChatHandler):
                         return False
                 elif value[2] == bool:
                     novo = bool(novo.strip() == "Sim")
+                elif value[0] == "max_gale":
+                    novo = int(novo)
                 dicionario[key][1] = False
                 return value[0], novo
         return False
 
     def confirmar_alteracao_avancada(self, msg):
+        '''
+        Método que altera no dicionário a nova informação
+        E salva o default.json novo.
+        '''
         if not self.id in [756287805, 915778450]:
             return False
         result = self.confirmar_mapeamento(mapeamento_avancado, msg['text'])
@@ -467,6 +500,9 @@ class Assistente(amanobot.helper.ChatHandler):
         return False
             
     def ver_lista(self):
+        '''
+        Método que mostra as listas de sinais
+        '''
         if self.autenticacao:
             self.sender.sendMessage("Listas atuais:", 
                 reply_markup = ReplyKeyboardRemove())
@@ -546,25 +582,57 @@ class Assistente(amanobot.helper.ChatHandler):
         print(f"Usuário {self.nome_usuario} saiu.\n")
         self.sender.sendMessage("Obrigado pela preferência, irei atender outras pessoas, qualquer coisa é só chamar.", reply_markup = ReplyKeyboardRemove())
 
-TOKEN = "1230540493:AAE3sDtChTvq1SlhqGDJhnIPfM2Qlgrr4_g"
+import os, sys
 
-bot = amanobot.DelegatorBot(TOKEN, [
-    pave_event_space()(
-        per_chat_id(), create_open, Assistente, timeout = 60),
-])
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+    """
+    TAKEN FROM https://stackoverflow.com/questions/3173320/text-progress-bar-in-the-console
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
+    # Print New Line on Complete
+    if iteration == total: 
+        print()
 
-try:
-    MessageLoop(bot).run_as_thread()
-    print("Esperando comandos...")
-    while 1:
-        time.sleep(3)
-except KeyboardInterrupt:
-    pass
-finally:
-    with open("misc/dados.json", "w", encoding = "utf-8") as file:
-        dados = {
-            "aprovados": {key: False for key in aprovados},
-            "em_aprovacao": em_aprovacao
-        }
-        dados = json.dump(dados, file, indent = 2)
+if __name__ == "__main__":
+    TOKEN = "1230540493:AAE3sDtChTvq1SlhqGDJhnIPfM2Qlgrr4_g"
+
+    print("Carregando...")
+    printProgressBar(0, 20, prefix = 'Progress:', suffix = 'Complete', length = 30)
+    for i in range(20):
+        time.sleep(0.1)
+        printProgressBar(i + 1, 20, prefix = 'Progress:', suffix = 'Complete', length = 50)
+
+    problema = False
+    bot = amanobot.DelegatorBot(TOKEN, [
+        pave_event_space()(
+            per_chat_id(), create_open, Assistente, timeout = 60),
+    ])
+
+    try:
+        MessageLoop(bot).run_as_thread()
+        print("\nEsperando comandos...")
+        while 1:
+            time.sleep(3)
+    except KeyboardInterrupt:
+        pass
+    except Exception as e:	
+        escreve_erros(e)
+        problema = True
+    finally:
+        with open("misc/dados.json", "w", encoding = "utf-8") as file:
+            dados = {
+                "aprovados": {key: False for key in aprovados},
+                "em_aprovacao": em_aprovacao
+            }
+            dados = json.dump(dados, file, indent = 2)
+
+    if problema:
+        print("\nAconteceu um erro, tentando se reconectar...")
+        if os.name == "nt":
+            os.system("powershell start powershell python, telegram.py")
+        else:
+            os.system("screen -dm python3 telegram.py")
     print("Bot desligado")

@@ -1,7 +1,6 @@
 {
   "tipo_conta": "treino",
   "valor": 2.0,
-  "profit_minimo": 78,
   "goal": 60.0,
   "soros": false,
   "percent_soros": 0,

@@ -8,6 +8,6 @@
   "stoploss": 20,
   "martin": true,
   "percent_martin": 0,
-  "max_gale": "1",
+  "max_gale": 1,
   "tipo_gale": "leve"
 }
