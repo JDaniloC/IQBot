@@ -136,6 +136,7 @@ class Assistente(amanobot.helper.ChatHandler):
         Método para o login, verifica se o ID
         Está em análise ou já aprovado.
         '''
+        global dados
         if self.autenticacao:
             self.sender.sendMessage("Você já está logado.")
             return False
@@ -276,6 +277,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Método que recebe a mensagem de entradas, trata e salva.
         '''
+        global entrada_1gale, entrada_2gale
         if self.id not in dados['ADMs']:
             return False
         if self.add_entrada != "0":
@@ -304,9 +306,9 @@ class Assistente(amanobot.helper.ChatHandler):
             if self.add_entrada in ["ambos", "2"]:
                 self.guarda_entrada(segundo, 2)
             self.add_entrada = "0"
-            self.sender.sendMessage("Salvo")
             entrada_1gale = carregar_entradas(1)
             entrada_2gale = carregar_entradas(2)
+            self.sender.sendMessage("Salvo")
             self.gerenciar()
 
     def operar(self, msg):

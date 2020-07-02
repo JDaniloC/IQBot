@@ -56,11 +56,11 @@ class Operacao(IQ_API):
 
         if self.maximo < 3:
             try:
-                print(f"Entrando na {config['email']}")
-                super().__init__(config['email'], config['senha'])
-                
                 print(self.logo, flush = True)
                 print(self.welcome, flush = True)
+                
+                print(f"Entrando na {config['email']}")
+                super().__init__(config['email'], config['senha'])
 
                 if config['tipo_conta'] == "treino":
                     self.mudar_treino()
