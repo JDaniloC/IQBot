@@ -58,7 +58,7 @@ class Operacao(IQ_API):
             try:
                 print(self.logo, flush = True)
                 print(self.welcome, flush = True)
-                
+
                 print(f"Entrando na {config['email']}")
                 super().__init__(config['email'], config['senha'])
 
@@ -211,6 +211,9 @@ class Operacao(IQ_API):
                         target = atualizar_profits,
                         args = (comando,)
                         ).start()
+            else:
+                momento = datetime.utcnow().timestamp() - 10800 # -3Horas
+                print(f"UTC-3: {datetime.fromtimestamp(momento).strftime('%H:%M')} | {comando['par']} - {horas}:{minutos} passou da hora.")
         for thread in espera:
             thread.join()
 

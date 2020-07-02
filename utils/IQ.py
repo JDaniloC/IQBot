@@ -254,9 +254,10 @@ Todas as carteiras:\n"""
         else:
             data = datetime(*data[::-1])
         alvo = data.replace(hour = horas, minute = minutos, second = segundos, microsecond = 0)
-        segundos = alvo.timestamp() - datetime.now().timestamp()
+        agora = datetime.utcnow().timestamp() - 10800 # -3Horas
+        segundos = alvo.timestamp() - agora
         if segundos > 10:
-            print(f"\n [...] Esperando até {alvo} [...]")
+            print(f"\n [...] Esperando até {alvo.strftime('%d/%m/%Y %H:%M:%S')} UTC-3 [...]")
             time.sleep(segundos)
             return True
         if segundos > (-10 - correcao):
