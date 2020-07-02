@@ -1,8 +1,19 @@
 {
   "aprovados": {
-    "daniloedaniel123@gmail.com": false,
-    "ograndeimperio0@gmail.com": false,
-    "josesantiagodecarvalho@gmail.com": false
+    "daniloedaniel123@gmail.com": [
+      false,
+      1596300609.7875996
+    ],
+    "ograndeimperio0@gmail.com": [
+      false,
+      1593705217.859158
+    ]
   },
-  "em_aprovacao": {}
+  "em_aprovacao": [
+    "Daniloedaniel123@gmail.com"
+  ],
+  "ADMs": [
+    756287805,
+    915778450
+  ]
 }

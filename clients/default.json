@@ -2,6 +2,6 @@
   "arquivo": "config/entradas",
   "tipo_par": "auto",
   "otc": false,
-  "tempo": "1",
+  "tempo": 1,
   "correcao": 0
 }

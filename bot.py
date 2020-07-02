@@ -207,5 +207,15 @@ if __name__ == "__main__":
 		
         escreve_erros(e)
     finally:
-        if not argv[1:] or argv[1] != "-0":
+        if not argv[1:] or argv[1] != "-o":
             input("\nDigite Enter para sair")
+        elif argv[1] == "-o":
+            try: # Dizer que terminou
+                with open("misc/dados.json", encoding = "utf-8") as file:
+                    dados = json.load(file)
+                dados["aprovados"][argv[2]][0] = False
+                with open("misc/dados.json", "w", encoding = "utf-8") as file:
+                    json.dump(dados, file, indent = 2)
+            except Exception as e:
+                print(e)
+                input()

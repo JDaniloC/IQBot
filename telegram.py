@@ -1,5 +1,5 @@
 import time, pprint, amanobot, json, os
-from subprocess import call
+from datetime import timedelta
 from bot import pegar_comando, escreve_erros
 from amanobot.loop import MessageLoop
 from amanobot.namedtuple import (
@@ -42,11 +42,17 @@ def carregar_entradas(opcao):
             ''')
     return lista_entradas
 
+def escrever_dados(dados):
+    with open("misc/dados.json", "w", encoding = "utf-8") as file:
+        json.dump(dados, file, indent = 2)
+
+def carregar_dados():
+    with open("misc/dados.json", encoding = "utf-8") as file:
+        dados = json.load(file)
+    return dados
+
 # Carregar arquivos iniciais do bot
-with open("misc/dados.json", encoding = "utf-8") as file:
-    dados = json.load(file)
-    aprovados = dados["aprovados"]
-    em_aprovacao = dados["em_aprovacao"]
+dados = carregar_dados()
 
 with open("clients/default.json", encoding = "utf-8") as file:
     default = json.load(file) 
@@ -61,17 +67,23 @@ mapeamento_avancado = {
     "Mudar a correção": ["correcao", False, int]
 }
 
-# O bot em si
+# O bot
 class Assistente(amanobot.helper.ChatHandler):
     def __init__(self, *args, **kwargs):
         super(Assistente, self).__init__(*args, **kwargs)
+        self.autenticacao = False
         self.nome_usuario = ""
         self.email = ""
-        self.add_entrada = "0"
+
         self.entrada = False
-        self.cadastro = False
-        self.autenticacao = False
+
+        self.add_entrada = "0"        
         self.iniciar_operacao = False
+        self.alteracoes_avancadas = {
+            "adm": False,
+            "licenca": False,
+            "aprovar": False
+        }
 
         self.mapeamento = {
             "Tipo de conta": ["tipo_conta", False, list], 
@@ -114,12 +126,10 @@ class Assistente(amanobot.helper.ChatHandler):
             self.nome_usuario = msg['chat']['username']
         print(f"Usuário {self.nome_usuario} começou conversa.\n")
 
-        self.sender.sendMessage("Olá, desculpe, estou em manutenção no momento, volte mais tarde.")
-
-        # self.sender.sendMessage("Olá, eu sou seu assistente do robô MM_007.", 
-        #     reply_markup = ReplyKeyboardMarkup(
-        #         keyboard = [[KeyboardButton(text = "Entrar")]]
-        # ))
+        self.sender.sendMessage("Olá, eu sou seu assistente do robô MM_007.", 
+            reply_markup = ReplyKeyboardMarkup(
+                keyboard = [[KeyboardButton(text = "Entrar")]]
+        ))
 
     def login(self, msg):
         '''
@@ -130,49 +140,29 @@ class Assistente(amanobot.helper.ChatHandler):
             self.sender.sendMessage("Você já está logado.")
             return False
 
-        self.entrada = False
-
-        if msg['text'] in aprovados:
+        email = msg['text'].lower()
+        if email in dados["aprovados"]:
             self.email = msg["text"]
-            self.autenticacao = True
-            with open("clients/" + self.email + ".json") as file:
-                self.informacoes = json.load(file)
-            self.sender.sendMessage(
-                f"E-mail autenticado, seja bem-vindo Sr(a) {self.nome_usuario}")
-            self.comandos()
-
-        elif msg['text'] in em_aprovacao.values() or self.id in em_aprovacao:
-            self.sender.sendMessage(f"Digite a senha:")
-            self.cadastro = True
+            restante = dados["aprovados"][self.email][1] - time.time()
+            if restante > 0:
+                self.entrada = False
+                self.autenticacao = True
+                with open("clients/" + self.email + ".json") as file:
+                    self.informacoes = json.load(file)
+                self.sender.sendMessage(
+                    f"E-mail autenticado, seja bem-vindo Sr(a) {self.nome_usuario} sua licença expira em: {str(timedelta(seconds = restante)).replace('days', 'dias')}")
+                self.comandos()
+            else:
+                self.sender.sendMessage("Sua licença expirou, peça para o administrador renovar.")
+                self.close()
+        elif email in dados['em_aprovacao']:
+            self.sender.sendMessage("Seu e-mail ainda está em análise...")
+            self.close()
         else:
-            em_aprovacao[self.id] = msg['text'] 
-            pprint.pprint(em_aprovacao)
-            self.sender.sendMessage(f"Seu e-mail foi colocado para analise. Peça a senha para o administrador. Se você já tiver a senha digite 'Sim'.")
-            self.entrada = True
-
-    def cadastrar(self, msg):
-        '''
-        Método para verificar a senha de cadastro
-        '''
-        if self.autenticacao:
-            self.sender.sendMessage("Você já está cadastrado")
-            return False
-
-        if msg['text'] == str(self.id):
-            email = em_aprovacao[self.id]
-            del em_aprovacao[self.id]
-            aprovados[email] = False
-
-            resposta = "E-mail cadastrado! Continue o cadastro para operar."
-            self.cadastro = False
-            self.autenticacao = True
-            self.email = email
-            self.editar_configuracoes()
-        else:
-            resposta = "Código errado, tente novamente."
-        
-        self.sender.sendMessage(resposta)
-        return True
+            dados["em_aprovacao"].append(email)
+            pprint.pprint(dados["em_aprovacao"])
+            self.sender.sendMessage(f"Seu e-mail foi colocado para analise. Espere a confirmação do administrador e mande seu e-mail novamente para logar.")
+            self.close()
 
     def comandos(self):
         '''
@@ -195,11 +185,14 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Comandos para administradores
         '''
-        if self.id not in [756287805, 915778450]:
+        if self.id not in dados['ADMs']:
             self.sender.sendMessage("Usuário não tem permissão")
             return False
 
         teclado = ReplyKeyboardMarkup(keyboard = [
+            [KeyboardButton( text = "Aprovar usuários" )],
+            [KeyboardButton( text = "Renovar licença" )],
+            [KeyboardButton( text = "Adicionar administrador" )],
             [KeyboardButton( text = "Ver configuração atual" )],
             [KeyboardButton( text = "Adicionar entradas" )],
             [KeyboardButton( text = "Mudar tipo de paridade" )],
@@ -216,7 +209,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Método que mostra do jeito cru as configurações avançadas
         '''
-        if self.id not in [756287805, 915778450]:
+        if self.id not in dados['ADMs']:
             self.sender.sendMessage("Usuário não tem permissão")
             return False
         for key, value in default.items():
@@ -227,7 +220,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Mudar caminho do arquivo de entradas
         '''
-        if self.id not in [756287805, 915778450]:
+        if self.id not in dados['ADMs']:
             self.sender.sendMessage("Usuário não tem permissão")
             return False
        
@@ -244,7 +237,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Método que habilita a espera por uma nova lista
         '''
-        if self.id not in [756287805, 915778450]:
+        if self.id not in dados['ADMs']:
             return False
         if msg['text'] in ["1 gale", "2 gales", "ambos"]:
             self.add_entrada = "ambos" if msg['text'] == "ambos" else msg['text'].split()[0]
@@ -283,7 +276,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Método que recebe a mensagem de entradas, trata e salva.
         '''
-        if self.id not in [756287805, 915778450]:
+        if self.id not in dados['ADMs']:
             return False
         if self.add_entrada != "0":
             self.sender.sendMessage("Processando...")
@@ -323,7 +316,9 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         if self.autenticacao:
             if self.iniciar_operacao:
-                aprovados[self.email] = True
+                self.sender.sendMessage("Iniciando operação...",
+                    reply_markup = ReplyKeyboardRemove())
+                dados["aprovados"][self.email][0] = True
                 self.iniciar_operacao = False
                 
                 with open("clients/" + self.email + ".json", "w") as file:
@@ -333,13 +328,21 @@ class Assistente(amanobot.helper.ChatHandler):
                     os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}")
                 else:
                     os.system(f"screen -dm python3 bot.py -o {self.email} {msg['text']}")
-                self.sender.sendMessage("Operação iniciada")
-            elif not aprovados[self.email]:
+                escrever_dados(dados)
+                self.sender.sendMessage("Operação iniciada.")
+                self.comandos()
+            elif not dados["aprovados"][self.email][0]:
                 self.sender.sendMessage("Digite sua senha (não guardamos a sua senha, você terá que fazer isso todas as vezes): ", 
                 reply_markup = ReplyKeyboardRemove())
                 self.iniciar_operacao = True
             else:
-                self.sender.sendMessage("Sua conta já está em operação.")
+                temp = carregar_dados()
+                if temp["aprovados"][self.email][0]:
+                    self.sender.sendMessage("Sua conta já está em operação.")
+                else:
+                    dados["aprovados"][self.email][0] = False
+                    escrever_dados(dados)
+                    self.sender.sendMessage("Sua operação anterior terminou, clique em operar novamente para começar uma nova.")
         else:
             self.sender.sendMessage("Usuário não autenticado")
 
@@ -430,9 +433,29 @@ class Assistente(amanobot.helper.ChatHandler):
         Verifica se a mensagem está nas configurações avançadas
         Se estiver, devolve True caso contrário False
         '''
-        if self.id not in [756287805, 915778450]:
+        if self.id not in dados['ADMs']:
             return False
-        return self.mapear(mapeamento_avancado, msg['text'])
+        if msg['text'] == 'Adicionar administrador':
+            self.sender.sendMessage("Coloque o ID do telegram:",
+                reply_markup = ReplyKeyboardRemove())
+            self.alteracoes_avancadas['adm'] = True
+        elif msg['text'] in ["Aprovar usuários", "Renovar licença"]:
+            escolha = 'em_aprovacao' if msg['text'] == "Aprovar usuários" else 'aprovados'
+            if len(dados[escolha]) > 0:
+                users = []
+                for user in dados[escolha]:
+                    users.append([KeyboardButton(text = user)])
+                self.sender.sendMessage("Escolha:",
+                    reply_markup = ReplyKeyboardMarkup(keyboard = users))
+                if escolha == "em_aprovacao":
+                    self.alteracoes_avancadas['aprovar'] = True
+                else:
+                    self.alteracoes_avancadas['licenca'] = True
+            else:
+                self.sender.sendMessage("Nenhum usuário no banco")
+        else:
+            return self.mapear(mapeamento_avancado, msg['text'])
+        return True
 
     def habilitar_alteracao(self, msg):
         '''
@@ -442,6 +465,29 @@ class Assistente(amanobot.helper.ChatHandler):
         if not self.autenticacao:
             return False
         return self.mapear(self.mapeamento, msg['text'])
+
+    def salvar_alteracoes_avancadas(self, msg):
+        if self.id not in dados['ADMs']:
+            return False
+        if self.alteracoes_avancadas['adm']:
+            dados['ADMs'].append(int(msg['text']))
+            self.sender.sendMessage("Adminstrador adicionado.")
+            self.alteracoes_avancadas["adm"] = False
+            return True
+        elif self.alteracoes_avancadas['aprovar']:
+            data = time.time() + 2592000 # Um mês
+            email = msg['text']
+            dados["em_aprovacao"].remove(email)
+            dados["aprovados"][email] = [False, data]
+            self.sender.sendMessage("Usuário aprovado.")
+            self.alteracoes_avancadas["aprovar"] = False
+            return True
+        elif self.alteracoes_avancadas['licenca']:
+            email = msg['text']
+            dados['aprovados'][email][1] = time.time() + 2592000 # Um mês
+            self.alteracoes_avancadas["licenca"] = False
+            return True
+        return False
 
     def confirmar_mapeamento(self, dicionario, novo):
         '''
@@ -460,7 +506,7 @@ class Assistente(amanobot.helper.ChatHandler):
                         return False
                 elif value[2] == bool:
                     novo = bool(novo.strip() == "Sim")
-                elif value[0] == "max_gale":
+                elif value[0] in ["tempo", "max_gale"]:
                     novo = int(novo)
                 dicionario[key][1] = False
                 return value[0], novo
@@ -471,7 +517,7 @@ class Assistente(amanobot.helper.ChatHandler):
         Método que altera no dicionário a nova informação
         E salva o default.json novo.
         '''
-        if not self.id in [756287805, 915778450]:
+        if not self.id in dados['ADMs']:
             return False
         result = self.confirmar_mapeamento(mapeamento_avancado, msg['text'])
         if result:
@@ -523,8 +569,6 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         if self.entrada:
             self.login(msg)
-        elif self.cadastro:
-            self.cadastrar(msg)
         elif self.iniciar_operacao:
             self.operar(msg)
         elif msg['text'] == "Entrar":
@@ -551,6 +595,8 @@ class Assistente(amanobot.helper.ChatHandler):
             self.gerenciar()
         elif msg['text'] == "Adicionar entradas":
             self.adicionar_entrada(msg)
+        elif self.salvar_alteracoes_avancadas(msg):
+            self.gerenciar()
         elif self.confirmar_alteracao(msg):
             self.editar_configuracoes()
         elif self.habilitar_alteracao(msg):
@@ -581,8 +627,6 @@ class Assistente(amanobot.helper.ChatHandler):
 
         print(f"Usuário {self.nome_usuario} saiu.\n")
         self.sender.sendMessage("Obrigado pela preferência, irei atender outras pessoas, qualquer coisa é só chamar.", reply_markup = ReplyKeyboardRemove())
-
-import os, sys
 
 def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
     """
@@ -622,17 +666,12 @@ if __name__ == "__main__":
         escreve_erros(e)
         problema = True
     finally:
-        with open("misc/dados.json", "w", encoding = "utf-8") as file:
-            dados = {
-                "aprovados": {key: False for key in aprovados},
-                "em_aprovacao": em_aprovacao
-            }
-            dados = json.dump(dados, file, indent = 2)
+        escrever_dados(dados)
 
     if problema:
         print("\nAconteceu um erro, tentando se reconectar...")
         if os.name == "nt":
             os.system("powershell start powershell python, telegram.py")
         else:
-            os.system("screen -dm python3 telegram.py")
+            os.system("nohup python3 telegram.py &")
     print("Bot desligado")
