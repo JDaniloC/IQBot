@@ -643,7 +643,7 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
         print()
 
 if __name__ == "__main__":
-    TOKEN = "1230540493:AAE3sDtChTvq1SlhqGDJhnIPfM2Qlgrr4_g"
+    TOKEN = "" # 1230540493:AAE3sDtChTvq1SlhqGDJhnIPfM2Qlgrr4_g
 
     print("Carregando...")
     printProgressBar(0, 20, prefix = 'Progress:', suffix = 'Complete', length = 30)
