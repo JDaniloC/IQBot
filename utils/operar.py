@@ -160,12 +160,8 @@ class Operacao(IQ_API):
             
             data = comando["data"]
             horas, minutos = comando["hora"]
-            if self.config['correcao'] != 0:
-                novo = datetime.fromtimestamp(datetime(*data[::-1] + [horas, minutos]).timestamp() - self.config["correcao"])
-                horas, minutos, segundos = novo.hour, novo.minute, novo.second 
-            else:
-                segundos = 0
-            if self.esperarAte(horas, minutos, segundos, data, self.config['correcao']):
+            segundos = 0
+            if self.esperarAte(horas, minutos, segundos, data, self.config['correcao'] + 30, True):
 
                 par = comando['par']
                 par += "-OTC" if self.config["otc"] else ""
@@ -192,6 +188,7 @@ class Operacao(IQ_API):
                     payout = self.payout_binaria(par) / 100 if self.tipo == "binary" else self.payout_digital(par) / 100
                     tipo = self.tipo
 
+                self.esperarAte(horas, minutos, segundos, data, 3) # Tempo de calcular e entrar certinho
                 with self.cadeado:
                     if not (-self.config['stoploss'] < self.total < self.config['goal']):
                         break
@@ -213,7 +210,7 @@ class Operacao(IQ_API):
                         ).start()
             else:
                 momento = datetime.utcnow().timestamp() - 10800 # -3Horas
-                print(f"UTC-3: {datetime.fromtimestamp(momento).strftime('%H:%M')} | {comando['par']} - {horas}:{minutos} passou da hora.")
+                print(f"UTC-3: {datetime.fromtimestamp(momento).strftime('dia %d - %H:%M')} | {comando['par']} - {horas}:{minutos} passou da hora.") # Consertar aqui
         for thread in espera:
             thread.join()
 

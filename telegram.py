@@ -320,7 +320,6 @@ class Assistente(amanobot.helper.ChatHandler):
             if self.iniciar_operacao:
                 self.sender.sendMessage("Iniciando operação...",
                     reply_markup = ReplyKeyboardRemove())
-                dados["aprovados"][self.email][0] = True
                 self.iniciar_operacao = False
                 
                 with open("clients/" + self.email + ".json", "w") as file:
@@ -330,6 +329,8 @@ class Assistente(amanobot.helper.ChatHandler):
                     os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}")
                 else:
                     os.system(f"screen -dm python3 bot.py -o {self.email} {msg['text']}")
+                dados = carregar_dados()
+                dados["aprovados"][self.email][0] = True
                 escrever_dados(dados)
                 self.sender.sendMessage("Operação iniciada.")
                 self.comandos()
@@ -338,8 +339,8 @@ class Assistente(amanobot.helper.ChatHandler):
                 reply_markup = ReplyKeyboardRemove())
                 self.iniciar_operacao = True
             else:
-                temp = carregar_dados()
-                if temp["aprovados"][self.email][0]:
+                dadso = carregar_dados()
+                if dados["aprovados"][self.email][0]:
                     self.sender.sendMessage("Sua conta já está em operação.")
                 else:
                     dados["aprovados"][self.email][0] = False
@@ -477,7 +478,8 @@ class Assistente(amanobot.helper.ChatHandler):
             self.alteracoes_avancadas["adm"] = False
             return True
         elif self.alteracoes_avancadas['aprovar']:
-            data = time.time() + 2592000 # Um mês
+            # 4 dias 2592000 Um mês
+            data = time.time() + 345600
             email = msg['text']
             dados["em_aprovacao"].remove(email)
             dados["aprovados"][email] = [False, data]
@@ -643,7 +645,7 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
         print()
 
 if __name__ == "__main__":
-    TOKEN = "" # 1230540493:AAE3sDtChTvq1SlhqGDJhnIPfM2Qlgrr4_g
+    TOKEN = "" # "1230540493:AAE3sDtChTvq1SlhqGDJhnIPfM2Qlgrr4_g"
 
     print("Carregando...")
     printProgressBar(0, 20, prefix = 'Progress:', suffix = 'Complete', length = 30)

@@ -243,7 +243,7 @@ Todas as carteiras:\n"""
         return resultado, round(lucro, 2)
     
     @staticmethod
-    def esperarAte(horas, minutos, segundos = 0, data = (), correcao = 0):
+    def esperarAte(horas, minutos, segundos = 0, data = (), tolerancia = 0, verboso = False):
         '''
         Espera até determinada data/hora:minuto:segundo do dia
         Se a data não for passada, será considerada a data atual
@@ -253,14 +253,25 @@ Todas as carteiras:\n"""
             data = datetime.now()
         else:
             data = datetime(*data[::-1])
-        alvo = data.replace(hour = horas, minute = minutos, second = segundos, microsecond = 0)
+        alvo = datetime.fromtimestamp(
+            data.replace(
+                hour = horas, 
+                minute = minutos, 
+                second = segundos, 
+                microsecond = 0
+            ).timestamp() - tolerancia)
         agora = datetime.utcnow().timestamp() - 10800 # -3Horas
         segundos = alvo.timestamp() - agora
         if segundos > 10:
-            print(f"\n [...] Esperando até {alvo.strftime('%d/%m/%Y %H:%M:%S')} UTC-3 [...]")
+            if verboso:
+                # Isso daqui é a correção
+                alvo = alvo.fromtimestamp(
+                    alvo.timestamp() + tolerancia
+                )
+                print(f"\n [...] Esperando para fazer a operação das {alvo.strftime('%d/%m/%Y %H:%M:%S')} UTC-3 [...]")
             time.sleep(segundos)
             return True
-        if segundos > (-10 - correcao):
+        if segundos > (-10 - tolerancia):
             return True
         return False
     

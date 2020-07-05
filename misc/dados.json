@@ -1,17 +1,35 @@
 {
   "aprovados": {
     "daniloedaniel123@gmail.com": [
-      false,
-      1596300609.7875996
+      true,
+      1596335560.2136207
     ],
     "ograndeimperio0@gmail.com": [
+      true,
+      1596324872.693384
+    ],
+    "Daniloedaniel123@gmail.com": [
       false,
-      1593705217.859158
+      1596324801.4010592
+    ],
+    "hiyivo1180@tmail7.com": [
+      true,
+      1596335979.6567504
+    ],
+    "lojatvesteatendimento1@gmail.com": [
+      true,
+      1596374204.040773
+    ],
+    "brunnoo@outlook.com.br": [
+      true,
+      1596377424.2106698
+    ],
+    "taticristina85@hotmail.com": [
+      false,
+      1596421677.6701243
     ]
   },
-  "em_aprovacao": [
-    "Daniloedaniel123@gmail.com"
-  ],
+  "em_aprovacao": [],
   "ADMs": [
     756287805,
     915778450
