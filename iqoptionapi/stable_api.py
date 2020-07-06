@@ -5,7 +5,8 @@ import threading
 import time
 import logging
 import operator
- 
+
+from pprint import pprint
 from collections import defaultdict
 from iqoptionapi.expiration import get_expiration_time,get_remaning_time
 from datetime import datetime,timedelta
@@ -644,13 +645,25 @@ class IQ_Option:
     # Function by Adenilson ( https://t.me/CardosoSlv )
 	# Function only work with Options!
     def check_win_v3(self, id_number):
-	       while True:
-		          result = self.get_optioninfo_v2(10)
-		          if result['msg']['closed_options'][0]['id'][0] == id_number and result['msg']['closed_options'][0]['id'][0] != None:			
-			             return result['msg']['closed_options'][0]['win'],(result['msg']['closed_options'][0]['win_amount']-result['msg']['closed_options'][0]['amount'] if result['msg']['closed_options'][0]['win'] != 'equal' else 0)
-			             break
-		          time.sleep(1)           
-           
+        while True:
+            result = self.get_optioninfo_v2(10)
+            if result['msg']['closed_options'][0]['id'][0] == id_number and result['msg']['closed_options'][0]['id'][0] != None:			
+                    return result['msg']['closed_options'][0]['win'],(result['msg']['closed_options'][0]['win_amount']-result['msg']['closed_options'][0]['amount'] if result['msg']['closed_options'][0]['win'] != 'equal' else 0)
+                    break
+            time.sleep(10)           
+    
+    def check_win_v5(self, id_number):
+        result = self.get_optioninfo_v2(10)
+        pprint(result['msg']['open_options'])
+        for option in result['msg']['open_options']:
+            if option['id'] == id_number:
+                order = option
+                break
+        self.start_candles_stream(order['active'], 1, 1)
+        time.sleep(order['exp_time'] - time.time() - 10)
+        print("Terminou de esperar")
+        self.stop_candles_stream(order['active'], 1)
+
 # -------------------get infomation only for binary option------------------------
 
     def get_betinfo(self, id_number):

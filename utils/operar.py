@@ -152,6 +152,9 @@ class Operacao(IQ_API):
             payouts = self.aberta_profit(paridades, self.config["otc"])
 
             def atualizar_profits(comando):
+                '''
+                Atualiza os payouts do comando em diante.
+                '''
                 print("Atualizando profits...")
                 paridades = [x["par"] for x in self.comandos[self.comandos.index(comando):]]
                 payouts.update(self.aberta_profit(paridades, self.config["otc"]))
@@ -188,7 +191,8 @@ class Operacao(IQ_API):
                     payout = self.payout_binaria(par) / 100 if self.tipo == "binary" else self.payout_digital(par) / 100
                     tipo = self.tipo
 
-                self.esperarAte(horas, minutos, segundos, data, 3) # Tempo de calcular e entrar certinho
+                delay = 2 # Tempo de calcular, windows/linux = 3/2
+                self.esperarAte(horas, minutos, segundos, data, delay) 
                 with self.cadeado:
                     if not (-self.config['stoploss'] < self.total < self.config['goal']):
                         break

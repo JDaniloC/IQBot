@@ -79,6 +79,7 @@ class Assistente(amanobot.helper.ChatHandler):
 
         self.add_entrada = "0"        
         self.iniciar_operacao = False
+        self.parar_operacao = False
         self.alteracoes_avancadas = {
             "adm": False,
             "licenca": False,
@@ -334,7 +335,7 @@ class Assistente(amanobot.helper.ChatHandler):
                 if os.name == "nt": # No windows
                     os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}")
                 else:
-                    os.system(f"screen -dm python3 bot.py -o {self.email} {msg['text']}")
+                    os.system(f"screen -S {self.email} -dm python3 bot.py -o {self.email} {msg['text']}")
                 dados["aprovados"][self.email][0] = True
                 escrever_dados(dados)
                 self.sender.sendMessage("Operação iniciada.")
@@ -345,7 +346,14 @@ class Assistente(amanobot.helper.ChatHandler):
                 self.iniciar_operacao = True
             else:
                 if dados["aprovados"][self.email][0]:
-                    self.sender.sendMessage("Sua conta já está em operação.")
+                    self.sender.sendMessage("Sua conta já está em operação. Deseja parar a operação?",
+                        reply_markup = ReplyKeyboardMarkup(
+                            keyboard = [
+                                [KeyboardButton( text = "Sim" )],
+                                [KeyboardButton( text = "Não" )]
+                            ]
+                        ))
+                    self.parar_operacao = True
                 else:
                     dados["aprovados"][self.email][0] = False
                     escrever_dados(dados)
@@ -584,6 +592,11 @@ class Assistente(amanobot.helper.ChatHandler):
             self.login(msg)
         elif self.iniciar_operacao:
             self.operar(msg)
+        elif self.parar_operacao:
+            if msg['text'] == "Sim":
+                os.system(f"screen -X -S {self.email} quit")
+                self.sender.sendMessage("Operação cancelada.")
+            self.comandos()
         elif msg['text'] == "Entrar":
             if not self.autenticacao:
                 self.sender.sendMessage("Digite o seu e-mail para continuar:", 
