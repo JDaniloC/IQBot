@@ -1,11 +1,11 @@
 {
   "aprovados": {
     "daniloedaniel123@gmail.com": [
-      true,
+      false,
       1596335560.2136207
     ],
     "ograndeimperio0@gmail.com": [
-      true,
+      false,
       1596324872.693384
     ],
     "Daniloedaniel123@gmail.com": [
@@ -13,20 +13,56 @@
       1596324801.4010592
     ],
     "hiyivo1180@tmail7.com": [
-      true,
+      false,
       1596335979.6567504
     ],
     "lojatvesteatendimento1@gmail.com": [
-      true,
+      false,
       1596374204.040773
     ],
     "brunnoo@outlook.com.br": [
-      true,
+      false,
       1596377424.2106698
     ],
     "taticristina85@hotmail.com": [
       false,
       1596421677.6701243
+    ],
+    "davi_colasa@hotmail.com": [
+      false,
+      1594334311.3859055
+    ],
+    "nossaumdenada@hotmail.com": [
+      false,
+      1594334351.256924
+    ],
+    "dmc.dmii00@gmail.com": [
+      false,
+      1594334436.8479266
+    ],
+    "adleyr@hotmail.com": [
+      false,
+      1594334570.3999383
+    ],
+    "westeffersantos@gmail.com": [
+      false,
+      1594335160.3039615
+    ],
+    "pauloweinert@gmail.com": [
+      false,
+      1594335292.2293048
+    ],
+    "eloisa.anni00@gmail.com": [
+      false,
+      1594335843.5027578
+    ],
+    "leandrobmxeestreetoi@hotmail.com": [
+      false,
+      1594335939.9884536
+    ],
+    "olindomjr@gmail.com": [
+      false,
+      1594338890.4666097
     ]
   },
   "em_aprovacao": [],

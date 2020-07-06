@@ -136,20 +136,24 @@ class Assistente(amanobot.helper.ChatHandler):
         Método para o login, verifica se o ID
         Está em análise ou já aprovado.
         '''
-        global dados
+        dados = carregar_dados()
         if self.autenticacao:
             self.sender.sendMessage("Você já está logado.")
             return False
 
         email = msg['text'].lower()
         if email in dados["aprovados"]:
-            self.email = msg["text"]
+            self.email = msg["text"].lower()
             restante = dados["aprovados"][self.email][1] - time.time()
             if restante > 0:
                 self.entrada = False
                 self.autenticacao = True
-                with open("clients/" + self.email + ".json") as file:
-                    self.informacoes = json.load(file)
+                try:
+                    with open("clients/" + self.email + ".json") as file:
+                        self.informacoes = json.load(file)
+                except:
+                    with open("clients/" + self.email + ".json", "w") as file:
+                        json.dump(self.informacoes, file)
                 self.sender.sendMessage(
                     f"E-mail autenticado, seja bem-vindo Sr(a) {self.nome_usuario} sua licença expira em: {str(timedelta(seconds = restante)).replace('days', 'dias')}")
                 self.comandos()
@@ -161,6 +165,7 @@ class Assistente(amanobot.helper.ChatHandler):
             self.close()
         else:
             dados["em_aprovacao"].append(email)
+            escrever_dados(dados)
             pprint.pprint(dados["em_aprovacao"])
             self.sender.sendMessage(f"Seu e-mail foi colocado para analise. Espere a confirmação do administrador e mande seu e-mail novamente para logar.")
             self.close()
@@ -317,6 +322,7 @@ class Assistente(amanobot.helper.ChatHandler):
         do usuário e abre um novo processo com o bot
         '''
         if self.autenticacao:
+            dados = carregar_dados()
             if self.iniciar_operacao:
                 self.sender.sendMessage("Iniciando operação...",
                     reply_markup = ReplyKeyboardRemove())
@@ -329,7 +335,6 @@ class Assistente(amanobot.helper.ChatHandler):
                     os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}")
                 else:
                     os.system(f"screen -dm python3 bot.py -o {self.email} {msg['text']}")
-                dados = carregar_dados()
                 dados["aprovados"][self.email][0] = True
                 escrever_dados(dados)
                 self.sender.sendMessage("Operação iniciada.")
@@ -339,7 +344,6 @@ class Assistente(amanobot.helper.ChatHandler):
                 reply_markup = ReplyKeyboardRemove())
                 self.iniciar_operacao = True
             else:
-                dadso = carregar_dados()
                 if dados["aprovados"][self.email][0]:
                     self.sender.sendMessage("Sua conta já está em operação.")
                 else:
@@ -436,6 +440,7 @@ class Assistente(amanobot.helper.ChatHandler):
         Verifica se a mensagem está nas configurações avançadas
         Se estiver, devolve True caso contrário False
         '''
+        dados = carregar_dados()
         if self.id not in dados['ADMs']:
             return False
         if msg['text'] == 'Adicionar administrador':
@@ -470,10 +475,12 @@ class Assistente(amanobot.helper.ChatHandler):
         return self.mapear(self.mapeamento, msg['text'])
 
     def salvar_alteracoes_avancadas(self, msg):
+        dados = carregar_dados()
         if self.id not in dados['ADMs']:
             return False
         if self.alteracoes_avancadas['adm']:
             dados['ADMs'].append(int(msg['text']))
+            escrever_dados(dados)
             self.sender.sendMessage("Adminstrador adicionado.")
             self.alteracoes_avancadas["adm"] = False
             return True
@@ -483,12 +490,14 @@ class Assistente(amanobot.helper.ChatHandler):
             email = msg['text']
             dados["em_aprovacao"].remove(email)
             dados["aprovados"][email] = [False, data]
+            escrever_dados(dados)
             self.sender.sendMessage("Usuário aprovado.")
             self.alteracoes_avancadas["aprovar"] = False
             return True
         elif self.alteracoes_avancadas['licenca']:
             email = msg['text']
             dados['aprovados'][email][1] = time.time() + 2592000 # Um mês
+            escrever_dados(dados)
             self.alteracoes_avancadas["licenca"] = False
             return True
         return False
@@ -503,7 +512,7 @@ class Assistente(amanobot.helper.ChatHandler):
             if value[1]:
                 if value[2] not in [list, bool]:
                     try:
-                        novo = value[2](novo.strip().replace(",", "."))
+                        novo = value[2](novo.strip().replace(",", ".").replace("%", ""))
                     except Exception as e:
                         print(e)
                         self.sender.sendMessage("Deve ser um número! Tente novamente")
@@ -645,7 +654,7 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
         print()
 
 if __name__ == "__main__":
-    TOKEN = "" # "1230540493:AAE3sDtChTvq1SlhqGDJhnIPfM2Qlgrr4_g"
+    TOKEN = "1230540493:AAE3sDtChTvq1SlhqGDJhnIPfM2Qlgrr4_g"
 
     print("Carregando...")
     printProgressBar(0, 20, prefix = 'Progress:', suffix = 'Complete', length = 30)

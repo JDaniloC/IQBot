@@ -1,13 +1,13 @@
 {
   "tipo_conta": "treino",
-  "valor": 10.0,
-  "minimo": 50,
-  "goal": 100.0,
+  "valor": 5.0,
+  "minimo": 20,
+  "goal": 100,
   "soros": false,
   "percent_soros": 0,
-  "stoploss": 30.0,
+  "stoploss": 20,
   "martin": true,
   "percent_martin": 0,
-  "max_gale": 1,
+  "max_gale": 2,
   "tipo_gale": "seguro"
 }
