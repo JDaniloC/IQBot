@@ -153,7 +153,7 @@ class Assistente(amanobot.helper.ChatHandler):
                         self.informacoes = json.load(file)
                 except:
                     with open("clients/" + self.email + ".json", "w") as file:
-                        json.dump(self.informacoes, file)
+                        json.dump(self.informacoes, file, indent = 2)
                 self.sender.sendMessage(
                     f"E-mail autenticado, seja bem-vindo Sr(a) {self.nome_usuario} sua licença expira em: {str(timedelta(seconds = restante)).replace('days', 'dias')}")
                 self.comandos()
