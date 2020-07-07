@@ -596,6 +596,7 @@ class Assistente(amanobot.helper.ChatHandler):
             if msg['text'] == "Sim":
                 os.system(f"screen -X -S {self.email} quit")
                 self.sender.sendMessage("Operação cancelada.")
+            self.parar_operacao = False
             self.comandos()
         elif msg['text'] == "Entrar":
             if not self.autenticacao:
