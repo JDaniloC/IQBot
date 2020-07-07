@@ -583,7 +583,7 @@ class Assistente(amanobot.helper.ChatHandler):
             if result:
                 #key, value = result
                 #self.informacoes[key] = value
-                MongoDB.changeInfos(self.msgn[0], self.msgn[1])
+                MongoDB.changeInfos(self.msgn[0], self.msgn[1], self._email)
                 self.sender.sendMessage("Alteração salva!")
                 self.ver_configuracoes()
                 return True
@@ -672,8 +672,7 @@ class Assistente(amanobot.helper.ChatHandler):
         Método que é chamado quando acaba uma conversa
         '''
         if self.autenticacao:
-            with open("clients/" + self.email + ".json", "w") as file:
-                json.dump(self.informacoes, file, indent = 2)
+            MongoDB.Users_collection.find_one({'email': self._email})
 
         print(f"Usuário {self.nome_usuario} saiu.\n")
         self.sender.sendMessage("Obrigado pela preferência, irei atender outras pessoas, qualquer coisa é só chamar.", reply_markup = ReplyKeyboardRemove())
