@@ -5,10 +5,11 @@ from mongodb_py import adms_schema
 import time
 
 class Mongo:
-    def __init__(self, database, users_collection, users_em_aprovacao, adms):
+    def __init__(self, database, users_collection, users_em_aprovacao, default_infos, adms):
         self.database = database
         self.Users_collection = users_collection
         self.Users_em_aprovacao = users_em_aprovacao
+        self.Default = default_infos
         self.ADMS = adms
 
     def check_email(self, email):
@@ -49,6 +50,21 @@ class Mongo:
         user.update(info)
         self.Users_collection.insert_one(user)
 
+    def change_avancadas(self, info, valor):
+        object_id = self.Default.find_one()['_id'] #Pega o ID do documento
+        default = self.Default.find_one_and_delete({'_id': object_id}) #Utiliza o ID para deletar e retornar o doc
+        default[info] = valor
+        self.Default.insert_one(default) #Insere o doc alterado no banco
+
+    def get_avancadas(self):
+        avoid = ['_id', 'arquivo']
+        aux = ['Tipo', 'OTC', 'Timeframe', 'Correcao']
+        msg = ''
+        for key, value in self.Default.find_one().items():
+            if key not in avoid:
+                msg += str(aux.pop(0)) + " : " + str(value) + '\n'
+        return msg
+
     def get_user(self, email):
         user = self.Users_collection.find_one({'email': email})
         return user
@@ -57,7 +73,8 @@ client =  MongoClient('')
 IQ_DataBase = client.iqbot
 Users_collection = IQ_DataBase.user
 Users_em_aprovacao = IQ_DataBase.queue
+default_infos = IQ_DataBase.default
 ADMS = IQ_DataBase.ADMS
 aprovacao = waiting_schema.queue
 
-MongoDB = Mongo(IQ_DataBase, Users_collection, Users_em_aprovacao, ADMS)
+MongoDB = Mongo(IQ_DataBase, Users_collection, Users_em_aprovacao, default_infos, ADMS)

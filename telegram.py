@@ -46,8 +46,8 @@ def carregar_entradas(opcao):
 def get_adms():
     return [x[0] for x in [list(value.values()) for value in list(MongoDB.ADMS.find())]]
 
-with open("clients/default.json", encoding = "utf-8") as file:
-    default = json.load(file) 
+#with open("clients/default.json", encoding = "utf-8") as file:
+#    default = json.load(file) 
 
 
 adms = get_adms()
@@ -225,9 +225,9 @@ class Assistente(amanobot.helper.ChatHandler):
         if self.id in adms:
             self.sender.sendMessage("Usuário não tem permissão")
             return False
-        for key, value in default.items():
-            self.sender.sendMessage(key + ": " + str(value),
-            reply_markup = ReplyKeyboardRemove())
+        #for key, value in default.items():
+        self.sender.sendMessage(MongoDB.get_avancadas,
+        reply_markup = ReplyKeyboardRemove())
 
     def adicionar_entrada(self, msg):
         '''
@@ -549,10 +549,11 @@ class Assistente(amanobot.helper.ChatHandler):
             return False
         result = self.confirmar_mapeamento(mapeamento_avancado, msg['text'])
         if result:
-            key, value = result
-            default[key] = value
-            with open("clients/default.json", "w") as file:
-                json.dump(default, file, indent = 2)
+            info, valor = result
+            MongoDB.change_avancadas(info, valor)
+            #default[key] = value
+            #with open("clients/default.json", "w") as file:
+            #    json.dump(default, file, indent = 2)
             self.sender.sendMessage(f"Valor salvo.")
             self.ver_avancadas()
             return True
