@@ -175,8 +175,7 @@ def recebe_comandos(comandos):
                 config['senha'] = comandos[i + 2]
 
                 # Une com as informações gerais
-                with open("clients/default.json") as file:
-                    config.update(json.load(file))
+                config.update(MongoDB.get_avancadas())
                 
                 # Define o arquivo de entradas a partir do gale máximo
                 config['arquivo'] = "entradas" + str(config['max_gale'])

@@ -225,9 +225,11 @@ class Assistente(amanobot.helper.ChatHandler):
         if self.id in adms:
             self.sender.sendMessage("Usuário não tem permissão")
             return False
-        #for key, value in default.items():
-        self.sender.sendMessage(MongoDB.get_avancadas,
-        reply_markup = ReplyKeyboardRemove())
+        default = MongoDB.get_avancadas()
+        for key, value in default.items():
+            if key not in ["_id", "arquivo"]:
+                self.sender.sendMessage(f"{key}: {value}",
+                reply_markup = ReplyKeyboardRemove())
 
     def adicionar_entrada(self, msg):
         '''
@@ -551,9 +553,6 @@ class Assistente(amanobot.helper.ChatHandler):
         if result:
             info, valor = result
             MongoDB.change_avancadas(info, valor)
-            #default[key] = value
-            #with open("clients/default.json", "w") as file:
-            #    json.dump(default, file, indent = 2)
             self.sender.sendMessage(f"Valor salvo.")
             self.ver_avancadas()
             return True

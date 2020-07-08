@@ -652,7 +652,7 @@ class IQ_Option:
                     break
             time.sleep(10)           
     
-    # Function by Danilo ()
+    # Function by Danilo ( https://t.me/DaniloCarmo )
     def check_win_v5(self, id_number, mode, delay = 0):
         if mode != "digital":
             result = self.get_optioninfo_v2(10)
@@ -664,6 +664,8 @@ class IQ_Option:
             value = order['value']
             expiration = order['exp_time']
             action = order['dir']
+            lose = order['sum']
+            win_amount = round(order['win_amount'] - lose, 2)
         else:
             order = None
             while not order:
@@ -673,22 +675,30 @@ class IQ_Option:
             value = order['instrument_strike']
             expiration = order['instrument_expiration'] / 1000
             action = order['instrument_dir']
+            period = order['instrument_period'] // 60
+            lose = order['buy_amount']
+            self.subscribe_strike_list(active, period)
+            payout = False
+            while not payout:
+                time.sleep(0.8)
+                payout = self.get_digital_current_profit(active, period)
+            win_amount = round((lose * payout) / 100, 2)
 
         self.start_candles_stream(active, 1, 1)
         time.sleep(expiration + delay - time.time())
-        print("Terminou de esperar")
-        # Take the actual candle
+
         candles = self.get_realtime_candles(active, 1)
         for candle in candles:
             actual = candles[candle]['close']
-        if actual - value < 0 and action == "put":
-            print("Ganhou")
-        elif actual - value > 0 and action == "call":
-            print("Ganhou")
-        elif actual - value == 0:
-            print("Doji")
+        if ((actual - value < 0 and action == "put") or 
+            (actual - value > 0 and action == "call")):
+            status, amount = "win", win_amount
+        elif actual - value == 0 and mode != "digital":
+            status, amount = "equal", 0
         else:
-            print("Perdeu")
+            status, amount = "loose", lose
+        
+        return status, amount
 
 
 # -------------------get infomation only for binary option------------------------
@@ -1271,15 +1281,3 @@ class IQ_Option:
         return self.api.socket_option_opened
     def del_option_open_by_other_pc(self,id):
         del self.api.socket_option_opened[id]
-
-# from iqoptionapi.stable_api import IQ_Option
-# a = IQ_Option("daniloedaniel123@gmail.com", "Danilo123")
-# for i in range(3):
-#   b, c = a.buy(1, "EURUSD", "put", 1)
-#   a.check_win_v5(c, "binary")
-
-# from iqoptionapi.stable_api import IQ_Option
-# a = IQ_Option("daniloedaniel123@gmail.com", "Danilo123")
-# for i in range(3):
-#   b = a.buy_digital_spot("EURUSD", 1, "put", 1)
-#   a.check_win_v5(b, 'digital')

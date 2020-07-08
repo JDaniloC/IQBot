@@ -51,19 +51,15 @@ class Mongo:
         self.Users_collection.insert_one(user)
 
     def change_avancadas(self, info, valor):
-        object_id = self.Default.find_one()['_id'] #Pega o ID do documento
-        default = self.Default.find_one_and_delete({'_id': object_id}) #Utiliza o ID para deletar e retornar o doc
+        # Pega o ID do documento para deleta-lo depois
+        object_id = self.Default.find_one()['_id'] 
+        default = self.Default.find_one_and_delete({'_id': object_id}) 
         default[info] = valor
         self.Default.insert_one(default) #Insere o doc alterado no banco
 
     def get_avancadas(self):
-        avoid = ['_id', 'arquivo']
-        aux = ['Tipo', 'OTC', 'Timeframe', 'Correcao']
-        msg = ''
-        for key, value in self.Default.find_one().items():
-            if key not in avoid:
-                msg += str(aux.pop(0)) + " : " + str(value) + '\n'
-        return msg
+        default = self.Default.find_one()
+        return default
 
     def get_user(self, email):
         user = self.Users_collection.find_one({'email': email})

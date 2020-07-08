@@ -142,7 +142,7 @@ Todas as carteiras:\n"""
 
         return abertas
 
-    def aberta_profit(self, paridades, otc):
+    def aberta_profit(self, paridades, timeframe):
         '''
         Verifica se a paridade está aberta e devolve o profit
         de forma que seja otimizado, devolvendo ambos os tipos
@@ -151,6 +151,7 @@ Todas as carteiras:\n"""
         Lembrando que ele considera que você já se inscreveu na digital
         Params:
             - par: paridade
+            - timeframe: 1|5|15...
         return:
             {
             "binary": {
@@ -167,19 +168,21 @@ Todas as carteiras:\n"""
         todos_binary = self.API.get_all_profit()
 
         for par in paridades:
-            par += "-OTC" if otc else ""
             
-            if abertas["turbo"][par]["open"]:
-                payouts["binary"][par] = [True, todos_binary[par]["turbo"]]
+            tipo_binaria = "turbo" if timeframe == 1 else "binary"
+            if abertas[tipo_binaria][par]["open"]:
+                payouts["binary"][par] = [True, todos_binary[par][tipo_binaria]]
             else:
                 payouts["binary"][par] = [False]
 
             if abertas['digital'][par]["open"]:
-                payout_digital = self.API.get_digital_current_profit(par, self.config["tempo"])
+                self.API.subscribe_strike_list(par, timeframe)
+                time.sleep(0.8)
+                payout_digital = False
+                while not payout_digital:
+                    payout_digital = self.API.get_digital_current_profit(par, timeframe)
                 payouts["digital"][par] = [
-                    True, 
-                    payout_digital // 100 if payout_digital else 0.7
-                    ]
+                    True, round(payout_digital / 100, 2)]
             else:
                 payouts["digital"][par] = [False]
         return payouts
@@ -203,18 +206,9 @@ Todas as carteiras:\n"""
                     status, identificador = self.API.buy(valor, par, direcao, tempo)
             else:
                 status, identificador = self.API.buy(valor, par, direcao, tempo)
-            if status:
-                print(f"Operação realizada: {par}-{tipo} {direcao} ${round(valor, 2)} {tempo}min")
-
-                resultado, lucro = self.API.check_win_v4(identificador)
-
-                if resultado == "win":
-                    print(f"\n  WIN: R${round(lucro, 2)}  ")
-                else:
-                    print(f"\n  {resultado.capitalize()}: R${round(lucro, 2)}  ")
-            else:
+            if not status:
                 print(f"  ! Um erro aconteceu: {par}-{tipo} {direcao} {valor}!")
-                resultado, lucro = "error", 0
+                return "error", 0
         else:
             if bloqueador:
                 with bloqueador:
@@ -222,25 +216,20 @@ Todas as carteiras:\n"""
             else:        
                 identificador = self.API.buy_digital_spot(par, valor, direcao, tempo)
             
-            if isinstance(identificador, int):
-                print(f"Operação realizada: {par}-{tipo} {direcao} ${round(valor, 2)} {tempo}min")
-
-                status = False
-                while not status:
-                    status, lucro = self.API.check_win_digital_v2(identificador)
-
-                if lucro > 0:
-                    resultado = "win"
-                    print(f"\n  WIN: R${round(lucro, 2)}  ")
-                else:
-                    resultado = "loose"
-                    print(f"\n  LOSS: R${round(lucro, 2)}  ")
-
-            else:
+            if not isinstance(identificador, int):
                 print(f"  ! Um erro aconteceu: {par}-{tipo} {direcao} {valor}!")
                 resultado, lucro = "erro", 0
-                print(identificador)
-        return resultado, round(lucro, 2)
+
+        print(f"Operação realizada: {par}-{tipo} {direcao} ${round(valor, 2)} {tempo}min")
+
+        resultado, lucro = self.API.check_win_v5(identificador, tipo, 0.6)
+
+        if resultado == "win":
+            print(f"\n  WIN: R${lucro}  ")
+        else:
+            print(f"\n  {resultado.upper()}: R${lucro}  ")
+
+        return resultado, lucro
     
     @staticmethod
     def esperarAte(horas, minutos, segundos = 0, data = (), tolerancia = 0, verboso = False):

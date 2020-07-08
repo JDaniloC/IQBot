@@ -1,6 +1,7 @@
 from datetime import datetime
 from utils.IQ import IQ_API
 import threading, traceback, time, re, sys
+from pprint import pprint
 
 LOCALERROR = "config/errors.log"
 
@@ -118,7 +119,8 @@ class Operacao(IQ_API):
                 perda += abs(lucro)
                 lucro = self.valor * payout if self.config["tipo_gale"] != "porcento" else self.config["percent_martin"] / 100
                 valor = self.martingale(self.config['tipo_gale'], payout, perda, valor, lucro)
-                
+                valor = 1 if valor < 1 else valor # Caso der doji
+
                 resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo, self.cadeado)
                 num_gales += 1
         elif resultado == "loose":
@@ -148,8 +150,9 @@ class Operacao(IQ_API):
             ultima_vez = time.time()
             paridades = [x["par"] for x in self.comandos]
             for par in paridades:
-                self.API.subscribe_strike_list(par, self.config["otc"])
-            payouts = self.aberta_profit(paridades, self.config["otc"])
+                par = par + "-OTC" if self.config['otc'] else par
+                self.API.subscribe_strike_list(par, self.tempo)
+            payouts = self.aberta_profit(paridades, self.tempo)
 
             def atualizar_profits(comando):
                 '''
@@ -185,7 +188,7 @@ class Operacao(IQ_API):
                         tipo = "digital"
                         payout = payouts["digital"][par][1]
                     else:
-                        print(f"{par} não está disponível nem binária nem digital")
+                        print(f"{par} não está disponível nem binária nem digital na modalidade M{self.tempo}")
                         continue
                 else:
                     payout = self.payout_binaria(par) / 100 if self.tipo == "binary" else self.payout_digital(par) / 100
