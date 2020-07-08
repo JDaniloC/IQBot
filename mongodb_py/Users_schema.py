@@ -1,10 +1,7 @@
-User = {
-    "id": None,
-    "adm": False,
+user = {
     "email": '',
     "timestamp": 0,
     "operando": False,
-    "aprovado": False,
     "tipo_conta": "treino",
     "valor": 2,
     "minimo": 0,

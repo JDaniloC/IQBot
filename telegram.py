@@ -6,7 +6,7 @@ from amanobot.namedtuple import (
     ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove)
 from amanobot.delegate import (
     pave_event_space, per_chat_id, create_open)
-from conectando import *
+from database import *
 
 # Funções
 def strDateHour(number):
@@ -43,20 +43,14 @@ def carregar_entradas(opcao):
             ''')
     return lista_entradas
 
-def escrever_dados(dados):
-    with open("misc/dados.json", "w", encoding = "utf-8") as file:
-        json.dump(dados, file, indent = 2)
-
-def carregar_dados():
-    with open("misc/dados.json", encoding = "utf-8") as file:
-        dados = json.load(file)
-    return dados
-
-# Carregar arquivos iniciais do bot
-dados = carregar_dados()
+def get_adms():
+    return [x[0] for x in [list(value.values()) for value in list(MongoDB.ADMS.find())]]
 
 with open("clients/default.json", encoding = "utf-8") as file:
     default = json.load(file) 
+
+
+adms = get_adms()
 
 entrada_1gale = carregar_entradas(1)
 entrada_2gale = carregar_entradas(2)
@@ -90,7 +84,7 @@ class Assistente(amanobot.helper.ChatHandler):
         self.mapeamento = {
             "Tipo de conta": ["tipo_conta", False, list], 
             "Valor de entrada": ["valor", False, float],
-            "Payout mínimo": ["minimo", False, int], # 0 - 100
+            "Payout mínimo": ["minimo", False, int], 
             "StopWin": ["goal", False, float],
             "Soros": ["soros", False, bool], 
             "Percentual da soros": ["percent_soros", False, int],
@@ -133,54 +127,54 @@ class Assistente(amanobot.helper.ChatHandler):
                 keyboard = [[KeyboardButton(text = "Entrar")]]
         ))
 
+    def entrar(self):
+        if not self.autenticacao:
+            self.sender.sendMessage("Digite o seu e-mail para continuar:", 
+                reply_markup = ReplyKeyboardRemove())
+            self.entrada = True
+        else:
+            self.sender.sendMessage("Você já está logado")
+
     def login(self, msg):
         '''
         Método para o login, verifica se o ID
         Está em análise ou já aprovado.
         '''
-       # dados = carregar_dados()
         if self.autenticacao:
             self.sender.sendMessage("Você já está logado.")
             return False
 
+        self.sender.sendMessage("Carregado...")
         email = msg['text'].lower()
-        self._email = email
-        _id = str(msg['from']['id'])
 
-        if(not MongoDB.Users_em_aprovacao.find_one()): #PRA VERIFICAR SE HÁ ALGUM OBJETO NO ARRAY, SE NAO TIVER, É ADCIONADO O PRIMEIRO
-            self.aux = aprovacao['waiting']
-            self.aux.append({email:msg['from']['id']})
-            MongoDB.Users_em_aprovacao.insert(aprovacao, check_keys=False);
-
-            self.sender.sendMessage(f"Seu e-mail foi colocado para analise. Espere a confirmação do administrador e mande seu e-mail novamente para logar.")
-            self.close()
-
-        elif(not MongoDB.check_email(email) and MongoDB.Users_collection.find_one({"email": email}) == None): #VERIFICA SE JA TEM UM NO DB, E SE NÃO ESTA APROVADO
-    
-            objct = MongoDB.Users_em_aprovacao.find_one()['_id']
-            aux = MongoDB.Users_em_aprovacao.find_one(objct)
-            aux['waiting'].append({email : msg['from']['id']})
-            MongoDB.Users_em_aprovacao.update_one({'_id': objct}, {'$set': {'waiting': aux['waiting']}})
-
-            self.sender.sendMessage(f"Seu e-mail foi colocado para analise. Espere a confirmação do administrador e mande seu e-mail novamente para logar.")
-            self.close()
-        
-        if (MongoDB.Users_collection.find_one({"email": email})): #VERIFICA SE O EMAIL JA ESTA NO BANCO
-            self.email = msg["text"].lower() #NAO VOU MEXER AQ
-            restante = MongoDB.Users_collection.find_one({'email': email})['timestamp'] - time.time()
+        if MongoDB.Users_collection.find_one({"email": email}): 
+            # Verifica se está no banco de dados e entra na conta
+            self.email = msg["text"].lower()
+            self.informacoes = MongoDB.get_user(self.email)
+            restante = self.informacoes['timestamp'] - time.time()
             if restante > 0:
                 self.entrada = False
                 self.autenticacao = True
-                self._id = msg['from']['id']
                 self.sender.sendMessage(
                     f"E-mail autenticado, seja bem-vindo Sr(a) {self.nome_usuario} sua licença expira em: {str(timedelta(seconds = restante)).replace('days', 'dias')}")
                 self.comandos()
             else:
                 self.sender.sendMessage("Sua licença expirou, peça para o administrador renovar.")
                 self.close()
-        
         elif (MongoDB.check_email(email)):
             self.sender.sendMessage("Seu e-mail ainda está em análise...")
+            self.close()
+        else:
+            # Caso o usuário não estiver na lista de espera ele adiciona
+            objct = MongoDB.Users_em_aprovacao.find_one()['_id']
+            aux = MongoDB.Users_em_aprovacao.find_one(objct)
+            aux['waiting'].append({email : self.id})
+            MongoDB.Users_em_aprovacao.update_one(
+                {'_id': objct}, 
+                {'$set': {'waiting': aux['waiting']}}
+            )
+
+            self.sender.sendMessage(f"Seu e-mail foi colocado para analise. Espere a confirmação do administrador e mande seu e-mail novamente para logar.")
             self.close()
 
     def comandos(self):
@@ -204,7 +198,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Comandos para administradores
         '''
-        if (MongoDB.ADMS.find_one({'_id':self._id}) == None):
+        if self.id in adms:
             self.sender.sendMessage("Usuário não tem permissão")
             return False
 
@@ -228,7 +222,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Método que mostra do jeito cru as configurações avançadas
         '''
-        if (MongoDB.ADMS.find_one({'_id':self._id}) == None):
+        if self.id in adms:
             self.sender.sendMessage("Usuário não tem permissão")
             return False
         for key, value in default.items():
@@ -239,7 +233,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Mudar caminho do arquivo de entradas
         '''
-        if (MongoDB.ADMS.find_one({'_id':self._id}) == None):
+        if self.id in adms:
             self.sender.sendMessage("Usuário não tem permissão")
             return False
        
@@ -256,7 +250,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Método que habilita a espera por uma nova lista
         '''
-        if (MongoDB.ADMS.find_one({'_id':self._id}) == None):
+        if self.id in adms:
             return False
         if msg['text'] in ["1 gale", "2 gales", "ambos"]:
             self.add_entrada = "ambos" if msg['text'] == "ambos" else msg['text'].split()[0]
@@ -296,7 +290,7 @@ class Assistente(amanobot.helper.ChatHandler):
         Método que recebe a mensagem de entradas, trata e salva.
         '''
         global entrada_1gale, entrada_2gale
-        if (MongoDB.ADMS.find_one({'_id':self._id}) == None):
+        if self.id in adms:
             return False
         if self.add_entrada != "0":
             self.sender.sendMessage("Processando...")
@@ -335,31 +329,30 @@ class Assistente(amanobot.helper.ChatHandler):
         do usuário e abre um novo processo com o bot
         '''
         if self.autenticacao:
-            #dados = carregar_dados()
+            self.sender.sendMessage("Carregando...")
+
             if self.iniciar_operacao:
                 self.sender.sendMessage("Iniciando operação...",
-                    reply_markup = ReplyKeyboardRemove())
-                #SETA O OPERANDO = TRUE
-                MongoDB.Users_collection.find_one_and_update({'email': self._email}, {'$set' : {'operando': True}})    
+                    reply_markup = ReplyKeyboardRemove())   
                 self.iniciar_operacao = False
-                
-                #with open("clients/" + self.email + ".json", "w") as file:
-                #    json.dump(self.informacoes, file)
+                self.informacoes["operando"] = True
+                MongoDB.change_user(self.informacoes, self.email)
                 
                 if os.name == "nt": # No windows
                     os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}")
                 else:
                     os.system(f"screen -S {self.email} -dm python3 bot.py -o {self.email} {msg['text']}")
-                #dados["aprovados"][self.email][0] = True
-                #escrever_dados(dados)
                 self.sender.sendMessage("Operação iniciada.")
                 self.comandos()
-            elif (MongoDB.Users_collection.find_one({'email': self._email})['operando']) == False:
-                self.sender.sendMessage("Digite sua senha (não guardamos a sua senha, você terá que fazer isso todas as vezes): ", 
-                reply_markup = ReplyKeyboardRemove())
-                self.iniciar_operacao = True
             else:
-                if (MongoDB.Users_collection.find_one({'email': self._email})['operando']):
+                self.informacoes = MongoDB.get_user(self.email)
+
+                if not self.informacoes['operando']:
+                    self.sender.sendMessage("Digite sua senha (não guardamos a sua senha, você terá que fazer isso todas as vezes): ", 
+                    reply_markup = ReplyKeyboardRemove())
+                    self.iniciar_operacao = True
+                
+                else:
                     self.sender.sendMessage("Sua conta já está em operação. Deseja parar a operação?",
                         reply_markup = ReplyKeyboardMarkup(
                             keyboard = [
@@ -368,25 +361,27 @@ class Assistente(amanobot.helper.ChatHandler):
                             ]
                         ))
                     self.parar_operacao = True
-                    if(self.parar_operacao):#CONDIÇÃO É NECESSÁRIA PRA SETAR O OPERANDO COMO FALSE< CASO ELE PARE A OPERAÇÃO
-                        MongoDB.Users_collection.find_one_and_update({'email': self._email}, {'$set' : {'operando': False}})
-                else:
-                    #dados["aprovados"][self.email][0] = False
-                    #escrever_dados(dados)
-                    MongoDB.Users_collection.find_one_and_update({'email': self._email}, {'$set' : {'operando': False}})
-                    self.sender.sendMessage("Sua operação anterior terminou, clique em operar novamente para começar uma nova.")
         else:
             self.sender.sendMessage("Usuário não autenticado")
+
+    def parar_operar(self, msg):
+        if msg['text'] == "Sim":
+            self.sender.sendMessage("Parando operação...")
+            os.system(f"screen -X -S {self.email} quit")
+            self.sender.sendMessage("Operação cancelada.")
+            MongoDB.Users_collection.find_one_and_update({'email': self.email}, {'$set' : {'operando': False}})
+        self.parar_operacao = False
+        self.comandos()
 
     def ver_configuracoes(self):
         '''
         Mostra as configurações atuais
         '''
         if self.autenticacao:
-            #mensagem = ""
-            #for key, value in self.mapeamento.items():
-            #    mensagem += key + ": " + str(self.informacoes[value[0]]).replace("True", "Sim").replace("False", "Não") + "\n"
-            self.sender.sendMessage(MongoDB.getInfos(self._email))
+            mensagem = ""
+            for key, value in self.mapeamento.items():
+               mensagem += key + ": " + str(self.informacoes[value[0]]).replace("True", "Sim").replace("False", "Não") + "\n"
+            self.sender.sendMessage(mensagem)
         else:
             self.sender.sendMessage("Usuário não autenticado")
 
@@ -466,8 +461,7 @@ class Assistente(amanobot.helper.ChatHandler):
         Verifica se a mensagem está nas configurações avançadas
         Se estiver, devolve True caso contrário False
         '''
-        #dados = carregar_dados()
-        if (MongoDB.ADMS.find_one({'_id':self._id}) == None):
+        if self.id in adms:
             return False
         if msg['text'] == 'Adicionar administrador':
             self.sender.sendMessage("Coloque o ID do telegram:",
@@ -502,31 +496,23 @@ class Assistente(amanobot.helper.ChatHandler):
         return self.mapear(self.mapeamento, msg['text'])
 
     def salvar_alteracoes_avancadas(self, msg):
-        #dados = carregar_dados()
-        if (MongoDB.ADMS.find_one({'_id':self._id}) == None):
+        global adms
+        if self.id in adms:
             return False
+        msg = msg['text']
         if self.alteracoes_avancadas['adm']:
-            #dados['ADMs'].append(int(msg['text']))
-            #escrever_dados(dados)
-            MongoDB.setAdm(int(msg['text']))
+            MongoDB.add_adm(int(msg))
+            adms = get_adms()
             self.sender.sendMessage("Adminstrador adicionado.")
             self.alteracoes_avancadas["adm"] = False
             return True
         elif self.alteracoes_avancadas['aprovar']:
-            # 4 dias 2592000 Um mês
-            #data = time.time() + 345600
-            #dados["em_aprovacao"].remove(email)
-            #dados["aprovados"][email] = [False, data]
-            #escrever_dados(dados)
-            email = msg['text']
-            _id = msg['from']['id']
-            MongoDB.aprovar(email, _id)
+            MongoDB.aprovar(msg, self.id)
             self.sender.sendMessage("Usuário aprovado.")
             self.alteracoes_avancadas["aprovar"] = False
             return True
         elif self.alteracoes_avancadas['licenca']:
-            email = msg['text']
-            MongoDB.renovarLicenca(email)
+            MongoDB.set_timestamp(msg)
             self.alteracoes_avancadas["licenca"] = False
             return True
         return False
@@ -559,7 +545,7 @@ class Assistente(amanobot.helper.ChatHandler):
         Método que altera no dicionário a nova informação
         E salva o default.json novo.
         '''
-        if (MongoDB.ADMS.find_one({'_id':self._id}) == None):
+        if self.id in adms:
             return False
         result = self.confirmar_mapeamento(mapeamento_avancado, msg['text'])
         if result:
@@ -581,9 +567,8 @@ class Assistente(amanobot.helper.ChatHandler):
             self.msgn.append(msg['text'])
             result = self.confirmar_mapeamento(self.mapeamento, msg['text'])
             if result:
-                #key, value = result
-                #self.informacoes[key] = value
-                MongoDB.changeInfos(self.msgn[0], self.msgn[1], self._email)
+                info, valor = result
+                self.informacoes[info] = valor
                 self.sender.sendMessage("Alteração salva!")
                 self.ver_configuracoes()
                 return True
@@ -616,18 +601,9 @@ class Assistente(amanobot.helper.ChatHandler):
         elif self.iniciar_operacao:
             self.operar(msg)
         elif self.parar_operacao:
-            if msg['text'] == "Sim":
-                os.system(f"screen -X -S {self.email} quit")
-                self.sender.sendMessage("Operação cancelada.")
-            self.parar_operacao = False
-            self.comandos()
+            self.parar_operar(msg)
         elif msg['text'] == "Entrar":
-            if not self.autenticacao:
-                self.sender.sendMessage("Digite o seu e-mail para continuar:", 
-                    reply_markup = ReplyKeyboardRemove())
-                self.entrada = True
-            else:
-                self.sender.sendMessage("Você já está logado")
+            self.entrar()
         elif msg['text'] == 'Gerenciar':
             self.gerenciar()
         elif msg['text'] == "Voltar ao menu":
@@ -672,7 +648,7 @@ class Assistente(amanobot.helper.ChatHandler):
         Método que é chamado quando acaba uma conversa
         '''
         if self.autenticacao:
-            MongoDB.Users_collection.find_one({'email': self._email})
+            MongoDB.change_user(self.informacoes, self.email)
 
         print(f"Usuário {self.nome_usuario} saiu.\n")
         self.sender.sendMessage("Obrigado pela preferência, irei atender outras pessoas, qualquer coisa é só chamar.", reply_markup = ReplyKeyboardRemove())
@@ -690,7 +666,7 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
         print()
 
 if __name__ == "__main__":
-    TOKEN = "1230540493:AAE3sDtChTvq1SlhqGDJhnIPfM2Qlgrr4_g"
+    TOKEN = "737574969:AAHgaEmqn2jkzSW5shewX-U1jS8R8-VpK1s"
 
     print("Carregando...")
     printProgressBar(0, 20, prefix = 'Progress:', suffix = 'Complete', length = 30)
@@ -714,8 +690,6 @@ if __name__ == "__main__":
     except Exception as e:	
         escreve_erros(e)
         problema = True
-    finally:
-        escrever_dados(dados)
 
     if problema:
         print("\nAconteceu um erro, tentando se reconectar...")

@@ -169,10 +169,9 @@ def recebe_comandos(comandos):
                 api.perfil()
                 return api
             elif comandos[i] in ['-o', 'online'] and len(comandos[i:]) != 2:
+                from database import MongoDB
                 # Carrega o arquivo de configurações a partir do e-mail
-                with open("clients/" + comandos[i + 1] + ".json") as file:
-                    config =  json.load(file)
-                config['email'] = comandos[i + 1]
+                config = MongoDB.get_user(comandos[i + 1])
                 config['senha'] = comandos[i + 2]
 
                 # Une com as informações gerais
@@ -210,12 +209,11 @@ if __name__ == "__main__":
         if not argv[1:] or argv[1] != "-o":
             input("\nDigite Enter para sair")
         elif argv[1] == "-o":
+            from database import MongoDB
             try: # Dizer que terminou
-                with open("misc/dados.json", encoding = "utf-8") as file:
-                    dados = json.load(file)
-                dados["aprovados"][argv[2]][0] = False
-                with open("misc/dados.json", "w", encoding = "utf-8") as file:
-                    json.dump(dados, file, indent = 2)
+                dados = MongoDB.get_user(argv[2])
+                dados["operando"] = False
+                MongoDB.change_user(dados, argv[2])
             except Exception as e:
                 print(e)
                 input()

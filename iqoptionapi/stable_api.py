@@ -652,17 +652,44 @@ class IQ_Option:
                     break
             time.sleep(10)           
     
-    def check_win_v5(self, id_number):
-        result = self.get_optioninfo_v2(10)
-        pprint(result['msg']['open_options'])
-        for option in result['msg']['open_options']:
-            if option['id'] == id_number:
-                order = option
-                break
-        self.start_candles_stream(order['active'], 1, 1)
-        time.sleep(order['exp_time'] - time.time() - 10)
+    # Function by Danilo ()
+    def check_win_v5(self, id_number, mode, delay = 0):
+        if mode != "digital":
+            result = self.get_optioninfo_v2(10)
+            for option in result['msg']['open_options']:
+                if option['id'] == id_number:
+                    order = option
+                    break
+            active = order['active']
+            value = order['value']
+            expiration = order['exp_time']
+            action = order['dir']
+        else:
+            order = None
+            while not order:
+                order = self.get_async_order(id_number)
+                time.sleep(1)
+            active = order['instrument_underlying']
+            value = order['instrument_strike']
+            expiration = order['instrument_expiration'] / 1000
+            action = order['instrument_dir']
+
+        self.start_candles_stream(active, 1, 1)
+        time.sleep(expiration + delay - time.time())
         print("Terminou de esperar")
-        self.stop_candles_stream(order['active'], 1)
+        # Take the actual candle
+        candles = self.get_realtime_candles(active, 1)
+        for candle in candles:
+            actual = candles[candle]['close']
+        if actual - value < 0 and action == "put":
+            print("Ganhou")
+        elif actual - value > 0 and action == "call":
+            print("Ganhou")
+        elif actual - value == 0:
+            print("Doji")
+        else:
+            print("Perdeu")
+
 
 # -------------------get infomation only for binary option------------------------
 
@@ -1244,3 +1271,15 @@ class IQ_Option:
         return self.api.socket_option_opened
     def del_option_open_by_other_pc(self,id):
         del self.api.socket_option_opened[id]
+
+# from iqoptionapi.stable_api import IQ_Option
+# a = IQ_Option("daniloedaniel123@gmail.com", "Danilo123")
+# for i in range(3):
+#   b, c = a.buy(1, "EURUSD", "put", 1)
+#   a.check_win_v5(c, "binary")
+
+# from iqoptionapi.stable_api import IQ_Option
+# a = IQ_Option("daniloedaniel123@gmail.com", "Danilo123")
+# for i in range(3):
+#   b = a.buy_digital_spot("EURUSD", 1, "put", 1)
+#   a.check_win_v5(b, 'digital')
