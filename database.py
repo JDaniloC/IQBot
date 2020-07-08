@@ -53,7 +53,7 @@ class Mongo:
         user = self.Users_collection.find_one({'email': email})
         return user
 
-client =  MongoClient('mongodb+srv://Danilo:Donilo123@cluster0-6cyzb.mongodb.net/iqbot?retryWrites=true&w=majority')
+client =  MongoClient('')
 IQ_DataBase = client.iqbot
 Users_collection = IQ_DataBase.user
 Users_em_aprovacao = IQ_DataBase.queue
