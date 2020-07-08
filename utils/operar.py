@@ -148,9 +148,12 @@ class Operacao(IQ_API):
 
         if self.tipo == "auto":
             ultima_vez = time.time()
-            paridades = [x["par"] for x in self.comandos]
+            paridades = []
+            for par in self.comandos:
+                paridade = par['par']
+                paridade = paridade + "-OTC" if self.config['otc'] else paridade
+                paridades.append(paridade)
             for par in paridades:
-                par = par + "-OTC" if self.config['otc'] else par
                 self.API.subscribe_strike_list(par, self.tempo)
             payouts = self.aberta_profit(paridades, self.tempo)
 
@@ -159,8 +162,13 @@ class Operacao(IQ_API):
                 Atualiza os payouts do comando em diante.
                 '''
                 print("Atualizando profits...")
-                paridades = [x["par"] for x in self.comandos[self.comandos.index(comando):]]
-                payouts.update(self.aberta_profit(paridades, self.config["otc"]))
+                par = par + "-OTC" if self.config['otc'] else par
+                paridades = []
+                for par in self.comandos[self.comandos.index(comando):]:
+                    paridade = par['par']
+                    paridade = paridade + "-OTC" if self.config['otc'] else paridade
+                    paridades.append(paridade)
+                payouts.update(self.aberta_profit(paridades, self.tempo))
 
         for comando in self.comandos:
             
@@ -217,7 +225,7 @@ class Operacao(IQ_API):
                         ).start()
             else:
                 momento = datetime.utcnow().timestamp() - 10800 # -3Horas
-                print(f"UTC-3: {datetime.fromtimestamp(momento).strftime('dia %d - %H:%M')} | {comando['par']} - {horas}:{minutos} passou da hora.") # Consertar aqui
+                print(f"UTC-3: {datetime.fromtimestamp(momento).strftime('dia %d - %H:%M')} | {comando['par']} - {horas}:{minutos} passou da hora.") 
         for thread in espera:
             thread.join()
 
