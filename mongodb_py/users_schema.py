@@ -1,4 +1,5 @@
 user = {
+    '_id': 0,
     "email": '',
     "timestamp": 0,
     "operando": False,

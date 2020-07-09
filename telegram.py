@@ -8,7 +8,7 @@ from amanobot.delegate import (
     pave_event_space, per_chat_id, create_open)
 from database import *
 
-TOKEN = "737574969:AAHgaEmqn2jkzSW5shewX-U1jS8R8-VpK1s"
+TOKEN = "1086209006:AAFp-1qLthByRRybM_Eijq8fi5GtjJ8hhrA"
 
 # Funções
 def strDateHour(number):

@@ -20,13 +20,14 @@ class Mongo:
             return False
         return True
 
-    def aprovar(self, email, _ID = 0):
+    def aprovar(self, email, _id):
         user = self.Users_em_aprovacao.find_one_and_delete(
             {"email": email})
         if user:
             user = users_schema.user
             user['email'] = email
             user['timestamp'] = time.time() + 604800 # 2592000
+            user["_id"] = _id
             self.Users_collection.insert_one(user)
 
     def renovar_licenca(self, email):
