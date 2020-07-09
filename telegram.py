@@ -677,3 +677,4 @@ if __name__ == "__main__":
         else:
             os.system("nohup python3 telegram.py &")
     print("Bot desligado")
+
