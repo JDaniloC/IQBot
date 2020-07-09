@@ -8,6 +8,8 @@ from amanobot.delegate import (
     pave_event_space, per_chat_id, create_open)
 from database import *
 
+TOKEN = "737574969:AAHgaEmqn2jkzSW5shewX-U1jS8R8-VpK1s"
+
 # Funções
 def strDateHour(number):
     '''
@@ -645,8 +647,6 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
         print()
 
 if __name__ == "__main__":
-    TOKEN = "737574969:AAHgaEmqn2jkzSW5shewX-U1jS8R8-VpK1s"
-
     print("Carregando...")
     printProgressBar(0, 20, prefix = 'Progress:', suffix = 'Complete', length = 30)
     for i in range(20):

@@ -162,7 +162,6 @@ class Operacao(IQ_API):
                 Atualiza os payouts do comando em diante.
                 '''
                 print("Atualizando profits...")
-                par = par + "-OTC" if self.config['otc'] else par
                 paridades = []
                 for par in self.comandos[self.comandos.index(comando):]:
                     paridade = par['par']
