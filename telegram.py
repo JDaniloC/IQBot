@@ -491,7 +491,7 @@ class Assistente(amanobot.helper.ChatHandler):
             self.alteracoes_avancadas["adm"] = False
             return True
         elif self.alteracoes_avancadas['aprovar']:
-            MongoDB.aprovar(msg, self.id)
+            MongoDB.aprovar(msg)
             self.sender.sendMessage("Usuário aprovado.")
             self.alteracoes_avancadas["aprovar"] = False
             return True
