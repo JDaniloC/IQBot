@@ -26,7 +26,7 @@ class Mongo:
         if user:
             user = users_schema.user
             user['email'] = email
-            user['timestamp'] = time.time() + 2592000
+            user['timestamp'] = time.time() + 604800 # 2592000
             self.Users_collection.insert_one(user)
 
     def renovar_licenca(self, email):
@@ -75,7 +75,7 @@ class Mongo:
             self.Entrada2.insert_many(entradas)
 
 
-client =  MongoClient('mongodb+srv://Danilo:Donilo123@cluster0-6cyzb.mongodb.net/<dbname>?retryWrites=true&w=majority')
+client =  MongoClient('mongodb+srv://Danilo:Donilo123@cluster0-6cyzb.mongodb.net/iqbot?retryWrites=true&w=majority')
 IQ_DataBase = client.iqbot # MUDAR AQUI
 Users_collection = IQ_DataBase.user
 Users_em_aprovacao = IQ_DataBase.queue
