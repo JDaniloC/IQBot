@@ -178,9 +178,8 @@ def recebe_comandos(comandos):
                 config.update(MongoDB.get_avancadas())
                 
                 # Define o arquivo de entradas a partir do gale máximo
-                config['arquivo'] = "entradas" + str(config['max_gale'])
-                comandos = abrir_arquivo(config["arquivo"])
-                Operacao(config, comandos)
+                entradas = MongoDB.get_entradas(int(config['max_gale']))
+                Operacao(config, entradas)
             elif (i != 0 and comandos[i-1] not in ["-o", "-m", "-c", "-h", "-p"]) or i == 0:
                 print('''
                 [COMANDOS]

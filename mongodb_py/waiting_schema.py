@@ -1,1 +1,1 @@
-queue = { 'waiting': []}
+queue = { 'email': ''}

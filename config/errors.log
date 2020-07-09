@@ -1,2 +1,4 @@
 <class 'FileNotFoundError'> - [Errno 2] No such file or directory:
 line 63 -> line 10 -> line 42 -> line 91 -> line 427 -> line 153 -> line 253 -> line 278 -> line 448 -> line 157 -> line 139 -> line 1173
+<class 'ValueError'> - could not convert string to float: '2-inf':
+line 198 -> line 192 -> line 92
