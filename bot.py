@@ -3,6 +3,9 @@ from configparser import RawConfigParser
 from sys import argv
 import re, logging, json, datetime
 
+if argv[1:] and argv[1] == "-o":
+    from database import MongoDB
+
 logging.disable(level = (logging.DEBUG))
 
 LOCALAJUDA = "misc/ajuda.txt"
@@ -102,7 +105,8 @@ def configuracoes(nome = LOCALCONFIG):
         "tipo_par": arquivo.get("ENTRADAS", "tipo_par").lower(),
         "tempo": int(arquivo.get("ENTRADAS", "tempo")),
         "minimo": int(arquivo.get("ENTRADAS", "profit_minimo")),
-        "correcao": int(arquivo.get("ENTRADAS", "correcao_entrada")),
+        "correcao": int(arquivo.get("AJUSTES", "correcao_entrada")),
+        "delay": float(arquivo.get("AJUSTES", "delay")),
         "otc": arquivo.get("ENTRADAS", "otc").capitalize() == "True"
     }
 
@@ -136,58 +140,58 @@ def recebe_comandos(comandos):
         2 - Segue a operação do entradas.txt
     '''
     if comandos != []:
-        for i in range(len(comandos)):
-            if comandos[i] in ["-t", "teste"]:
-                config = configuracoes()
-                for key, value in config.items():
-                    print(key, value)
-                
-                print()
-                
-                operacoes = abrir_arquivo("config/entradas")
-                for operacao in operacoes:
-                    data = "/".join([str(x) for x in operacao['data']])
-                    hora = ":".join([str(x) for x in operacao['hora']])
-                    print(f"Data: {data}\nHora: {hora}\nParidade: {operacao['par']}\nOrdem: {operacao['ordem']}")
-                
-                return config
-            elif comandos[i] in ["-m", "martin"]:
-                perdaInicial = float(input("Digite a perda inicial: "))
-                taxa = float(input("Digite a taxa (profit) [0 - 1]: "))
-                ver_gales(perdaInicial, taxa)
-            elif comandos[i] in ['-c', 'config'] and len(comandos[i:]) != 1:
-                config = configuracoes(comandos[i+1])
-                comandos = abrir_arquivo(config["arquivo"])
-                Operacao(config, comandos)
-            elif comandos[i] in ["-h", "ajuda"]:
-                with open(LOCALAJUDA, "r+") as file:
-                    for i in file:
-                        print(i.strip())
-            elif comandos[i] in ["-p", "perfil"]:
-                config = configuracoes()
-                api = IQ_API(config["email"], config["senha"])
-                api.perfil()
-                return api
-            elif comandos[i] in ['-o', 'online'] and len(comandos[i:]) != 2:
-                from database import MongoDB
-                # Carrega o arquivo de configurações a partir do e-mail
-                config = MongoDB.get_user(comandos[i + 1])
-                config['senha'] = comandos[i + 2]
+        if comandos[0] in ["-t", "teste"]:
+            config = configuracoes()
+            for key, value in config.items():
+                print(key, value)
+            
+            print()
+            
+            operacoes = abrir_arquivo("config/entradas")
+            for operacao in operacoes:
+                data = "/".join([str(x) for x in operacao['data']])
+                hora = ":".join([str(x) for x in operacao['hora']])
+                print(f"Data: {data}\nHora: {hora}\nParidade: {operacao['par']}\nOrdem: {operacao['ordem']}")
+            
+            return config
+        elif comandos[0] in ["-m", "martin"]:
+            perdaInicial = float(input("Digite a perda inicial: "))
+            taxa = float(input("Digite a taxa (profit) [0 - 1]: "))
+            ver_gales(perdaInicial, taxa)
+        elif comandos[0] in ['-c', 'config'] and len(comandos[0:]) != 1:
+            config = configuracoes(comandos[1])
+            comandos = abrir_arquivo(config["arquivo"])
+            Operacao(config, comandos)
+        elif comandos[0] in ["-h", "ajuda"]:
+            with open(LOCALAJUDA, "r+") as file:
+                for i in file:
+                    print(i.strip())
+        elif comandos[0] in ["-p", "perfil"]:
+            config = configuracoes()
+            api = IQ_API(config["email"], config["senha"])
+            api.perfil()
+            return api
+        elif comandos[0] in ['-o', 'online'] and len(comandos[0:]) != 2:
+            # Carrega o arquivo de configurações a partir do e-mail
+            config = MongoDB.get_user(comandos[1])
+            config['senha'] = comandos[2]
 
-                # Une com as informações gerais
-                config.update(MongoDB.get_avancadas())
-                
-                # Define o arquivo de entradas a partir do gale máximo
-                entradas = MongoDB.get_entradas(int(config['max_gale']))
-                Operacao(config, entradas)
-            elif (i != 0 and comandos[i-1] not in ["-o", "-m", "-c", "-h", "-p"]) or i == 0:
-                print('''
-                [COMANDOS]
-                Ajuda: -h
-                Testar a leitura do arquivo/configuração: -t
-                Rodar o bot a partir de uma configuração: -c nomeDoArquivo
-                Verificar tipos de martingale: -m
-                ''')
+            # Une com as informações gerais
+            config.update(MongoDB.get_avancadas())
+            
+            # Define o arquivo de entradas a partir do gale máximo
+            entradas = MongoDB.get_entradas(int(config['max_gale']))
+            Operacao(config, entradas, 0, True)
+        else:
+            print('''
+            [COMANDOS]
+            Ajuda: -h
+            Testar a leitura do arquivo/configuração: -t
+            Rodar o bot a partir de uma configuração: -c nomeDoArquivo
+            Verificar tipos de martingale: -m
+            Loga na conta e devolve a API: -p
+            Para telegram: -o email senha
+            ''')
     else:
         config = configuracoes()
         comandos = abrir_arquivo(config["arquivo"])
@@ -207,7 +211,6 @@ if __name__ == "__main__":
         if not argv[1:] or argv[1] != "-o":
             input("\nDigite Enter para sair")
         elif argv[1] == "-o":
-            from database import MongoDB
             try: # Dizer que terminou
                 dados = MongoDB.get_user(argv[2])
                 dados["operando"] = False

@@ -187,7 +187,7 @@ Todas as carteiras:\n"""
                 payouts["digital"][par] = [False]
         return payouts
 
-    def ordem(self, par, direcao = "call", tempo = 1, valor = 1, tipo = "binary", bloqueador = None):
+    def ordem(self, par, direcao = "call", tempo = 1, valor = 1, tipo = "binary", bloqueador = None, delay = 0):
         '''
         Faz uma ordem e devolve o resultado.
         Params:
@@ -197,6 +197,7 @@ Todas as carteiras:\n"""
             valor: dinheiro investido 2 - saldo
             tipo: binary ou digital
             bloqueador: caso estiver trabalhando com threads, um threading.Lock para não pegar o mesmo resultado.
+            delay: tempo para pegar o resultado antes/depois
         return:
             (resultado, lucro)
         '''
@@ -218,16 +219,24 @@ Todas as carteiras:\n"""
             
             if not isinstance(identificador, int):
                 print(f"  ! Um erro aconteceu: {par}-{tipo} {direcao} {valor}!")
-                resultado, lucro = "erro", 0
+                resultado, lucro = "error", 0
 
         print(f"Operação realizada: {par}-{tipo} {direcao} ${round(valor, 2)} {tempo}min")
 
-        resultado, lucro = self.API.check_win_v5(identificador, tipo, 0.6)
+        resultado, lucro = self.API.check_win_v5(identificador, tipo, delay)
 
-        if resultado == "win":
-            print(f"\n  WIN: R${lucro}  ")
-        else:
-            print(f"\n  {resultado.upper()}: R${lucro}  ")
+        print(f'''
+
+        {"- " * 20}
+        Paridade: {par}|{tipo}
+        Direção: {direcao.upper()}
+        tempo: M{tempo}
+        
+        Valor: R${round(valor, 2)}
+        {resultado.capitalize()}: R${round(lucro, 2)} 
+        {"- " * 20}
+        
+        ''')
 
         return resultado, lucro
     

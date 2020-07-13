@@ -1,25 +1,29 @@
 [CONTA]
 email = exemplo@email.com
 senha = exemplo
-tipo = treino|real
+tipo = treino
 
 [ENTRADAS]
 arquivo = entradas.txt
-tipo_par = binaria|digital|auto
-otc = True|False
-valor = 1-inf
-tempo = 1|5|15
-profit_minimo = 0-100
-correcao_entrada = 0-inf
+tipo_par = auto
+otc = False
+valor = 2
+tempo = 1
+profit_minimo = 0
+correcao_entrada = 0
 
 [WIN]
-goal = 2-inf
-soros = True|False
-percent_soros = 0-inf
+goal = 10
+soros = False
+percent_soros = 0
 
 [LOSS]
-stoploss = 1-inf
-martin = True|False
-percent_martin = 0-inf
-max_gale = 1-inf
-tipo_gale = seguro|simples|leve|agressivo|porcento
+stoploss = 10
+martin = True
+percent_martin = 0
+max_gale = 1
+tipo_gale = seguro
+
+[AJUSTES]
+correcao_entrada = 0
+delay = 0

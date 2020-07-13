@@ -4,11 +4,16 @@ import threading, traceback, time, re, sys
 from pprint import pprint
 
 LOCALERROR = "config/errors.log"
+LOCALLOG = "misc/"
 
 def escreve_erros(erro):
     linhas = " -> ".join(re.findall(r'line \d+', str(traceback.extract_tb(erro.__traceback__))))
     with open(LOCALERROR, "a") as file:
         file.write(f"{type(erro)} - {erro}:\n{linhas}\n")
+
+def escreve_log(email, mensagem):
+    with open(LOCALLOG + email, "a", encoding = "utf-8") as file:
+        file.write(mensagem + "\n")
 
 class Operacao(IQ_API):
     logo = ('''
@@ -47,13 +52,14 @@ class Operacao(IQ_API):
                                                |___|           
 ''')
 
-    def __init__(self, config, comandos, maximo = 0):
+    def __init__(self, config, comandos, maximo = 0, verboso = False):
         self.maximo = maximo
         self.cadeado = threading.Lock()
 
         self.config = config
         self.comandos = comandos
         self.total = 0
+        self.verboso = verboso
 
         if self.maximo < 3:
             try:
@@ -77,6 +83,9 @@ class Operacao(IQ_API):
                 self.tempo = config['tempo']
                 self.max_gale = config["max_gale"]
 
+                if self.verboso:
+                    escreve_log(config['email'], "Iniciando computação")
+
                 self.computar()
             except Exception as e:
                 print("Aconteceu um erro na API, tentando novamente.")
@@ -89,13 +98,18 @@ class Operacao(IQ_API):
                 except:
                     print("Deu erro novamente! Finalizando o programa.")
                     escreve_erros(e)
+        else:
+            mensagem = "Ultrapassou o máximo de tentativas."
+            print(mensagem)
+            if self.veboso:
+                escreve_log(config['email'], mensagem)
 
     def operar(self, valor, par, ordem, payout, tipo):
         '''
         Faz a operação e a depender da configuração faz:
         Martingale/Sorosgale e calcula o ganhoTotal/perdaTotal
         '''
-        resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo, self.cadeado)
+        resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo, self.cadeado, self.config['delay'])
         perda = 0
         if resultado == "win" and self.config['soros']:
             with self.cadeado:
@@ -121,7 +135,7 @@ class Operacao(IQ_API):
                 valor = self.martingale(self.config['tipo_gale'], payout, perda, valor, lucro)
                 valor = 1 if valor < 1 else valor # Caso der doji
 
-                resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo, self.cadeado)
+                resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo, self.cadeado, self.config['delay'])
                 num_gales += 1
         elif resultado == "loose":
             self.total -= round(abs(lucro), 2)
@@ -135,7 +149,10 @@ class Operacao(IQ_API):
                 
             print(f"\n | {round(self.total/self.config['goal'] * 100, 2)}% perto do objetivo | {round(-self.total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
         elif resultado == "error":
-            print(f"\nErro na operação das {threading.current_thread().name}")
+            mensagem = f"\nErro na operação das {threading.current_thread().name}"
+            print(mensagem)
+            if self.verboso:
+                    escreve_log(self.config['email'], mensagem)
 
     def computar(self):
         '''
@@ -154,7 +171,13 @@ class Operacao(IQ_API):
                 paridade = paridade + "-OTC" if self.config['otc'] else paridade
                 paridades.append(paridade)
             for par in paridades:
-                self.API.subscribe_strike_list(par, self.tempo)
+                try:
+                    self.API.subscribe_strike_list(par, self.tempo)
+                except KeyError:
+                    mensagem = f"Remova a paridade {par} da lista."
+                    print(mensagem)
+                    if self.verboso:
+                        escreve_log(self.config['email'], mensagem)
             payouts = self.aberta_profit(paridades, self.tempo)
 
             def atualizar_profits(comando):
@@ -174,7 +197,7 @@ class Operacao(IQ_API):
             data = comando["data"]
             horas, minutos = comando["hora"]
             segundos = 0
-            if self.esperarAte(horas, minutos, segundos, data, self.config['correcao'] + 30, True):
+            if self.esperarAte(horas, minutos, segundos, data, self.config['correcao'] + 1, True):
 
                 par = comando['par']
                 par += "-OTC" if self.config["otc"] else ""
@@ -195,14 +218,15 @@ class Operacao(IQ_API):
                         tipo = "digital"
                         payout = payouts["digital"][par][1]
                     else:
-                        print(f"{par} não está disponível nem binária nem digital na modalidade M{self.tempo}")
+                        mensagem = f"{par} não está disponível nem binária nem digital na modalidade M{self.tempo}"
+                        print(mensagem)
+                        if self.verboso:
+                            escreve_log(self.config['email'], mensagem)
                         continue
                 else:
                     payout = self.payout_binaria(par) / 100 if self.tipo == "binary" else self.payout_digital(par) / 100
                     tipo = self.tipo
 
-                delay = 2 # Tempo de calcular, windows/linux = 3/2
-                self.esperarAte(horas, minutos, segundos, data, delay) 
                 with self.cadeado:
                     if not (-self.config['stoploss'] < self.total < self.config['goal']):
                         break
@@ -224,12 +248,18 @@ class Operacao(IQ_API):
                         ).start()
             else:
                 momento = datetime.utcnow().timestamp() - 10800 # -3Horas
-                print(f"UTC-3: {datetime.fromtimestamp(momento).strftime('dia %d - %H:%M')} | {comando['par']} - {horas}:{minutos} passou da hora.") 
+                mensagem = f"UTC-3: {datetime.fromtimestamp(momento).strftime('dia %d - %H:%M')} | {comando['par']} - {horas}:{minutos} passou da hora."
+                print(mensagem) 
+                if self.verboso:
+                    escreve_log(self.config['email'], mensagem)
         for thread in espera:
             thread.join()
 
-        print(f"\nFim da operação resultado final: {round(self.total, 2)}\n")
-
+        mensagem = f"\nFim da operação resultado final: {round(self.total, 2)}\n"
+        print(mensagem)
+        if self.verboso:
+            escreve_log(self.config['email'], mensagem)
+        
         try:
             if self.tipo == "auto":
                 for comando in self.comandos:

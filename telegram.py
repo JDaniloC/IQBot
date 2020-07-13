@@ -8,7 +8,7 @@ from amanobot.delegate import (
     pave_event_space, per_chat_id, create_open)
 from database import *
 
-TOKEN = "1086209006:AAFp-1qLthByRRybM_Eijq8fi5GtjJ8hhrA"
+TOKEN = "737574969:AAHgaEmqn2jkzSW5shewX-U1jS8R8-VpK1s"
 
 # Funções
 def strDateHour(number):
@@ -51,7 +51,6 @@ def get_adms():
 
 
 adms = get_adms()
-
 entrada_1gale = carregar_entradas(1)
 entrada_2gale = carregar_entradas(2)
 
@@ -59,7 +58,8 @@ mapeamento_avancado = {
     "Mudar tipo de paridade": ["tipo_par", False, list],
     "Mudar configuração OTC": ["otc", False, bool],
     "Alterar timeframe": ["tempo", False, list],
-    "Mudar a correção": ["correcao", False, int]
+    "Mudar a correção": ["correcao", False, int],
+    "Mudar o delay": ["delay", False, float]
 }
 
 # O bot
@@ -198,6 +198,7 @@ class Assistente(amanobot.helper.ChatHandler):
             return False
 
         teclado = ReplyKeyboardMarkup(keyboard = [
+            [KeyboardButton( text = "Atualizar informações" )],
             [KeyboardButton( text = "Aprovar usuários" )],
             [KeyboardButton( text = "Renovar licença" )],
             [KeyboardButton( text = "Adicionar administrador" )],
@@ -207,6 +208,7 @@ class Assistente(amanobot.helper.ChatHandler):
             [KeyboardButton( text = "Mudar configuração OTC" )],
             [KeyboardButton( text = "Alterar timeframe" )],
             [KeyboardButton( text = "Mudar a correção" )],
+            [KeyboardButton( text = "Mudar o delay" )],
             [KeyboardButton( text = "Voltar ao menu" )]
         ])
 
@@ -327,9 +329,9 @@ class Assistente(amanobot.helper.ChatHandler):
                 self.sender.sendMessage("Operação iniciada.")
                 self.comandos()
             else:
-                self.informacoes = MongoDB.get_user(self.email)
+                temporario = MongoDB.get_user(self.email)
 
-                if not self.informacoes['operando']:
+                if not temporario['operando']:
                     self.sender.sendMessage("Digite sua senha (não guardamos a sua senha, você terá que fazer isso todas as vezes): ", 
                     reply_markup = ReplyKeyboardRemove())
                     self.iniciar_operacao = True
@@ -347,9 +349,15 @@ class Assistente(amanobot.helper.ChatHandler):
             self.sender.sendMessage("Usuário não autenticado")
 
     def parar_operar(self, msg):
+        '''
+        Apenas para linux, dá kill na operação através do e-mail
+        '''
         if msg['text'] == "Sim":
             self.sender.sendMessage("Parando operação...")
-            os.system(f"screen -X -S {self.email} quit")
+            if os.name == "nt":
+                pass
+            else:
+                os.system(f"screen -X -S {self.email} quit")
             self.sender.sendMessage("Operação cancelada.")
             MongoDB.Users_collection.find_one_and_update({'email': self.email}, {'$set' : {'operando': False}})
         self.parar_operacao = False
@@ -427,7 +435,8 @@ class Assistente(amanobot.helper.ChatHandler):
                                 [KeyboardButton( text = "seguro" )],
                                 [KeyboardButton( text = "leve" )],
                                 [KeyboardButton( text = "agressivo" )],
-                                [KeyboardButton( text = "porcento" )]])
+                                [KeyboardButton( text = "porcento" )],
+                                [KeyboardButton( text = "individual" )]])
                 else:
                     mensagem = "Digite a nova informação: "
                     teclado = ReplyKeyboardRemove()
@@ -442,12 +451,20 @@ class Assistente(amanobot.helper.ChatHandler):
         Verifica se a mensagem está nas configurações avançadas
         Se estiver, devolve True caso contrário False
         '''
+        global adms, entrada_1gale, entrada_2gale
+        
         if self.id not in adms:
             return False
         if msg['text'] == 'Adicionar administrador':
             self.sender.sendMessage("Coloque o ID do telegram:",
                 reply_markup = ReplyKeyboardRemove())
             self.alteracoes_avancadas['adm'] = True
+        elif msg['text'] == "Atualizar informações":
+            self.sender.sendMessage("Atualizando...")
+            adms = get_adms()
+            entrada_1gale = carregar_entradas(1)
+            entrada_2gale = carregar_entradas(2)
+            self.sender.sendMessage("Informações atualizadas.")
         elif msg['text'] in ["Aprovar usuários", "Renovar licença"]:
             if msg['text'] == "Aprovar usuários":
                 users = MongoDB.Users_em_aprovacao.find()
@@ -520,6 +537,14 @@ class Assistente(amanobot.helper.ChatHandler):
                     novo = bool(novo.strip() == "Sim")
                 elif value[0] in ["tempo", "max_gale"]:
                     novo = int(novo)
+                elif novo == "individual":
+                    self.sender.sendMessage(
+                        "Digite o fator do martingale:\nEx: 2.5", 
+                        reply_markup = ReplyKeyboardRemove())
+                    return False
+                elif value[0] == "tipo_gale" and novo not in [
+                    "seguro", "leve", "agressivo", "porcento"]:
+                    novo = float(novo.strip().replace(",", "."))
                 dicionario[key][1] = False
                 return value[0], novo
         return False

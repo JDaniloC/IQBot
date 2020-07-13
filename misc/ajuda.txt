@@ -1,22 +1,13 @@
-Versão 1.7 - Config UI and reconnect if error
+Versão 2.6 - All control of time
 
             [RUN]
-Para rodar, irá aparecer todos os comandos do bot:
+Para rodar
+        python bot.py
+Caso queira saber os demais comandos do bot:
         python bot.py -h
-Para rodar diversas contas, crie um arquivo de configuração
-para cada uma das contas, e coloque o nome dos arquivos nome
-contas.txt sem nenhum espaço no final, depois: 
-   - Windows
-        powershell ./multi.ps1
-
-            [ERROS COMUNS]
-Se acontecer algum erro desses, apenas rode novamente:
- - FileNotFoundError
- - ssl.SSLEOFError
- - ssl.SSLError
 
             [CONFIG]
-Caso quiser configurar via interface gráfica, rode o arquivo config.py!
+Caso quiser configurar via interface gráfica, rode o arquivo settings.py
 Arquivo de configuração:
  - As opções estarão na forma de primeira|segunda, escolha uma ou outra.
  - Caso tiver valor-outro significa uma sequência de qualquer valor. E inf significa infinito.
@@ -39,6 +30,7 @@ O que significa:
  - max_gale: máximo de martingales
  - tipo_gale: caso haver gale, rode o script com -m
  - percent_martin: caso tipo_gale for "porcento", é o valor de em porcentagem (0, 50, 100...) que quer ganhar encima da perda
+ - delay: tempo para pegar o resultado
 
 Exemplo:
 
@@ -54,7 +46,6 @@ otc = True|False
 valor = 1-inf
 tempo = 1|5|15
 profit_minimo = 0-100
-correcao_entrada = 0-60
 
 [WIN]
 goal = 2-inf
@@ -67,3 +58,7 @@ martin = True|False
 percent_martin = 0-inf
 max_gale = 1-inf
 tipo_gale = seguro|simples|leve|agressivo|porcento
+
+[AJUSTES]
+correcao_entrada = 0-inf
+delay = -inf-inf

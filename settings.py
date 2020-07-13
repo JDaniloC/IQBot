@@ -38,6 +38,7 @@ class Config(Frame):
                     "Correção de entrada": "correcao",
                     "Percentual do soros": "percent_soros",
                     "Percentual do martin": "percent_martin",
+                    'Delay de resultado': "delay"
                 },
                 "alternativos": {
                     "Tipo de conta": "tipo_conta",
@@ -85,17 +86,18 @@ class Config(Frame):
 
 
         self.numericos = { 
-            "Máximo de martingales": (1, 2),
-            "Profit mínimo": (0, 99), 
-            "Correção de entrada": (0, 120), 
-            "Percentual do soros": (0, 1000), 
-            "Percentual do martin": (0, 1000)
+            "Máximo de martingales": (1, 2, 1),
+            "Profit mínimo": (0, 99, 1), 
+            "Correção de entrada": (0, 120, 1), 
+            "Percentual do soros": (0, 1000, 1), 
+            "Percentual do martin": (0, 1000, 1),
+            'Delay de resultado': (-1, 3, 0.1)
         }
         for key in self.numericos.keys():
             escala = Scale(
                 self, label = key, from_=self.numericos[key][0], 
                 to = self.numericos[key][1], orient = HORIZONTAL, 
-                length = 400)
+                length = 400, resolution = self.numericos[key][2])
             self.numericos[key] = escala
             escala.grid(row = pos, columnspan = 6)
             pos += 1
@@ -193,7 +195,6 @@ class Config(Frame):
             "valor": tudo["Valor da entrada"].get(),
             "tempo": tudo["Tempo"].get(),
             "profit_minimo": tudo["Profit mínimo"].get(),
-            "correcao_entrada": tudo["Correção de entrada"].get()
         }
         editor["WIN"] = {
             "goal": tudo["StopWin"].get(),
@@ -207,7 +208,10 @@ class Config(Frame):
             "max_gale": tudo["Máximo de martingales"].get(),
             "tipo_gale": tudo["tipo de martingale"].get().lower().replace(",", ".")
         }
-        
+        editor['AJUSTES'] = {
+            "correcao_entrada": tudo["Correção de entrada"].get(),
+            "delay": tudo['Delay de resultado'].get()
+        }
         with open(askopenfilename(), "w") as arquivo:
             editor.write(arquivo)
         

@@ -31,7 +31,7 @@ class Mongo:
             self.Users_collection.insert_one(user)
 
     def renovar_licenca(self, email):
-        data = time.time() + 2592000
+        data = time.time() + 604800 # 2592000
         self.Users_collection.find_one_and_update({'email':email}, {'$set': {'timestamp': data}})
 
     def add_adm(self, _id):
