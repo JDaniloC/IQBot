@@ -7,6 +7,7 @@ from amanobot.namedtuple import (
 from amanobot.delegate import (
     pave_event_space, per_chat_id, create_open)
 from database import *
+from controlador import Control
 
 TOKEN = "737574969:AAHgaEmqn2jkzSW5shewX-U1jS8R8-VpK1s"
 
@@ -53,6 +54,7 @@ def get_adms():
 adms = get_adms()
 entrada_1gale = carregar_entradas(1)
 entrada_2gale = carregar_entradas(2)
+controlador = Control()
 
 mapeamento_avancado = {
     "Mudar tipo de paridade": ["tipo_par", False, list],
@@ -322,10 +324,11 @@ class Assistente(amanobot.helper.ChatHandler):
                 self.informacoes["operando"] = True
                 MongoDB.change_user(self.informacoes, self.email)
                 
-                if os.name == "nt": # No windows
+                if os.name == "nt": # No windows 
                     os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}")
                 else:
-                    os.system(f"screen -S {self.email} -dm python3 bot.py -o {self.email} {msg['text']}")
+                    # os.system(f"screen -S {self.email} -dm python3 bot.py -o {self.email} {msg['text']}")
+                    controlador.adicionar_pessoa(self.email, msg['text'])
                 self.sender.sendMessage("Operação iniciada.")
                 self.comandos()
             else:
@@ -701,5 +704,5 @@ if __name__ == "__main__":
             os.system("powershell start powershell python, telegram.py")
         else:
             os.system("nohup python3 telegram.py &")
+    controlador.deletar_instancias()
     print("Bot desligado")
-
