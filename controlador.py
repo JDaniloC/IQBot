@@ -12,6 +12,13 @@ class Instancia:
         '''
         return len(self.people) >= 5
     
+    def on_instance(self, email):
+        '''
+        Devolve se o e-mail tá na instância
+        return: boolean
+        '''
+        return email in self.people
+
     def get_people(self):
         '''
         Devolve a lista de pessoas
@@ -24,6 +31,7 @@ class Instancia:
         Adiciona uma nova pessoa à instância
         params:
             name: string com o e-mail da pessoa
+        return: None
         '''
         self.people.append(name)
 
@@ -47,17 +55,26 @@ class Control:
     
     def adicionar_pessoa(self, email, senha):
         '''
-        Verifica se a última instância tem local para alocar
+        Verifica se o e-mail está em alguma instância
+        Caso não estiver verifica se a última instância 
+        tem local para alocar o novo usuário
         Caso não tiver ele cria uma nova instância
         params:
             email: string com o e-mail do usuário
             senha: string com a senha do usuário
-        return:
-            None
+        return: None
         '''
-        if self.instancias[-1].is_full():
-            self.criar_instancia()
-        self.iniciar_bot(self.instancias[-1], email, senha)
+        alvo = None
+        for instancia in self.instancias:
+            if instancia.on_instance(email):
+                alvo = instancia
+                break
+        if alvo == None:
+            if self.instancias[-1].is_full():
+                self.criar_instancia()
+            alvo = self.instancias[-1]
+            
+        iniciar_bot(alvo, email, senha)
 
     def criar_instancia(self):
         '''
@@ -66,11 +83,7 @@ class Control:
         '''
         name = "instancia" + str(len(self.instancias))
         system(f'yes "Y" | gcloud beta compute --project=durable-matter-281714 instances create {name} --zone=us-central1-a --machine-type=e2-highcpu-2 --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE --service-account=46980103503-compute@developer.gserviceaccount.com --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server,https-server --image=padrao --image-project=durable-matter-281714 --boot-disk-size=10GB --boot-disk-type=pd-standard --boot-disk-device-name={name} --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any')
-        system(f"gcloud compute ssh {name} --zone us-central1-a")
-        system("cd iqbot")
-        system("chmod 777 setup.sh")
-        system("./setup.sh")
-        system("exit")
+        system(f"gcloud compute ssh {name} --zone us-central1-a --command='chmod 777 iqbot/setup.sh;./iqbot/setup.sh'")
         
         self.instancias.append(Instancia(name))
 
@@ -78,17 +91,14 @@ class Control:
         '''
         Inicia o bot para determinado email/senha na instância
         params:
+            instancia: objeto Instancia
             email: string com e-mail do usuario
             senha: string com a senha do usuario
-        return:
-            None
+        return: None
         '''
         instancia.set_people(email)
-        system(f"gcloud compute ssh {instancia.name} --zone us-central1-a")
-        system("cd iqbot")
-        system(f"screen -S {email} -dm python3 bot.py -o {email} {senha}")
-        system("exit")
-    
+        system(f"gcloud compute ssh {instancia.name} --zone us-central1-a --command='screen -S {email} -dm python3 iqbot/bot.py -o {email} {senha}'")
+        
     def deletar_instancias(self):
         '''
         Deleta todas as instâncias deixando apenas a original
@@ -96,5 +106,4 @@ class Control:
         for instancia in self.instancias:
             system(f'yes "Y" | gcloud compute instances delete {instancia.name}')
         self.instancias = []
-        self.criar_instancia()
         
