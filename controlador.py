@@ -6,12 +6,25 @@ class Instancia:
         self.people = []
         
     def is_full(self):
-        return len(self.people >= 5)
+        '''
+        Devolve se a instância já tem 5 pessoas alocadas
+        return: boolean
+        '''
+        return len(self.people) >= 5
     
     def get_people(self):
+        '''
+        Devolve a lista de pessoas
+        return: list
+        '''
         return self.people 
 
     def set_people(self, name):
+        '''
+        Adiciona uma nova pessoa à instância
+        params:
+            name: string com o e-mail da pessoa
+        '''
         self.people.append(name)
 
     temperature = property(get_people, set_people)
@@ -29,16 +42,22 @@ class Control:
     '''
     
     def __init__(self):
-        self.instancias = [Instancia("instancia0")]
+        self.instancias = []
+        self.criar_instancia()
     
     def adicionar_pessoa(self, email, senha):
         '''
         Verifica se a última instância tem local para alocar
         Caso não tiver ele cria uma nova instância
+        params:
+            email: string com o e-mail do usuário
+            senha: string com a senha do usuário
+        return:
+            None
         '''
         if self.instancias[-1].is_full():
             self.criar_instancia()
-        self.iniciar_bot(self.instancias[-1].name, email, senha)
+        self.iniciar_bot(self.instancias[-1], email, senha)
 
     def criar_instancia(self):
         '''
@@ -55,11 +74,17 @@ class Control:
         
         self.instancias.append(Instancia(name))
 
-    def iniciar_bot(self, nome, email, senha):
+    def iniciar_bot(self, instancia, email, senha):
         '''
         Inicia o bot para determinado email/senha na instância
+        params:
+            email: string com e-mail do usuario
+            senha: string com a senha do usuario
+        return:
+            None
         '''
-        system(f"gcloud compute ssh {nome} --zone us-central1-a")
+        instancia.set_people(email)
+        system(f"gcloud compute ssh {instancia.name} --zone us-central1-a")
         system("cd iqbot")
         system(f"screen -S {email} -dm python3 bot.py -o {email} {senha}")
         system("exit")
@@ -70,5 +95,6 @@ class Control:
         '''
         for instancia in self.instancias:
             system(f'yes "Y" | gcloud compute instances delete {instancia.name}')
-        self.instancias = [Instancia("instancia0")]
+        self.instancias = []
+        self.criar_instancia()
         
