@@ -74,7 +74,7 @@ class Control:
                 self.criar_instancia()
             alvo = self.instancias[-1]
             
-        iniciar_bot(alvo, email, senha)
+        self.iniciar_bot(alvo, email, senha)
 
     def criar_instancia(self):
         '''
@@ -98,7 +98,7 @@ class Control:
         '''
         instancia.set_people(email)
         system(f"gcloud compute ssh {instancia.name} --zone us-central1-a --command='screen -S {email} -dm python3 iqbot/bot.py -o {email} {senha}'")
-        
+
     def deletar_instancias(self):
         '''
         Deleta todas as instâncias deixando apenas a original
