@@ -55,6 +55,7 @@ adms = get_adms()
 entrada_1gale = carregar_entradas(1)
 entrada_2gale = carregar_entradas(2)
 controlador = Control()
+rodando = True
 
 mapeamento_avancado = {
     "Mudar tipo de paridade": ["tipo_par", False, list],
@@ -473,7 +474,7 @@ class Assistente(amanobot.helper.ChatHandler):
         Verifica se a mensagem está nas configurações avançadas
         Se estiver, devolve True caso contrário False
         '''
-        global adms, entrada_1gale, entrada_2gale
+        global adms, entrada_1gale, entrada_2gale, rodando
         
         if self.id not in adms:
             return False
@@ -507,7 +508,8 @@ class Assistente(amanobot.helper.ChatHandler):
                 self.sender.sendMessage("Nenhum usuário no banco")
         elif msg['text'] == "Parar bot":
             controlador.deletar_instancias()
-            sys.exit(0)
+            self.close()
+            rodando = False
         else:
             return self.mapear(mapeamento_avancado, msg['text'])
         return True
@@ -694,7 +696,7 @@ if __name__ == "__main__":
     try:
         MessageLoop(bot).run_as_thread()
         print("\nEsperando comandos...")
-        while 1:
+        while rodando:
             time.sleep(3)
     except KeyboardInterrupt:
         pass
