@@ -83,8 +83,9 @@ class Control:
         '''
         name = "instancia" + str(len(self.instancias))
         system(f'yes "Y" | gcloud beta compute --project=durable-matter-281714 instances create {name} --zone=us-central1-a --machine-type=e2-highcpu-2 --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE --service-account=46980103503-compute@developer.gserviceaccount.com --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server,https-server --image=padrao --image-project=durable-matter-281714 --boot-disk-size=10GB --boot-disk-type=pd-standard --boot-disk-device-name={name} --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any')
-        status = system(f"gcloud compute ssh {name} --zone us-central1-a --command='chmod 777 iqbot/setup.sh;./iqbot/setup.sh'")
-        print(status, status == 0)
+        status = -1
+        while status != 0:
+            status = system(f"gcloud compute ssh {name} --zone us-central1-a --command='chmod 777 iqbot/setup.sh;./iqbot/setup.sh'")
         
         self.instancias.append(Instancia(name))
 
@@ -120,4 +121,3 @@ class Control:
         for instancia in self.instancias:
             system(f'yes "Y" | gcloud compute instances delete {instancia.name}')
         self.instancias = []
-    
