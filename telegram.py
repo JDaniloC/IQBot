@@ -507,9 +507,11 @@ class Assistente(amanobot.helper.ChatHandler):
             else:
                 self.sender.sendMessage("Nenhum usuário no banco")
         elif msg['text'] == "Parar bot":
+            self.sender.sendMessage("Fechando bot...")
             controlador.deletar_instancias()
-            self.close()
             rodando = False
+            self.close()
+            sys.exit(0)
         else:
             return self.mapear(mapeamento_avancado, msg['text'])
         return True
