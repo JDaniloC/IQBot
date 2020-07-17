@@ -1,4 +1,4 @@
-import time, pprint, amanobot, json, os
+import time, pprint, amanobot, json, os, sys
 from datetime import timedelta
 from bot import pegar_comando, escreve_erros
 from amanobot.loop import MessageLoop
@@ -174,23 +174,6 @@ class Assistente(amanobot.helper.ChatHandler):
             self.sender.sendMessage(f"Seu e-mail foi colocado para analise. Espere a confirmação do administrador e mande seu e-mail novamente para logar.")
             self.close()
 
-    def comandos(self):
-        '''
-        Menu principal quando já está logado.
-        '''
-        if self.autenticacao:
-            teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Operar" )],
-                [KeyboardButton( text = "Ver configurações" )],
-                [KeyboardButton( text = "Editar configurações" )],
-                [KeyboardButton( text = "Ver lista de sinais" )]
-            ])
-
-            self.sender.sendMessage("O que deseja?", 
-                reply_markup = teclado)
-        else:
-            self.sender.sendMessage("Usuário não autenticado")
-
     def gerenciar(self):
         '''
         Comandos para administradores
@@ -200,10 +183,8 @@ class Assistente(amanobot.helper.ChatHandler):
             return False
 
         teclado = ReplyKeyboardMarkup(keyboard = [
-            [KeyboardButton( text = "Atualizar informações" )],
             [KeyboardButton( text = "Aprovar usuários" )],
             [KeyboardButton( text = "Renovar licença" )],
-            [KeyboardButton( text = "Adicionar administrador" )],
             [KeyboardButton( text = "Ver configuração atual" )],
             [KeyboardButton( text = "Adicionar entradas" )],
             [KeyboardButton( text = "Mudar tipo de paridade" )],
@@ -211,6 +192,9 @@ class Assistente(amanobot.helper.ChatHandler):
             [KeyboardButton( text = "Alterar timeframe" )],
             [KeyboardButton( text = "Mudar a correção" )],
             [KeyboardButton( text = "Mudar o delay" )],
+            [KeyboardButton( text = "Atualizar informações" )],
+            [KeyboardButton( text = "Adicionar administrador" )],
+            [KeyboardButton( text = "Parar bot" )],
             [KeyboardButton( text = "Voltar ao menu" )]
         ])
 
@@ -309,6 +293,23 @@ class Assistente(amanobot.helper.ChatHandler):
             self.sender.sendMessage("Salvo")
             self.gerenciar()
 
+    def comandos(self):
+        '''
+        Menu principal quando já está logado.
+        '''
+        if self.autenticacao:
+            teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "Operar" )],
+                [KeyboardButton( text = "Ver configurações" )],
+                [KeyboardButton( text = "Editar configurações" )],
+                [KeyboardButton( text = "Ver lista de sinais" )]
+            ])
+
+            self.sender.sendMessage("O que deseja?", 
+                reply_markup = teclado)
+        else:
+            self.sender.sendMessage("Usuário não autenticado")
+
     def operar(self, msg):
         '''
         Opção que inicia a operação, no qual salva as informações
@@ -360,11 +361,29 @@ class Assistente(amanobot.helper.ChatHandler):
             if os.name == "nt":
                 pass
             else:
-                os.system(f"screen -X -S {self.email} quit")
+                controlador.parar_operacao(self.email)
             self.sender.sendMessage("Operação cancelada.")
             MongoDB.Users_collection.find_one_and_update({'email': self.email}, {'$set' : {'operando': False}})
         self.parar_operacao = False
         self.comandos()
+
+    def ver_lista(self):
+        '''
+        Método que mostra as listas de sinais
+        '''
+        if self.autenticacao:
+            self.sender.sendMessage("Listas atuais:", 
+                reply_markup = ReplyKeyboardRemove())
+            self.sender.sendMessage("1 Gale:")
+            for entrada in entrada_1gale:
+                self.sender.sendMessage(entrada)
+            self.sender.sendMessage("\n2 Gales:")
+            for entrada in entrada_2gale:
+                self.sender.sendMessage(entrada)
+            self.sender.sendMessage("Fim das listas")
+            self.comandos()
+        else:
+            self.sender.sendMessage("Usuário não autenticado")
 
     def ver_configuracoes(self):
         '''
@@ -486,6 +505,9 @@ class Assistente(amanobot.helper.ChatHandler):
                     self.alteracoes_avancadas['licenca'] = True
             else:
                 self.sender.sendMessage("Nenhum usuário no banco")
+        elif msg['text'] == "Parar bot":
+            controlador.deletar_instancias()
+            sys.exit(0)
         else:
             return self.mapear(mapeamento_avancado, msg['text'])
         return True
@@ -582,24 +604,6 @@ class Assistente(amanobot.helper.ChatHandler):
                 self.ver_configuracoes()
                 return True
         return False
-            
-    def ver_lista(self):
-        '''
-        Método que mostra as listas de sinais
-        '''
-        if self.autenticacao:
-            self.sender.sendMessage("Listas atuais:", 
-                reply_markup = ReplyKeyboardRemove())
-            self.sender.sendMessage("1 Gale:")
-            for entrada in entrada_1gale:
-                self.sender.sendMessage(entrada)
-            self.sender.sendMessage("\n2 Gales:")
-            for entrada in entrada_2gale:
-                self.sender.sendMessage(entrada)
-            self.sender.sendMessage("Fim das listas")
-            self.comandos()
-        else:
-            self.sender.sendMessage("Usuário não autenticado")
 
     def on_chat_message(self, msg):
         '''
@@ -704,5 +708,6 @@ if __name__ == "__main__":
             os.system("powershell start powershell python, telegram.py")
         else:
             os.system("nohup python3 telegram.py &")
+    
     controlador.deletar_instancias()
     print("Bot desligado")

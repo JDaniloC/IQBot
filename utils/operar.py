@@ -3,8 +3,8 @@ from utils.IQ import IQ_API
 import threading, traceback, time, re, sys
 from pprint import pprint
 
-LOCALERROR = "config/errors.log"
-LOCALLOG = "misc/"
+LOCALERROR = "errors.log"
+LOCALLOG = ""
 
 def escreve_erros(erro):
     linhas = " -> ".join(re.findall(r'line \d+', str(traceback.extract_tb(erro.__traceback__))))
@@ -12,10 +12,10 @@ def escreve_erros(erro):
         file.write(f"{type(erro)} - {erro}:\n{linhas}\n")
 
 def escreve_log(email, mensagem):
-    with open(LOCALLOG + email, "a", encoding = "utf-8") as file:
+    with open(LOCALLOG + email + ".txt", "a", encoding = "utf-8") as file:
         file.write(mensagem + "\n")
 
-class Operacao(IQ_API):
+class Operacao(IQ_API): 
     logo = ('''
        ******                                               
     ***********                                             

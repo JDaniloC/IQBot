@@ -83,7 +83,8 @@ class Control:
         '''
         name = "instancia" + str(len(self.instancias))
         system(f'yes "Y" | gcloud beta compute --project=durable-matter-281714 instances create {name} --zone=us-central1-a --machine-type=e2-highcpu-2 --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE --service-account=46980103503-compute@developer.gserviceaccount.com --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server,https-server --image=padrao --image-project=durable-matter-281714 --boot-disk-size=10GB --boot-disk-type=pd-standard --boot-disk-device-name={name} --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any')
-        system(f"gcloud compute ssh {name} --zone us-central1-a --command='chmod 777 iqbot/setup.sh;./iqbot/setup.sh'")
+        status = system(f"gcloud compute ssh {name} --zone us-central1-a --command='chmod 777 iqbot/setup.sh;./iqbot/setup.sh'")
+        print(status, status == 0)
         
         self.instancias.append(Instancia(name))
 
@@ -96,8 +97,21 @@ class Control:
             senha: string com a senha do usuario
         return: None
         '''
-        instancia.set_people(email)
-        system(f"gcloud compute ssh {instancia.name} --zone us-central1-a --command='screen -S {email} -dm python3 iqbot/bot.py -o {email} {senha}'")
+        if not instancia.on_instance(email):
+            instancia.set_people(email)
+        system(f"gcloud compute ssh {instancia.name} --zone us-central1-a --command='screen -S {email} -dm /home/jdsc/.asdf/installs/python/3.8.0/bin/python iqbot/bot.py -o {email} {senha}'")
+
+    def parar_operacao(self, email):
+        '''
+        Encontra a instancia que tem esse email
+        E manda parar a operaçao
+        '''
+        alvo = None
+        for instancia in self.instancias:
+            if instancia.on_instance(email):
+                alvo = instancia
+                break
+        system(f"gcloud compute ssh {alvo.name} --zone us-central1-a --command='screen -X -S {email} quit'")
 
     def deletar_instancias(self):
         '''
@@ -106,4 +120,4 @@ class Control:
         for instancia in self.instancias:
             system(f'yes "Y" | gcloud compute instances delete {instancia.name}')
         self.instancias = []
-        
+    
