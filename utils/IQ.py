@@ -22,6 +22,7 @@ class IQ_API:
         Return:
             Boolean True/False dependente do sucesso.
         '''
+        self.API.connect()
         for tentativas in range(tentativas):
             if self.API.check_connect():
                 print("+ Conectado com sucesso!\n")
@@ -52,36 +53,22 @@ class IQ_API:
         '''
         return self.API.get_balance_mode()
 
-    def mudar_tipo_conta(self):
-        '''
-        Muda o tipo de conta.
-        Se estiver na conta PRACTICE irá para real
-        E vice-versa
-        '''
-        modo = self.API.get_balance_mode()
-        if modo == "PRACTICE":
-            self.API.change_balance("REAL")
-            print("Usando a conta real")
-        else:
-            self.API.change_balance("PRACTICE")
-            print("usando a conta treino")
-
     def perfil(self):
         '''
         Mostra o perfil de forma simplificada e devolve o dicionário com mais informações
         return: dict
         '''
-        profile = self.API.get_profile()['result']
+        profile = self.API.get_profile_ansyc()
         resultado = f"""
         [Perfil]
 Email: {profile['email']}
 Nome: {profile["name"]}
 TimeZone: {profile["tz"]} {profile["tz_offset"]}
 Diferença de tempo: {profile["timediff"]}\n
-Saldo: {profile["currency_char"]} {profile["balance"]}
+Saldo: {profile["currency_char"]} {round(profile["balance"], 2)}
 Todas as carteiras:\n"""
         for tipo in profile['balances']:
-            resultado += tipo['currency'] + ": " + str(tipo["amount"]/1000000) + "\n"
+            resultado += tipo['currency'] + ": " + str(round(tipo["amount"], 2)) + "\n"
         print(resultado)
         return profile
 
@@ -201,25 +188,21 @@ Todas as carteiras:\n"""
         return:
             (resultado, lucro)
         '''
-        if tipo == "binary":
-            if bloqueador != None:
-                with bloqueador:
+        if bloqueador != None:
+            with bloqueador:
+                if tipo == "binary":
                     status, identificador = self.API.buy(valor, par, direcao, tempo)
-            else:
-                status, identificador = self.API.buy(valor, par, direcao, tempo)
-            if not status:
-                print(f"  ! Um erro aconteceu: {par}-{tipo} {direcao} {valor}!")
-                return "error", 0
+                else:
+                    status, identificador = self.API.buy_digital_spot(par, valor, direcao, tempo)
         else:
-            if bloqueador:
-                with bloqueador:
-                    identificador = self.API.buy_digital_spot(par, valor, direcao, tempo)
-            else:        
-                identificador = self.API.buy_digital_spot(par, valor, direcao, tempo)
+            if tipo == "binary":
+                status, identificador = self.API.buy(valor, par, direcao, tempo)
+            else:
+                status, identificador = self.API.buy_digital_spot(par, valor, direcao, tempo)
             
-            if not isinstance(identificador, int):
-                print(f"  ! Um erro aconteceu: {par}-{tipo} {direcao} {valor}!")
-                resultado, lucro = "error", 0
+        if not status:
+            print(f"  ! Um erro aconteceu: {par}-{tipo} {direcao} {valor}!")
+            return "error", 0
 
         print(f"Operação realizada: {par}-{tipo} {direcao} ${round(valor, 2)} {tempo}min")
 

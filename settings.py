@@ -147,7 +147,7 @@ class Config(Frame):
                 )
             for key in self.traducao["numericos"]:
                 self.numericos[key].set(
-                    int(info[self.traducao["numericos"][key]])
+                    float(info[self.traducao["numericos"][key]])
                 )
             for key in self.traducao["alternativos"]:
                 self.alternativos[key].set(

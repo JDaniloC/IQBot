@@ -58,7 +58,8 @@ class Operacao(IQ_API):
 
         self.config = config
         self.comandos = comandos
-        self.total = 0
+        self.ganho_total = 0
+        self.perda_total = 0
         self.verboso = verboso
 
         if self.maximo < 3:
@@ -116,18 +117,19 @@ class Operacao(IQ_API):
                 novo = self.valor + lucro if self.config["percent_soros"] == 0 else self.valor + self.valor * self.config["percent_soros"] / 100
                 print(f"\n [SOROS GALE] : {round(self.valor, 2)} -> {round(novo, 2)}")
                 self.valor = novo
-        if resultado == "loose" and self.config['martin'] and self.total - round(abs(lucro), 2) > -(self.config['stoploss']):
+        if resultado == "loose" and self.config['martin'] and self.perda_total - round(abs(lucro), 2) > -(self.config['stoploss']):
             num_gales = 0
             print(f"\n [MARTIN GALE] do tipo {self.config['tipo_gale']} na operação {par}|{ordem}")
             while (
                 resultado != "win" and 
                 self.max_gale > num_gales and 
-                self.config['goal'] > self.total):
+                self.config['goal'] > self.ganho_total):
                 
                 with self.cadeado:
-                    self.total -= round(abs(lucro), 2)
-                    if self.total <= -(self.config['stoploss']):
-                        print(f"MARTINGALE CANCELADO: BATEU NO STOPLOSS: {self.total}!")
+                    self.ganho_total -= round(abs(lucro), 2)
+                    self.perda_total -= round(abs(lucro), 2)
+                    if self.perda_total <= -(self.config['stoploss']):
+                        print(f"MARTINGALE CANCELADO: BATEU NO STOPLOSS: {self.perda_total}!")
                         sys.exit(0)
 
                 perda += abs(lucro)
@@ -138,16 +140,18 @@ class Operacao(IQ_API):
                 resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo, self.cadeado, self.config['delay'])
                 num_gales += 1
         elif resultado == "loose":
-            self.total -= round(abs(lucro), 2)
+            self.perda_total -= round(abs(lucro), 2)
+            self.ganho_total -= round(abs(lucro), 2)
 
         if resultado not in ["error", "equal"]:
             with self.cadeado:
                 if resultado == "win":
-                    self.total += round(lucro, 2)
+                    self.ganho_total += round(lucro, 2)
                 elif not self.config["martin"]:
-                    self.total -= round(abs(lucro), 2)
+                    self.ganho_total -= round(abs(lucro), 2)
+                    self.perda_total -= round(abs(lucro), 2)
                 
-            print(f"\n | {round(self.total/self.config['goal'] * 100, 2)}% perto do objetivo | {round(-self.total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
+            print(f"\n | {round(self.ganho_total/self.config['goal'] * 100, 2)}% perto do objetivo | {round(-self.perda_total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
         elif resultado == "error":
             mensagem = f"\nErro na operação das {threading.current_thread().name}"
             print(mensagem)
@@ -228,7 +232,7 @@ class Operacao(IQ_API):
                     tipo = self.tipo
 
                 with self.cadeado:
-                    if not (-self.config['stoploss'] < self.total < self.config['goal']):
+                    if -self.config['stoploss'] >= self.perda_total or self.ganho_total >= self.config['goal']:
                         break
                 
                 if self.config["minimo"] / 100 <= payout:
@@ -255,7 +259,7 @@ class Operacao(IQ_API):
         for thread in espera:
             thread.join()
 
-        mensagem = f"\nFim da operação resultado final: {round(self.total, 2)}\n"
+        mensagem = f"\nFim da operação resultado final: {round(self.ganho_total, 2)}\n"
         print(mensagem)
         if self.verboso:
             escreve_log(self.config['email'], mensagem)
