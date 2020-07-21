@@ -748,7 +748,7 @@ if __name__ == "__main__":
             os.system("powershell start powershell python, telegram.py")
         else:
             os.system("nohup python3 telegram.py &")
-    
-    if os.name != "nt":
-        controlador.deletar_instancias()
+    else:
+        if os.name != "nt":
+            controlador.deletar_instancias()
     print("Bot desligado")
