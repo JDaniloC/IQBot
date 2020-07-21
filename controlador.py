@@ -112,7 +112,8 @@ class Control:
             if instancia.on_instance(email):
                 alvo = instancia
                 break
-        system(f"gcloud compute ssh {alvo.name} --zone us-central1-a --command='screen -X -S {email} quit'")
+        if alvo != None:
+            system(f"gcloud compute ssh {alvo.name} --zone us-central1-a --command='screen -X -S {email} quit'")
 
     def deletar_instancias(self):
         '''

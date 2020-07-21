@@ -524,7 +524,6 @@ class Assistente(amanobot.helper.ChatHandler):
                 usuarios = controlador.deletar_instancias()
                 self.sender.sendMessage("Resetando o banco de dados...")
                 for email in usuarios:
-                    print(f"Tirando {email} de operar")
                     MongoDB.Users_collection.find_one_and_update(
                         {'email': email}, {'$set' : {'operando': False}})
             self.sender.sendMessage("Desligando o bot...")
