@@ -72,6 +72,16 @@ Todas as carteiras:\n"""
         print(resultado)
         return profile
 
+    def humor(self, par):
+        '''
+        Devolve o humor ATUAL dos traders
+        '''
+        self.API.start_mood_stream(par)
+        resultado = int(100 * round(self.API.get_traders_mood(par), 2))
+        self.API.stop_mood_stream(par)
+        print(f"{par}: {resultado}")
+        return resultado
+
     def payout_digital(self, par, timeframe = 1):
         '''
         Devolve o payout de uma paridade digital

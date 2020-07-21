@@ -9,7 +9,7 @@ from amanobot.delegate import (
 from database import *
 from controlador import Control
 
-TOKEN = "737574969:AAHgaEmqn2jkzSW5shewX-U1jS8R8-VpK1s"
+TOKEN = "1296638521:AAGrCPlrJc5fgYqgpFoh9GUzFnFJaHPOIKg"
 
 # Funções
 def strDateHour(number):
@@ -54,7 +54,8 @@ def get_adms():
 adms = get_adms()
 entrada_1gale = carregar_entradas(1)
 entrada_2gale = carregar_entradas(2)
-controlador = Control()
+if os.name != "nt":
+    controlador = Control()
 rodando = True
 
 mapeamento_avancado = {
@@ -79,9 +80,11 @@ class Assistente(amanobot.helper.ChatHandler):
         self.iniciar_operacao = False
         self.parar_operacao = False
         self.alteracoes_avancadas = {
-            "adm": False,
-            "licenca": False,
-            "aprovar": False
+            "adm": False,     # Adicionar novo ADM
+            "licenca": False, # Renovar licença
+            "aprovar": False, # Aprovar usuário
+            "remover": False, # Tirar um usuário cadastrado
+            "apagar": False   # Tirar um usuário em cadastro
         }
 
         self.mapeamento = {
@@ -90,10 +93,10 @@ class Assistente(amanobot.helper.ChatHandler):
             "Payout mínimo": ["minimo", False, int], 
             "StopWin": ["goal", False, float],
             "Soros": ["soros", False, bool], 
-            "Percentual da soros": ["percent_soros", False, int],
+            "Percentual da soros": ["percent_soros", False, float],
             "StopLoss": ["stoploss", False, float],
             "Martingale": ["martin", False, bool], 
-            "Percentual do martin": ["percent_martin", False, int],
+            "Percentual do martin": ["percent_martin", False, float],
             "Máximo de gales": ["max_gale", False, list],
             "Tipo de martingale": ["tipo_gale", False, list]
         }
@@ -193,6 +196,8 @@ class Assistente(amanobot.helper.ChatHandler):
             [KeyboardButton( text = "Alterar timeframe" )],
             [KeyboardButton( text = "Mudar a correção" )],
             [KeyboardButton( text = "Mudar o delay" )],
+            [KeyboardButton( text = "Tirar de cadastro" )],
+            [KeyboardButton( text = "Remover usuários" )],
             [KeyboardButton( text = "Atualizar informações" )],
             [KeyboardButton( text = "Adicionar administrador" )],
             [KeyboardButton( text = "Parar bot" )],
@@ -329,7 +334,6 @@ class Assistente(amanobot.helper.ChatHandler):
                 if os.name == "nt": # No windows 
                     os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}")
                 else:
-                    # os.system(f"screen -S {self.email} -dm python3 bot.py -o {self.email} {msg['text']}")
                     controlador.adicionar_pessoa(self.email, msg['text'])
                 self.sender.sendMessage("Operação iniciada.")
                 self.comandos()
@@ -359,12 +363,12 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         if msg['text'] == "Sim":
             self.sender.sendMessage("Parando operação...")
+            MongoDB.Users_collection.find_one_and_update({'email': self.email}, {'$set' : {'operando': False}})
             if os.name == "nt":
                 pass
             else:
                 controlador.parar_operacao(self.email)
             self.sender.sendMessage("Operação cancelada.")
-            MongoDB.Users_collection.find_one_and_update({'email': self.email}, {'$set' : {'operando': False}})
         self.parar_operacao = False
         self.comandos()
 
@@ -488,11 +492,15 @@ class Assistente(amanobot.helper.ChatHandler):
             entrada_1gale = carregar_entradas(1)
             entrada_2gale = carregar_entradas(2)
             self.sender.sendMessage("Informações atualizadas.")
-        elif msg['text'] in ["Aprovar usuários", "Renovar licença"]:
-            if msg['text'] == "Aprovar usuários":
+        elif msg['text'] in [
+            "Aprovar usuários", "Renovar licença", 
+            "Tirar de cadastro", "Apagar usuário"]:
+            # Captura todos os usuários
+            if msg['text'] in ["Aprovar usuários", "Apagar usuários"]:
                 users = MongoDB.Users_em_aprovacao.find()
             else:
                 users = MongoDB.Users_collection.find()
+            # Faz um botão para cada e-mail
             lista_usuarios = [] 
             for user in users:
                 email = user['email']
@@ -502,13 +510,23 @@ class Assistente(amanobot.helper.ChatHandler):
                     reply_markup = ReplyKeyboardMarkup(keyboard = lista_usuarios))
                 if msg['text'] == "Aprovar usuários":
                     self.alteracoes_avancadas['aprovar'] = True
+                elif msg['text'] == "Tirar de cadastro":
+                    self.alteracoes_avancadas['apagar'] = True
+                elif msg['text'] == "Remover usuário":
+                    self.alteracoes_avancadas['remover'] = True
                 else:
                     self.alteracoes_avancadas['licenca'] = True
             else:
                 self.sender.sendMessage("Nenhum usuário no banco")
         elif msg['text'] == "Parar bot":
-            self.sender.sendMessage("Fechando bot...")
-            controlador.deletar_instancias()
+            if os.name != "nt":
+                self.sender.sendMessage("Deletando todas as instâncias...")
+                usuarios = controlador.deletar_instancias()
+            self.sender.sendMessage("Resetando o banco de dados...")
+            for email in usuarios:
+                MongoDB.Users_collection.find_one_and_update(
+                    {'email': email}, {'$set' : {'operando': False}})
+            self.sender.sendMessage("Desligando o bot...")
             rodando = False
             self.close()
             sys.exit(0)
@@ -526,6 +544,11 @@ class Assistente(amanobot.helper.ChatHandler):
         return self.mapear(self.mapeamento, msg['text'])
 
     def salvar_alteracoes_avancadas(self, msg):
+        '''
+        Verifica se está requisitando alguma alteração avançada
+        Se sim, faz a operação no banco de dados e desabilita
+        Devolve um boolean caso positivo.
+        '''
         global adms
         if self.id not in adms:
             return False
@@ -543,7 +566,18 @@ class Assistente(amanobot.helper.ChatHandler):
             return True
         elif self.alteracoes_avancadas['licenca']:
             MongoDB.renovar_licenca(msg)
+            self.sender.sendMessage("Licença renovada")
             self.alteracoes_avancadas["licenca"] = False
+            return True
+        elif self.alteracoes_avancadas['remover']:
+            MongoDB.remover_usuario(msg)
+            self.sender.sendMessage("Usuário removido")
+            self.alteracoes_avancadas["remover"] = False
+            return True
+        elif self.alteracoes_avancadas['apagar']:
+            MongoDB.apagar_cadastro(msg)
+            self.sender.sendMessage("Cadastro apagado")
+            self.alteracoes_avancadas["apagar"] = False
             return True
         return False
 
@@ -713,5 +747,6 @@ if __name__ == "__main__":
         else:
             os.system("nohup python3 telegram.py &")
     
-    controlador.deletar_instancias()
+    if os.name != "nt":
+        controlador.deletar_instancias()
     print("Bot desligado")

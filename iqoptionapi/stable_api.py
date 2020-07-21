@@ -560,10 +560,10 @@ class IQ_Option:
         start = time.time()
         self.api.candle_generated_check[str(ACTIVE)][int(size)] = {}
         while True:
-            if 60 > time.time() - start > 50:
+            if time.time() - start > 60:
                 logging.error(
-                    '**error** start_candles_one_stream late for 50 sec')
-                # return False
+                    '**error** start_candles_one_stream late for 60 sec')
+                return False
             try:
                 if self.api.candle_generated_check[str(ACTIVE)][int(size)] == True:
                     return True

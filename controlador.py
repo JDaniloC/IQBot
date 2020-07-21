@@ -117,7 +117,11 @@ class Control:
     def deletar_instancias(self):
         '''
         Deleta todas as instâncias deixando apenas a original
+        E devolve todos os usuários deletados
         '''
+        usuarios = []
         for instancia in self.instancias:
+            usuarios.extend(instancia.get_people())
             system(f'yes "Y" | gcloud compute instances delete {instancia.name}')
         self.instancias = []
+        return usuarios
