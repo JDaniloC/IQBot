@@ -494,7 +494,7 @@ class Assistente(amanobot.helper.ChatHandler):
             self.sender.sendMessage("Informações atualizadas.")
         elif msg['text'] in [
             "Aprovar usuários", "Renovar licença", 
-            "Tirar de cadastro", "Apagar usuário"]:
+            "Tirar de cadastro", "Remover usuários"]:
             # Captura todos os usuários
             if msg['text'] in ["Aprovar usuários", "Tirar de cadastro"]:
                 users = MongoDB.Users_em_aprovacao.find()
@@ -512,7 +512,7 @@ class Assistente(amanobot.helper.ChatHandler):
                     self.alteracoes_avancadas['aprovar'] = True
                 elif msg['text'] == "Tirar de cadastro":
                     self.alteracoes_avancadas['apagar'] = True
-                elif msg['text'] == "Remover usuário":
+                elif msg['text'] == "Remover usuários":
                     self.alteracoes_avancadas['remover'] = True
                 else:
                     self.alteracoes_avancadas['licenca'] = True
@@ -522,10 +522,11 @@ class Assistente(amanobot.helper.ChatHandler):
             if os.name != "nt":
                 self.sender.sendMessage("Deletando todas as instâncias...")
                 usuarios = controlador.deletar_instancias()
-            self.sender.sendMessage("Resetando o banco de dados...")
-            for email in usuarios:
-                MongoDB.Users_collection.find_one_and_update(
-                    {'email': email}, {'$set' : {'operando': False}})
+                self.sender.sendMessage("Resetando o banco de dados...")
+                for email in usuarios:
+                    print(f"Tirando {email} de operar")
+                    MongoDB.Users_collection.find_one_and_update(
+                        {'email': email}, {'$set' : {'operando': False}})
             self.sender.sendMessage("Desligando o bot...")
             rodando = False
             self.close()
