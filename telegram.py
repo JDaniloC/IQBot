@@ -167,7 +167,7 @@ class Assistente(amanobot.helper.ChatHandler):
             else:
                 self.sender.sendMessage("Sua licença expirou, peça para o administrador renovar.")
                 self.close()
-        elif (MongoDB.check_email(email)):
+        elif (MongoDB.verifica_cadastrado(email)):
             self.sender.sendMessage("Seu e-mail ainda está em análise...")
             self.close()
         else:
@@ -329,7 +329,7 @@ class Assistente(amanobot.helper.ChatHandler):
                     reply_markup = ReplyKeyboardRemove())   
                 self.iniciar_operacao = False
                 self.informacoes["operando"] = True
-                MongoDB.change_user(self.informacoes, self.email)
+                MongoDB.modifica_usuario(self.informacoes, self.email)
                 
                 if os.name == "nt": # No windows 
                     os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}")
@@ -496,7 +496,7 @@ class Assistente(amanobot.helper.ChatHandler):
             "Aprovar usuários", "Renovar licença", 
             "Tirar de cadastro", "Apagar usuário"]:
             # Captura todos os usuários
-            if msg['text'] in ["Aprovar usuários", "Apagar usuários"]:
+            if msg['text'] in ["Aprovar usuários", "Tirar de cadastro"]:
                 users = MongoDB.Users_em_aprovacao.find()
             else:
                 users = MongoDB.Users_collection.find()
@@ -554,7 +554,7 @@ class Assistente(amanobot.helper.ChatHandler):
             return False
         msg = msg['text']
         if self.alteracoes_avancadas['adm']:
-            MongoDB.add_adm(int(msg))
+            MongoDB.adiciona_adm(int(msg))
             adms = get_adms()
             self.sender.sendMessage("Adminstrador adicionado.")
             self.alteracoes_avancadas["adm"] = False
@@ -622,7 +622,7 @@ class Assistente(amanobot.helper.ChatHandler):
         result = self.confirmar_mapeamento(mapeamento_avancado, msg['text'])
         if result:
             info, valor = result
-            MongoDB.change_avancadas(info, valor)
+            MongoDB.modifica_avancadas(info, valor)
             self.sender.sendMessage(f"Valor salvo.")
             self.ver_avancadas()
             return True
@@ -699,7 +699,7 @@ class Assistente(amanobot.helper.ChatHandler):
         Método que é chamado quando acaba uma conversa
         '''
         if self.autenticacao:
-            MongoDB.change_user(self.informacoes, self.email)
+            MongoDB.modifica_usuario(self.informacoes, self.email)
 
         print(f"Usuário {self.nome_usuario} saiu.\n")
         self.sender.sendMessage("Obrigado pela preferência, irei atender outras pessoas, qualquer coisa é só chamar.", reply_markup = ReplyKeyboardRemove())

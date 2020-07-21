@@ -14,15 +14,20 @@ class Mongo:
         self.Entrada1 = entrada1
         self.Entrada2 = entrada2
 
-    def check_email(self, email):
+    def verifica_cadastro(self, email):
+        '''
+        Verifica se o e-mail está em aprovação
+        '''
         objct = self.Users_em_aprovacao.find_one({'email':email})
         if not objct:
             return False
         return True
 
     def aprovar(self, email):
-        user = self.Users_em_aprovacao.find_one_and_delete(
-            {"email": email})
+        '''
+        Tira o e-mail de em aprovação e coloca no rol de usuários
+        '''
+        user = self.apagar_cadastro(email)
         if user:
             user = users_schema.user
             user['email'] = email
@@ -31,41 +36,81 @@ class Mongo:
             self.Users_collection.insert_one(user)
 
     def renovar_licenca(self, email):
+        '''
+        Aumenta a licença de determinado e-mail
+        '''
         data = time.time() + 604800 # 2592000
         self.Users_collection.find_one_and_update({'email':email}, {'$set': {'timestamp': data}})
 
-    def add_adm(self, _id):
+    def adiciona_adm(self, _id):
+        '''
+        Adiciona o ID do telegram no grupo de admnistradores
+        '''
         adm = adms_schema.ADMS
         adm['_id'] = _id
         self.ADMS.insert_one(adm)
 
-    def change_user(self, info, email):
-        user = self.Users_collection.find_one_and_delete({'email':email})
+    def modifica_usuario(self, info, email):
+        '''
+        Modifica as informações do usuário de determinado e-mail
+        '''
+        user = self.remover_usuario(email)
         user.update(info)
         self.Users_collection.insert_one(user)
 
-    def change_avancadas(self, info, valor):
+    def modifica_avancadas(self, info, valor):
+        '''
+        Modifica alguma informação das configurações avançadas
+        '''
         # Pega o ID do documento para deleta-lo depois
         object_id = self.Default.find_one()['_id'] 
         default = self.Default.find_one_and_delete({'_id': object_id}) 
         default[info] = valor
         self.Default.insert_one(default) #Insere o doc alterado no banco
 
+    def remover_usuario(self, email):
+        '''
+        Remove o usuário de determinado e-mail
+        Devolve o usuário removido
+        '''
+        return self.Users_collection.find_one_and_delete(
+            {'email': email})
+
+    def apagar_cadastro(self, email):
+        '''
+        Tira o e-mail da fila de cadastro
+        Devolve o objeto removido
+        '''
+        return self.Users_em_aprovacao.find_one_and_delete(
+            {"email": email})
+
     def get_avancadas(self):
-        default = self.Default.find_one()
-        return default
+        '''
+        Devolve as configurações avançadas
+        '''
+        return self.Default.find_one()
 
     def get_user(self, email):
-        user = self.Users_collection.find_one({'email': email})
-        return user
+        '''
+        Devolve as informações do usuário a partir do e-mail
+        '''
+        return self.Users_collection.find_one({'email': email})
 
     def get_entradas(self, modo):
+        '''
+        Devolve as lista de entradas (modo 1/2)
+        A depender da quantidade de gales
+        '''
         if modo == 1:
             return list(self.Entrada1.find())
         else:
             return list(self.Entrada2.find())
 
     def set_entradas(self, modo, entradas):
+        '''
+        Modifica a lista de entradas (modo 1/2)
+        A depender da quantidade de gales
+        '''
         if modo == 1:
             self.Entrada1.delete_many({"ordem": 'call'})
             self.Entrada1.delete_many({"ordem": 'put'})
