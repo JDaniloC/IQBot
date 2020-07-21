@@ -658,6 +658,8 @@ class Assistente(amanobot.helper.ChatHandler):
         elif msg['text'] == 'Gerenciar':
             self.gerenciar()
         elif msg['text'] == "Voltar ao menu":
+            if not self.autenticacao:
+                self.entrar()
             self.comandos()
         elif msg['text'] == "Ver configurações":
             self.ver_configuracoes()
