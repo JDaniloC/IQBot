@@ -53,7 +53,7 @@ class Control:
         self.instancias = []
         self.criar_instancia()
     
-    def adicionar_pessoa(self, email, senha):
+    def adicionar_pessoa(self, email, senha, identificador):
         '''
         Verifica se o e-mail está em alguma instância
         Caso não estiver verifica se a última instância 
@@ -74,7 +74,7 @@ class Control:
                 self.criar_instancia()
             alvo = self.instancias[-1]
             
-        self.iniciar_bot(alvo, email, senha)
+        self.iniciar_bot(alvo, email, senha, identificador)
 
     def criar_instancia(self):
         '''
