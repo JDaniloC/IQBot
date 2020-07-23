@@ -69,7 +69,7 @@ class Operacao(IQ_API):
 
                 if self.verboso:
                     import amanobot
-                    self.telegram = amanobot.Bot("1359919203:AAHA3hXHOf_3vrkBo_TLypwHWqOnAl711go")
+                    self.telegram = amanobot.Bot("1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao")
 
                 print(f"Entrando na {config['email']}")
                 super().__init__(config['email'], config['senha'])
