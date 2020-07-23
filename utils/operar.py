@@ -152,7 +152,7 @@ class Operacao(IQ_API):
                     self.perda_total -= round(abs(lucro), 2)
                     self.mostrar_mensagem(
                         f"\n | {round(self.ganho_total/self.config['goal'] * 100, 2)}% perto do objetivo |\
-                        {round(-self.perda_total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
+ {round(-self.perda_total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
                 if self.perda_total <= -(self.config['stoploss']):
                     self.mostrar_mensagem(f"MARTINGALE CANCELADO: BATEU NO STOPLOSS: {self.perda_total}!")
                     sys.exit(0)
@@ -178,7 +178,7 @@ class Operacao(IQ_API):
                 
             self.mostrar_mensagem(
                 f"\n | {round(self.ganho_total/self.config['goal'] * 100, 2)}% perto do objetivo |\
-                {round(-self.perda_total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
+ {round(-self.perda_total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
 
         elif resultado == "error":
             print(f"\nErro na operação das {threading.current_thread().name}")
