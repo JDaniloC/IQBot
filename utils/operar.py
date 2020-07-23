@@ -67,6 +67,10 @@ class Operacao(IQ_API):
                 print(self.logo, flush = True)
                 print(self.welcome, flush = True)
 
+                if self.verboso:
+                    import amanobot
+                    self.telegram = amanobot.Bot("1359919203:AAHA3hXHOf_3vrkBo_TLypwHWqOnAl711go")
+
                 print(f"Entrando na {config['email']}")
                 super().__init__(config['email'], config['senha'])
 
@@ -84,19 +88,13 @@ class Operacao(IQ_API):
                 self.tempo = config['tempo']
                 self.max_gale = config["max_gale"]
 
-                if self.verboso:
-                    import amanobot
-                    self.telegram = amanobot.Bot("1359919203:AAHA3hXHOf_3vrkBo_TLypwHWqOnAl711go")
-                #     escreve_log(config['email'], "Iniciando computação")
-
                 self.computar()
             except KeyboardInterrupt:
                 sys.exit(0)
             except Exception as e:
                 if type(e) == ConnectionError:
-                    mensagem = "Não conseguiu se conectar na conta"
-                    if self.verboso:
-                        self.telegram.sendMessage(self.verboso, mensagem)
+                    self.mostrar_mensagem("Não conseguiu se conectar na conta")
+        
                     self.maximo = 3
                 else:
                     print("Aconteceu um erro na API, tentando novamente.")
@@ -110,18 +108,31 @@ class Operacao(IQ_API):
                     print("Deu erro novamente! Finalizando o programa.")
                     escreve_erros(e)
         else:
-            mensagem = "Ultrapassou o máximo de tentativas."
-            print(mensagem)
-            if self.veboso:
-                self.telegram.sendMessage(self.verboso, mensagem + "Bot desligado")
-                # escreve_log(config['email'], mensagem)
+            self.mostrar_mensagem("Ultrapassou o máximo de tentativas.")
+
+    def mostrar_mensagem(self, mensagem):
+        print(mensagem)
+        if self.veboso:
+            try:
+                self.telegram.sendMessage(self.verboso, mensagem)
+            except Exception as e:
+                print(e)
 
     def operar(self, valor, par, ordem, payout, tipo):
         '''
         Faz a operação e a depender da configuração faz:
         Martingale/Sorosgale e calcula o ganhoTotal/perdaTotal
         '''
-        resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo, self.cadeado, self.config['delay'])
+        resultado = None
+        for i in range(2):
+            try:
+                resultado, lucro = self.ordem(par, ordem, self.tempo, valor,    tipo, self.cadeado, self.config['delay'])
+                break
+            except Exception as e:
+                print(f"Ocorreu um erro na operação:\n {type(e)}: {e}")
+                self.conectar()
+        if resultado == None:
+            raise ConnectionAbortedError("Não estou conseguindo fazer as operações, reinicie o bot.")
         perda = 0
         if resultado == "win" and self.config['soros']:
             with self.cadeado:
@@ -139,12 +150,12 @@ class Operacao(IQ_API):
                 with self.cadeado:
                     self.ganho_total -= round(abs(lucro), 2)
                     self.perda_total -= round(abs(lucro), 2)
-                    if self.perda_total <= -(self.config['stoploss']):
-                        mensagem = f"MARTINGALE CANCELADO: BATEU NO STOPLOSS: {self.perda_total}!"
-                        print(mensagem)
-                        if self.verboso:
-                            self.telegram.sendMessage(self.verboso, mensagem)
-                        sys.exit(0)
+                    self.mostrar_mensagem(
+                        f"\n | {round(self.ganho_total/self.config['goal'] * 100, 2)}% perto do objetivo |\
+                        {round(-self.perda_total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
+                if self.perda_total <= -(self.config['stoploss']):
+                    self.mostrar_mensagem(f"MARTINGALE CANCELADO: BATEU NO STOPLOSS: {self.perda_total}!")
+                    sys.exit(0)
 
                 perda += abs(lucro)
                 lucro = self.valor * payout if self.config["tipo_gale"] != "porcento" else self.config["percent_martin"] / 100
@@ -165,15 +176,12 @@ class Operacao(IQ_API):
                     self.ganho_total -= round(abs(lucro), 2)
                     self.perda_total -= round(abs(lucro), 2)
                 
-            mensagem = f"\n | {round(self.ganho_total/self.config['goal'] * 100, 2)}% perto do objetivo | {round(-self.perda_total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n"
-            print(mensagem)
-            if self.verboso:
-                self.telegram.sendMessage(self.verboso, mensagem)
+            self.mostrar_mensagem(
+                f"\n | {round(self.ganho_total/self.config['goal'] * 100, 2)}% perto do objetivo |\
+                {round(-self.perda_total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
+
         elif resultado == "error":
-            mensagem = f"\nErro na operação das {threading.current_thread().name}"
-            print(mensagem)
-            # if self.verboso:
-            #     escreve_log(self.config['email'], mensagem)
+            print(f"\nErro na operação das {threading.current_thread().name}")
 
     def computar(self):
         '''
@@ -195,10 +203,7 @@ class Operacao(IQ_API):
                 try:
                     self.API.subscribe_strike_list(par, self.tempo)
                 except KeyError:
-                    mensagem = f"Remova a paridade {par} da lista."
-                    print(mensagem)
-                    # if self.verboso:
-                    #     escreve_log(self.config['email'], mensagem)
+                    print(f"Remova a paridade {par} da lista.")
             payouts = self.aberta_profit(paridades, self.tempo)
 
             def atualizar_profits(comando):
@@ -213,12 +218,10 @@ class Operacao(IQ_API):
                     paridades.append(paridade)
                 novo = self.aberta_profit(paridades, self.tempo)
                 if novo == None:
-                    raise ConnectionAbortedError("Reinicie o bot, algo deu errado.")
+                    raise ConnectionAbortedError("Não estou conseguindo pegar as paridades. Reinicie o bot")
                 payouts.update(novo)
 
-        if self.verboso:
-            self.telegram.sendMessage(self.verboso, "Conectado com sucesso.")
-        
+        self.mostrar_mensagem("Conectado com sucesso.")
         for comando in self.comandos:
             
             data = comando["data"]
@@ -245,10 +248,7 @@ class Operacao(IQ_API):
                         tipo = "digital"
                         payout = payouts["digital"][par][1]
                     else:
-                        mensagem = f"{par} não está disponível nem binária nem digital na modalidade M{self.tempo}"
-                        print(mensagem)
-                        # if self.verboso:
-                        #     escreve_log(self.config['email'], mensagem)
+                        print(f"{par} não está disponível nem binária nem digital na modalidade M{self.tempo}")
                         continue
                 else:
                     payout = self.payout_binaria(par) / 100 if self.tipo == "binary" else self.payout_digital(par) / 100
@@ -256,13 +256,11 @@ class Operacao(IQ_API):
 
                 with self.cadeado:
                     if -self.config['stoploss'] >= self.perda_total or self.ganho_total >= self.config['goal']:
-                        mensagem = f'''
-    Stopwin: {self.config['goal']}
+                        self.mostrar_mensagem(f'''
+        Stopwin: {self.config['goal']}
     Total ganho: {self.ganho_total}
     Stoploss: {-self.config['stoploss']}
-    Total perdido: {self.perda_total}'''
-                        if self.verboso:
-                            self.telegram.sendMessage(self.verboso, mensagem)
+    Total perdido: {self.perda_total}''')
                         break
                 
                 if self.config["minimo"] / 100 <= payout:
@@ -282,19 +280,11 @@ class Operacao(IQ_API):
                         ).start()
             else:
                 momento = datetime.utcnow().timestamp() - 10800 # -3Horas
-                mensagem = f"UTC-3: {datetime.fromtimestamp(momento).strftime('dia %d - %H:%M')} | {comando['par']} - {horas}:{minutos} passou da hora."
-                print(mensagem) 
-                # if self.verboso:
-                #     escreve_log(self.config['email'], mensagem)
+                print(f"UTC-3: {datetime.fromtimestamp(momento).strftime('dia %d - %H:%M')} | {comando['par']} - {horas}:{minutos} passou da hora.")
         for thread in espera:
             thread.join()
 
-        mensagem = f"\nFim da operação resultado final: R$ {round(self.ganho_total, 2)}\n"
-        print(mensagem)
-        if self.verboso:
-            self.telegram.sendMessage(self.verboso, mensagem)
-        # if self.verboso:
-        #     escreve_log(self.config['email'], mensagem)
+        self.mostrar_mensagem(f"\nFim da operação resultado final: R$ {round(self.ganho_total, 2)}\n")
         
         try:
             if self.tipo == "auto":

@@ -100,7 +100,7 @@ class Control:
         '''
         if not instancia.on_instance(email):
             instancia.set_people(email)
-        system(f"gcloud compute ssh {instancia.name} --zone us-central1-a --command='screen -S {email} -dm /home/jdsc/.asdf/installs/python/3.8.0/bin/python iqbot/bot.py -o {email} {senha} {identificador} >> {email}.log'")
+        system(f"gcloud compute ssh {instancia.name} --zone us-central1-a --command='screen -dmS {email} -L -Logfile {email}.log /home/jdsc/.asdf/installs/python/3.8.0/bin/python iqbot/bot.py -o {email} {senha} {identificador}'")
 
     def parar_operacao(self, email):
         '''

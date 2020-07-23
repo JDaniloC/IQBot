@@ -176,8 +176,10 @@ class IQ_Option:
         self.api.Get_Leader_Board(country_id, user_country_id, from_position, to_position,
                                   near_traders_country_count, near_traders_count, top_country_count, top_count, top_type)
 
+        start = time.time()
         while self.api.leaderboard_deals_client == None:
-            pass
+            if time.time() - start > 60:
+                return None
         return self.api.leaderboard_deals_client
 
     def get_instruments(self, type):
@@ -214,21 +216,25 @@ class IQ_Option:
 
     # _________________________self.api.get_api_option_init_all() wss______________________
     def get_all_init(self):
-
+        timing = time.time()
         while True:
             self.api.api_option_init_all_result = None
+            start = time.time()
             while True:
                 try:
                     self.api.get_api_option_init_all()
                     break
                 except:
-                    logging.error('**error** get_all_init need reconnect')
+                    logging.error('**error** (get_all_init) preicsa se reconectar')
                     self.connect()
                     time.sleep(5)
+                if time.time() - start > 30:
+                    logging.error('**error** (get_all_init) A IQ demorou mais de 30 segundos pra devolver os payouts. Tente novamente.')
+                    break
             start = time.time()
             while True:
                 if time.time() - start > 30:
-                    logging.error('**aviso** (get_all_init) A IQ demorou mais de 30 segundos pra devolver os payouts. Tente novamente.')
+                    logging.error('**error** (get_all_init) A IQ demorou mais de 30 segundos pra devolver os payouts. Tente novamente.')
                     break
                 try:
                     if self.api.api_option_init_all_result != None:
@@ -240,6 +246,9 @@ class IQ_Option:
                     return self.api.api_option_init_all_result
             except:
                 pass
+            if time.time() - timing > 30:
+                logging.error("**error** Não consegui pegar as paridades, reinicie o bot.")
+                break
 
     def get_all_init_v2(self):
         self.api.api_option_init_all_result_v2 = None
@@ -325,6 +334,8 @@ class IQ_Option:
     def get_all_profit(self):
         all_profit = nested_dict(2, dict)
         init_info = self.get_all_init()
+        if init_info == None:
+            return None
         for actives in init_info["result"]["turbo"]["actives"]:
             name = init_info["result"]["turbo"]["actives"][actives]["name"]
             name = name[name.index(".") + 1:len(name)]
@@ -961,9 +972,9 @@ class IQ_Option:
         self.api.get_digital_underlying()
         start_t = time.time()
         while self.api.underlying_list_data == None:
-            if time.time() - start_t >= 30:
+            if time.time() - start_t >= 40:
                 logging.error(
-                    '**warning** get_digital_underlying_list_data late 30 sec')
+                    '**aviso** (get_digital_underlying_list_data) A IQ demorou mais de 40 segundos pra devolver o payout')
                 return None
 
         return self.api.underlying_list_data
