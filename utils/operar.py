@@ -112,7 +112,7 @@ class Operacao(IQ_API):
 
     def mostrar_mensagem(self, mensagem):
         print(mensagem)
-        if self.veboso:
+        if self.verboso:
             try:
                 self.telegram.sendMessage(self.verboso, mensagem)
             except Exception as e:
