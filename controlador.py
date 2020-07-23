@@ -89,7 +89,7 @@ class Control:
         
         self.instancias.append(Instancia(name))
 
-    def iniciar_bot(self, instancia, email, senha):
+    def iniciar_bot(self, instancia, email, senha, identificador):
         '''
         Inicia o bot para determinado email/senha na instância
         params:
@@ -100,7 +100,7 @@ class Control:
         '''
         if not instancia.on_instance(email):
             instancia.set_people(email)
-        system(f"gcloud compute ssh {instancia.name} --zone us-central1-a --command='screen -S {email} -dm /home/jdsc/.asdf/installs/python/3.8.0/bin/python iqbot/bot.py -o {email} {senha}'")
+        system(f"gcloud compute ssh {instancia.name} --zone us-central1-a --command='screen -S {email} -dm /home/jdsc/.asdf/installs/python/3.8.0/bin/python iqbot/bot.py -o {email} {senha} {identificador} >> {email}.log'")
 
     def parar_operacao(self, email):
         '''

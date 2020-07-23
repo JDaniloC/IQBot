@@ -8,7 +8,8 @@ class IQ_API:
         Recebe o login, e tenta se conectar
         '''
         self.API = IQ_Option(login, senha)
-        self.conectar()
+        if not self.conectar():
+            raise ConnectionError("Não conseguiu se conectar, reveja a senha.")
 
     def conectar(self, tentativas = 5):
         '''
@@ -161,8 +162,18 @@ Todas as carteiras:\n"""
         '''
         print("Buscando pariadades...")
         payouts = {"binary":{}, "digital":{}}
-        abertas = self.API.get_all_open_time()
-        todos_binary = self.API.get_all_profit()
+        abertas, todos_binary = None, None
+        for i in range(2):
+            abertas = self.API.get_all_open_time()
+            todos_binary = self.API.get_all_profit()
+            if abertas == None or todos_binary == None:
+                print("Algo deu errado, se conectando novamente.")
+                self.conectar()
+            else:
+                break
+        if abertas == None or todos_binary == None:
+            print("Reinicie o bot")
+            return None
 
         for par in paridades:
             

@@ -171,7 +171,7 @@ def recebe_comandos(comandos):
             api = IQ_API(config["email"], config["senha"])
             api.perfil()
             return api
-        elif comandos[0] in ['-o', 'online'] and len(comandos[0:]) != 2:
+        elif comandos[0] in ['-o', 'online'] and len(comandos[0:]) > 3:
             # Carrega o arquivo de configurações a partir do e-mail
             config = MongoDB.get_user(comandos[1])
             config['senha'] = comandos[2]
@@ -181,7 +181,7 @@ def recebe_comandos(comandos):
             
             # Define o arquivo de entradas a partir do gale máximo
             entradas = MongoDB.get_entradas(int(config['max_gale']))
-            Operacao(config, entradas, 0, True)
+            Operacao(config, entradas, 0, comandos[3])
         else:
             print('''
             [COMANDOS]
@@ -212,9 +212,10 @@ if __name__ == "__main__":
             input("\nDigite Enter para sair")
         elif argv[1] == "-o":
             try: # Dizer que terminou
-                dados = MongoDB.get_user(argv[2])
+                email = argv[2]
+                dados = MongoDB.get_user(email)
                 dados["operando"] = False
-                MongoDB.change_user(dados, argv[2])
+                MongoDB.modifica_usuario(dados, email)
             except Exception as e:
                 print(e)
                 input()

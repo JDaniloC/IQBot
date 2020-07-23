@@ -8,4 +8,4 @@ sudo apt-get update; sudo apt-get -y install --no-install-recommends make build-
 asdf plugin-add python
 asdf install python 3.8.0
 asdf global python 3.8.0
-pip install amanobot pymongo requests websocket-client==0.56 dnspython
+pip install amanobot pymongo requests==2.10.0 websocket-client==0.56 dnspython

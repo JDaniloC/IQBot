@@ -9,7 +9,7 @@ from amanobot.delegate import (
 from database import *
 from controlador import Control
 
-TOKEN = "1296638521:AAGrCPlrJc5fgYqgpFoh9GUzFnFJaHPOIKg"
+TOKEN = "1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao"
 
 # Funções
 def strDateHour(number):
@@ -167,7 +167,7 @@ class Assistente(amanobot.helper.ChatHandler):
             else:
                 self.sender.sendMessage("Sua licença expirou, peça para o administrador renovar.")
                 self.close()
-        elif (MongoDB.verifica_cadastrado(email)):
+        elif (MongoDB.verifica_cadastro(email)):
             self.sender.sendMessage("Seu e-mail ainda está em análise...")
             self.close()
         else:
@@ -332,9 +332,9 @@ class Assistente(amanobot.helper.ChatHandler):
                 MongoDB.modifica_usuario(self.informacoes, self.email)
                 
                 if os.name == "nt": # No windows 
-                    os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}")
+                    os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}, {self.id}")
                 else:
-                    controlador.adicionar_pessoa(self.email, msg['text'])
+                    controlador.adicionar_pessoa(self.email, msg['text'], self.id)
                 self.sender.sendMessage("Operação iniciada.")
                 self.comandos()
             else:
@@ -750,5 +750,6 @@ if __name__ == "__main__":
             os.system("nohup python3 telegram.py &")
     else:
         if os.name != "nt":
+            print("Deletando instâncias...")
             controlador.deletar_instancias()
     print("Bot desligado")

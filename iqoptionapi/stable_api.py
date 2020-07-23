@@ -228,7 +228,7 @@ class IQ_Option:
             start = time.time()
             while True:
                 if time.time() - start > 30:
-                    logging.error('**warning** get_all_init late 30 sec')
+                    logging.error('**aviso** (get_all_init) A IQ demorou mais de 30 segundos pra devolver os payouts. Tente novamente.')
                     break
                 try:
                     if self.api.api_option_init_all_result != None:
@@ -250,8 +250,8 @@ class IQ_Option:
         self.api.get_api_option_init_all_v2()
         start_t = time.time()
         while self.api.api_option_init_all_result_v2 == None:
-            if time.time() - start_t >= 30:
-                logging.error('**warning** get_all_init_v2 late 30 sec')
+            if time.time() - start_t >= 40:
+                logging.error('**aviso** (get_all_init_v2) A IQ demorou mais de 40 segundos pra devolver a paridade. Tente novamente.')
                 return None
         return self.api.api_option_init_all_result_v2
 
@@ -263,6 +263,8 @@ class IQ_Option:
         # for binary option turbo and binary
         OPEN_TIME = nested_dict(3, dict)
         binary_data = self.get_all_init_v2()
+        if binary_data == None:
+            return None
         binary_list = ["binary", "turbo"]
         for option in binary_list:
             for actives_id in binary_data[option]["actives"]:

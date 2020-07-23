@@ -6,7 +6,7 @@ tipo = Treino
 [ENTRADAS]
 arquivo = entradas.txt
 tipo_par = Auto
-otc = True
+otc = False
 valor = 2.0
 tempo = 1
 profit_minimo = 0
@@ -25,5 +25,5 @@ tipo_gale = leve
 
 [AJUSTES]
 correcao_entrada = 0
-delay = 2.7
+delay = 2.3
 
