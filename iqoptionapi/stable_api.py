@@ -798,7 +798,7 @@ class IQ_Option:
                 time.sleep(0.8)
                 payout = self.get_digital_current_profit(active, period)
             win_amount = round((lose * payout) / 100, 2)
-
+        
         self.start_candles_stream(active, 1, 1)
         wait_for = expiration + delay - time.time()
         time.sleep(wait_for if wait_for > 0 else 0)

@@ -227,7 +227,24 @@ Todas as carteiras:\n"""
 
         print(f"Operação realizada: {par}-{tipo} {direcao} ${round(valor, 2)} {tempo}min")
 
-        resultado, lucro = self.API.check_win_v5(identificador, tipo, delay)
+        # Versão que pega no histórico
+        if tipo == "binary":
+            resultado, lucro = self.API.check_win_v4(identificador) # binary
+        else:
+            status = False
+            time.sleep(tempo * 60 - 10)
+            while not status:
+                status, lucro = self.API.check_win_digital_v2(identificador)
+                time.sleep(0.5)
+            if lucro > 0:
+                resultado = "win"
+            elif lucro < 0:
+                resultado = "loose"
+            else:
+                resultado = "equal"
+        
+        # Versão que pega na hora
+        # resultado, lucro = self.API.check_win_v5(identificador, tipo, delay)
 
         print(f'''
 

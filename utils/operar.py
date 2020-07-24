@@ -84,6 +84,10 @@ class Operacao(IQ_API):
                 else:
                     self.tipo = "digital" if config['tipo_par'] == 'digital' else "binary"
 
+                if config['soros']:
+                    self.valor_inicial = config['valor']
+                    self.soros_atual = 0
+
                 self.valor = config['valor']
                 self.tempo = config['tempo']
                 self.max_gale = config["max_gale"]
@@ -133,7 +137,7 @@ class Operacao(IQ_API):
         resultado = None
         for i in range(2):
             try:
-                resultado, lucro = self.ordem(par, ordem, self.tempo, valor,    tipo, self.cadeado, self.config['delay'])
+                resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo, self.cadeado, self.config['delay'])
                 break
             except Exception as e:
                 print(f"Ocorreu um erro na operação:\n {type(e)}: {e}")
@@ -142,11 +146,21 @@ class Operacao(IQ_API):
             raise ConnectionAbortedError("Não estou conseguindo fazer as operações, reinicie o bot.")
         perda = 0
         if resultado == "win" and self.config['soros']:
-            with self.cadeado:
-                novo = self.valor + lucro if self.config["percent_soros"] == 0 else self.valor + self.valor * self.config["percent_soros"] / 100
-                print(f"\n [SOROS GALE] : {round(self.valor, 2)} -> {round(novo, 2)}")
-                self.valor = novo
+            if self.soros_atual < self.max_gale:
+                with self.cadeado:
+                    novo = valor + lucro if self.config["percent_soros"] == 0 else valor + valor * self.config["percent_soros"] / 100
+                    print(f"\n [SOROS] : {round(valor, 2)} -> {round(novo, 2)}")
+                    self.valor = novo
+                    self.soros_atual += 1
+            else:
+                self.soros_atual = 0
+                print(f" [SOROS] Preservando capital: R$ {valor} -> R$ {self.valor_inicial}")
+                self.valor = self.valor_inicial
         if resultado == "loose" and self.config['martin'] and self.perda_total - round(abs(lucro), 2) > -(self.config['stoploss']):
+            if self.config['soros']:
+                self.soros_atual = 0
+                print(f" [SOROS] Preservando capital: R$ {valor} -> R$ {self.valor_inicial}")
+                self.valor = self.valor_inicial
             num_gales = 0
             print(f"\n [MARTIN GALE] do tipo {self.config['tipo_gale']} na operação {par}|{ordem}")
             while (
@@ -162,7 +176,7 @@ class Operacao(IQ_API):
  {round(-self.perda_total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
                 
                 if self.perda_total <= -(self.config['stoploss']):
-                    self.mostrar_mensagem(f"MARTINGALE CANCELADO: BATEU NO STOPLOSS: {self.perda_total}!")
+                    self.mostrar_mensagem(f"MARTINGALE CANCELADO: BATEU NO STOPLOSS: {round(self.perda_total, 2)}!")
                     sys.exit(0)
 
                 perda += abs(lucro)
@@ -262,10 +276,10 @@ class Operacao(IQ_API):
                 with self.cadeado:
                     if -self.config['stoploss'] >= self.perda_total or self.ganho_total >= self.config['goal']:
                         self.mostrar_mensagem(f'''
-        Stopwin: {self.config['goal']}
-    Total ganho: {self.ganho_total}
+    Stopwin: {self.config['goal']}
+    Total ganho: {round(self.ganho_total, 2)}
     Stoploss: {-self.config['stoploss']}
-    Total perdido: {self.perda_total}''')
+    Total perdido: {round(self.perda_total, 2)}''')
                         break
                 
                 if self.config["minimo"] / 100 <= payout:
