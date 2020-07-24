@@ -115,8 +115,15 @@ class Operacao(IQ_API):
         if self.verboso:
             try:
                 self.telegram.sendMessage(self.verboso, mensagem)
+            except ConnectionResetError:
+                print("Tentando se reconectar ao telegram...")
+                try:
+                    self.telegram = amanobot.Bot("1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao")
+                    self.telegram.sendMessage(self.verboso, mensagem)
+                except Exception as e:
+                    print(type(e), e)
             except Exception as e:
-                print(e)
+                print(type(e), e)
 
     def operar(self, valor, par, ordem, payout, tipo):
         '''
@@ -153,6 +160,7 @@ class Operacao(IQ_API):
                     self.mostrar_mensagem(
                         f"\n | {round(self.ganho_total/self.config['goal'] * 100, 2)}% perto do objetivo |\
  {round(-self.perda_total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
+                
                 if self.perda_total <= -(self.config['stoploss']):
                     self.mostrar_mensagem(f"MARTINGALE CANCELADO: BATEU NO STOPLOSS: {self.perda_total}!")
                     sys.exit(0)
@@ -164,15 +172,12 @@ class Operacao(IQ_API):
 
                 resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo, self.cadeado, self.config['delay'])
                 num_gales += 1
-        elif resultado == "loose":
-            self.perda_total -= round(abs(lucro), 2)
-            self.ganho_total -= round(abs(lucro), 2)
 
         if resultado not in ["error", "equal"]:
             with self.cadeado:
                 if resultado == "win":
                     self.ganho_total += round(lucro, 2)
-                elif not self.config["martin"]:
+                else:
                     self.ganho_total -= round(abs(lucro), 2)
                     self.perda_total -= round(abs(lucro), 2)
                 
