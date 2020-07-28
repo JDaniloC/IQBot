@@ -119,15 +119,14 @@ class Operacao(IQ_API):
         if self.verboso:
             try:
                 self.telegram.sendMessage(self.verboso, mensagem)
-            except ConnectionResetError:
+            except Exception as e:
+                print(type(e), e)
                 print("Tentando se reconectar ao telegram...")
                 try:
                     self.telegram = amanobot.Bot("1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao")
                     self.telegram.sendMessage(self.verboso, mensagem)
                 except Exception as e:
                     print(type(e), e)
-            except Exception as e:
-                print(type(e), e)
 
     def operar(self, valor, par, ordem, payout, tipo):
         '''

@@ -1,126 +1,333 @@
+# Básicos
 from utils.IQ import IQ_API
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from tkinter import *
 from tkinter import messagebox
+from tkinter import ttk as t
+import time, threading, sys
+from datetime import datetime
 
 # Faz a união com tkinter
 from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg, NavigationToolbar2Tk)
 from matplotlib.backend_bases import key_press_handler
 
-from talib import WMA
-import pandas as pd
+# Tendências
+from talib import BBANDS
 import numpy
-from pprint import pprint
 
-import time, threading
-from datetime import datetime
+class Tendencia(Frame):
+    def __init__(self, janela, email, senha):
+        '''
+        Método construtor, que instancia variáveis
+        '''
+        super().__init__(janela, bg = "white")
+        self.pack()
+        self.janela = janela
 
-def media(lista):
-    return sum(lista) / len(lista)
+        print("Logando...")
+        self.api = IQ_API(email, senha)
+        self.api.mudar_treino()
+        self.rodando = BooleanVar(self, value = False)
 
-api = IQ_API("daniloedaniel123@gmail.com", "Danilo123")
-api.mudar_treino()
+        self.par = StringVar(self, value = "EURUSD")
+        self.modalidade = StringVar(self, value = "digital")
+        self.timeframe = IntVar(self, value = 60)
+        self.maximo_exibidas = IntVar(self, value = 100)
+        self.periodo = IntVar(self, value = 20)
+        self.desvio = DoubleVar(self, value = 2)
 
-par = "EURUSD"
-timeframe = 5
-maximo_exibidas = 100
-periodo = 20
+        self.medias_moveis = BooleanVar(value = False)
+        self.bollinger = BooleanVar(value = False)
+        self.colorido = BooleanVar(value = False)
 
-grafico = plt.figure()
-subgrafo = grafico.add_subplot(1, 1, 1)
-dados = [x['close'] for x in api.API.get_candles(
-    par, timeframe, maximo_exibidas, time.time())
-] # Aqui é a lista onde vai entrar os dados
-# Faz uma média dos dados
-para_analise = [x['close'] for x in api.API.get_candles(
-    par, timeframe, maximo_exibidas + periodo, time.time())
-]
+        estilo = t.Style()
+        estilo.configure(
+            "TLabel", background = 'white'
+        )
+        estilo.configure(
+            "TRadiobutton", background = "white"
+        )
+        estilo.configure(
+            "TCheckbutton", background = "white"
+        )
+        estilo.configure(
+            "TScale", background = "white"
+        )
+        estilo.configure(
+            "Tbutton", background = "white"
+        )
 
-media_dados = WMA(numpy.array(para_analise), timeperiod = periodo)
-media_dados = media_dados[-maximo_exibidas:]
+        self.place_widgets()
 
-subgrafo.plot(dados)
+    def place_widgets(self):
+        '''
+        Coloca todos os widgets na tela
+        '''
 
-def atualizar(contador = 0):
-    '''
-	Função que adiciona elementos no gráfico
-	E remove caso chegar no seu limite
-	No final ele limpa o gráfico e plota novamente
-	Param:
-		contador: Aumenta de 1 em 1 conforme o tempo 
-	'''
-    global media_dados
-
-    # PARTE MAIS IMPORTANTE: jogue aqui o dado
-    vela = api.API.get_candles(par, timeframe, 2, time.time())[-1]["close"]
-
-    segundo = datetime.now().second
-    if segundo % 5 == 0:
-        dados.append(vela)
-        novo = WMA(numpy.array(dados[-25:]), timeperiod = periodo)
-        media_dados = numpy.append(media_dados, novo[-1])
-
-        if len(dados) >= maximo_exibidas:
-            dados.pop(0)
-        if len(media_dados) > maximo_exibidas:
-            media_dados = media_dados[1:]
+        cima = t.Label(self, background = "white")
+        cima.pack()
+        t.Label(cima, text = "Paridade").pack()
+        t.Entry(cima, textvariable = self.par).pack()
         
-    else:
-        dados[-1] = vela
+        opcoes = {
+            "Modalidade": [self.modalidade,
+                ["digital", "binária"]],
+            "Timeframe": [self.timeframe, 
+                [5, 10, 15, 30, 60]]
+        }
+        for key, value in opcoes.items():
+            t.Label(cima, text = key).pack()
+            local_opcoes = t.Label(cima)
+            for opcao in value[1]:
+                t.Radiobutton(
+                    local_opcoes, variable = value[0], 
+                    text = opcao, value = opcao).pack(side = LEFT, padx = 10)
+            local_opcoes.pack()
 
-    subgrafo.clear()
-    for indice, value in enumerate(dados):
-        if indice != 0:
-            subgrafo.plot(
-                [indice - 1, indice],
-                [media_dados[indice - 1], media_dados[indice]],
-                "black"
-            )
-            color = "r" if dados[indice - 1] > value else "g"
-            if dados[indice - 1] == value: color = "gray"
-            subgrafo.plot(
-                [indice - 1, indice], 
-                [dados[indice - 1], value], color)
-    
+        escalas = {
+            "Quantidade de velas": (self.maximo_exibidas, 50, 1000),
+            "Período": (self.periodo, 3, 20),
+            "Desvio da tendência": (self.desvio, 0.1, 2)
+        }
 
-janela = Tk()
-janela.title(f"Gráfico {par}")
+        for key, value in escalas.items():
+            t.Label(cima, text = key).pack()
+            t.Scale(
+                cima, variable = value[0], 
+                from_ = value[1], to = value[2], orient = HORIZONTAL, 
+                length = 400).pack()
+            t.Label(cima, textvariable = value[0]).pack()
 
-canvas = FigureCanvasTkAgg(grafico, master=janela)
-canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=1)
+        verificadores = {
+            "Médias moveis": self.medias_moveis,
+            "Bandas de bollinger": self.bollinger,
+            "Cores": self.colorido
+        }
+        local_verificadores = t.Label(cima)
+        for key, value in verificadores.items():
+            local_verificador = t.Label(local_verificadores)
+            t.Label(local_verificador, text = key).pack()
+            t.Checkbutton(local_verificador, variable = value).pack()
+            local_verificador.pack(side = LEFT, padx = 10)
+        local_verificadores.pack()
 
-def call():
-    if media_dados[-1] > media_dados[-2]:
-        threading.Thread(
-            target = api.ordem, args = (par, "call"), kwargs = {"tipo": "digital"}
-        ).start()
-    else:
-        messagebox.showwarning("Aviso", "Contra a tendência")
+        botoes = t.Label(cima)
+        t.Button(
+            botoes, text = "Plotar", command = self.plotar).pack(side = LEFT)
+        t.Button(
+            botoes, text = "Iniciar", command = self.iniciar).pack(side = LEFT)
+        t.Button(
+            botoes, text = "Parar", command = self.parar).pack(side = LEFT)
+        botoes.pack()
 
-def put():
-    if media_dados[-1] < media_dados[-2]:
-        threading.Thread(
-            target = api.ordem, args = (par, "put"), kwargs = {"tipo": "digital"}
-        ).start()
-    else:
-        messagebox.showwarning("Aviso", "Contra a tendência")
 
-def _quit():
-    janela.quit()
+        self.grafico = plt.figure()
+        self.subgrafo = self.grafico.add_subplot(1, 1, 1)
+
+        self.canvas = FigureCanvasTkAgg(self.grafico, master=janela)
+        self.canvas.get_tk_widget().pack(
+            side=TOP, fill=BOTH, expand=1)
+
+        self.baixo = t.Label(self.janela)
+        self.baixo.pack(pady = 10)
+        t.Button(
+            master = self.baixo, text = "Call", 
+            command = self.call).pack(side = LEFT)
+        t.Button(
+            master = self.baixo, text = "Put", 
+            command = self.put).pack(side = LEFT)
+
+        self.mudar_estado("disabled")
+
+    def mudar_estado(self, opcao):
+        for widget in self.baixo.winfo_children():
+            if opcao != "disabled":
+                widget.state(["!disabled"])
+            else:
+                widget.state(["disabled"])
+
+    def plotar(self):
+        '''
+        Captura os dados de determinada paridade e plota
+        '''
+        
+        par = self.par.get().strip()
+        timeframe = self.timeframe.get()
+        maximo_exibidas = int(self.maximo_exibidas.get())
+        periodo = int(self.periodo.get())
+
+        self.janela.title(f"Gráfico {par}")
+
+        self.para_analise = [
+            x['close'] for x in self.api.API.get_candles(
+            par, timeframe, maximo_exibidas + periodo,
+            time.time())
+        ]
+        self.dados = self.para_analise[-maximo_exibidas:]
+
+        self.subgrafo.clear()
+        self.subgrafo.plot(self.dados)
+        self.mudar_estado("able")
+
+        if self.bollinger.get() or self.medias_moveis.get():
+            desvio = round(self.desvio.get(), 1)
+            superior, meio, inferior = BBANDS(
+                numpy.array(self.para_analise), timeperiod = periodo, 
+                matype = 2, nbdevup = desvio, nbdevdn = desvio)
+            self.superior = superior[-maximo_exibidas:]
+            self.media_dados = meio[-maximo_exibidas:]
+            self.inferior = inferior[-maximo_exibidas:]
+
+            if self.bollinger.get():
+                self.subgrafo.plot(self.superior)
+                self.subgrafo.plot(self.inferior)
+            if self.medias_moveis.get():
+                self.subgrafo.plot(self.media_dados)
+        else:
+            self.superior = self.dados[:]
+            self.media_dados = self.dados[:]
+            self.inferior = self.dados[:]
+        
+        self.canvas.draw()
+
+    def iniciar(self):
+        '''
+        Plota e começa a calcular em tempo real
+        '''
+        self.plotar()
+        self.rodando.set(True)
+
+    def parar(self):
+        '''
+        Para de calcular em tempo real
+        '''
+        self.rodando.set(False)
+        self.mudar_estado("disable")
+
+    def atualizar(self):
+        '''
+        Função que adiciona elementos no gráfico
+        E remove caso chegar no seu limite
+        No final ele limpa o gráfico e plota novamente
+        '''
+        if not self.rodando.get():
+            return
+
+        par = self.par.get().strip()
+        timeframe = self.timeframe.get()
+        maximo_exibidas = int(self.maximo_exibidas.get())
+        periodo = int(self.periodo.get())
+
+        medias_moveis = self.medias_moveis.get()
+        bollinger = self.bollinger.get()
+        colorido = self.colorido.get()
+
+        vela = self.api.API.get_candles(
+            par, timeframe, 2, time.time())[-1]["close"]
+
+        segundo = datetime.now().second
+        if segundo % timeframe == 0:
+            self.dados.append(vela)
+            if bollinger or medias_moveis:
+                desvio = round(self.desvio.get(), 1)
+                superior, meio, inferior = BBANDS(
+                    numpy.array(self.dados[-(periodo + 5):]), timeperiod = periodo,
+                    matype = 2, nbdevup = desvio, nbdevdn = desvio)
+                self.superior = numpy.append(self.superior, superior[-1])
+                self.media_dados = numpy.append(self.media_dados, meio[-1])
+                self.inferior = numpy.append(self.inferior, inferior[-1])
+
+            if len(self.dados) >= maximo_exibidas:
+                self.dados.pop(0)
+            if len(self.media_dados) > maximo_exibidas:
+                self.media_dados = self.media_dados[1:]      
+                self.superior = self.superior[1:]      
+                self.inferior = self.inferior[1:]      
+        else:
+            self.dados[-1] = vela
+
+        self.subgrafo.clear()
+        if colorido:
+            for indice, value in enumerate(self.dados):
+                if indice != 0:
+                    color = "r" if self.dados[indice - 1] > value else "g"
+                    if self.dados[indice - 1] == value: color = "gray"
+                    self.subgrafo.plot(
+                        [indice - 1, indice], 
+                        [self.dados[indice - 1], value], color)
+        else:
+            self.subgrafo.plot(self.dados)
+        if medias_moveis:
+            self.subgrafo.plot(self.media_dados)
+        if bollinger:
+            self.subgrafo.plot(self.superior)
+            self.subgrafo.plot(self.inferior)
+        self.canvas.draw()
+
+    def call(self):
+        '''
+        Verifica se o mercado está favorável para Call e executa
+        '''
+        # Call automático quando bater bollinger
+        par = self.par.get()
+        periodo = int(self.periodo.get())
+        modalidade = self.modalidade.get()
+
+        valor = self.media_dados[-1] - self.media_dados[-periodo]
+        if valor > 0:
+            threading.Thread(
+                target = self.api.ordem, 
+                args = (par, "call"), 
+                kwargs = {"tipo": modalidade}
+            ).start()
+        else:
+            messagebox.showwarning("Aviso", "Contra a tendência")
+
+    def put(self):
+        '''
+        Verifica se o mercado está favorável para Put e executa
+        '''
+        par = self.par.get()
+        periodo = int(self.periodo.get())
+        modalidade = self.modalidade.get()
+
+        valor = self.media_dados[-1] - self.media_dados[-periodo]
+        if valor < 0:
+            threading.Thread(
+                target = self.api.ordem, 
+                args = (par, "put"), 
+                kwargs = {"tipo": modalidade}
+            ).start()
+        else:
+            messagebox.showwarning("Aviso", "Contra a tendência")
+
+
+def on_close():
+    rodando = False
     janela.destroy()
 
-intervalo =  600 # 7000 De quanto em quanto tempo vai entrar na função
-animacao = animation.FuncAnimation(
-    grafico, atualizar, interval = intervalo)
+rodando = True
+janela = Tk()
+janela['bg'] = "white"
+janela.protocol("WM_DELETE_WINDOW", on_close)
+program = Tendencia(
+    janela, "daniloedaniel123@gmail.com", "Danilo123")
 
-baixo = Label(janela)
-baixo.pack()
-Button(master=baixo, text="Call", command=call).pack(side = LEFT)
-Button(master=baixo, text="Put", command=put).pack(side = LEFT)
-Button(master=baixo, text="Quit", command=_quit).pack(side= LEFT)
+segundo_anterior = datetime.now()
+while rodando:
+    time.sleep(0.1)
+    try:
+        janela.update()
+        janela.update_idletasks()
+        if datetime.now().second != segundo_anterior.second:
+            program.atualizar()
+            segundo_anterior = datetime.now()
+    except Exception as e:
+        print(e)
+        break
+    print(str(segundo_anterior)[:-7], end = "\r")
+# janela.mainloop()
 
-janela.mainloop()
-
-print("Chegou ao fim.")
+exit()

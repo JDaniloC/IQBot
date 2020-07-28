@@ -118,11 +118,13 @@ def ver_gales(perdaInicial, taxa):
     '''
     Mostra na tela os tipos de martingale até a 10° perda
     '''
-    tipos = ["SIMPLES", "LEVE", "AGRESSIVO", "SEGURO", "PORCENTO"]
+    tipos = ["SIMPLES", "LEVE", "AGRESSIVO", "SEGURO", "PORCENTO", "PESSOAL"]
     for tipo in tipos:
         print(tipo, "\n")
         if tipo == "PORCENTO":
             lucro = float(input("Porcentagem encima da perda [0 - 1]: "))
+        elif tipo == "PESSOAL":
+            tipo = float(input("Digite o fator multiplicativo: "))
         lucro = perdaInicial//taxa if tipo != "PORCENTO" else lucro
         perda = perdaInicial
         valor = perdaInicial
