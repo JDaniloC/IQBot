@@ -1,4 +1,5 @@
 from os import system 
+from subprocess import check_output
 
 class Instancia:
     def __init__(self, name):
@@ -114,6 +115,10 @@ class Control:
                 break
         if alvo != None:
             system(f"gcloud compute ssh {alvo.name} --zone us-central1-a --command='screen -X -S {email} quit'")
+
+    def pegar_log(self, email):
+        resultado = check_output(f"gcloud compute ssh {alvo.name} --command='cat {email}.log'")
+        return resultado.decode()
 
     def deletar_instancias(self):
         '''

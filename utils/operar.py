@@ -217,18 +217,12 @@ class Operacao(IQ_API):
                 paridade = par['par']
                 paridade = paridade + "-OTC" if self.config['otc'] else paridade
                 paridades.append(paridade)
-            for par in paridades:
-                try:
-                    self.API.subscribe_strike_list(par, self.tempo)
-                except KeyError:
-                    print(f"Remova a paridade {par} da lista.")
             payouts = self.aberta_profit(paridades, self.tempo)
 
             def atualizar_profits(comando):
                 '''
                 Atualiza os payouts do comando em diante.
                 '''
-                print("Atualizando profits...")
                 paridades = []
                 for par in self.comandos[self.comandos.index(comando):]:
                     paridade = par['par']

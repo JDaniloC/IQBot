@@ -305,7 +305,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         if self.autenticacao:
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Operar" )],
+                [KeyboardButton( text = "Operação" )],
                 [KeyboardButton( text = "Ver configurações" )],
                 [KeyboardButton( text = "Editar configurações" )],
                 [KeyboardButton( text = "Ver lista de sinais" )]
@@ -335,7 +335,7 @@ class Assistente(amanobot.helper.ChatHandler):
                     os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}, {self.id}")
                 else:
                     controlador.adicionar_pessoa(self.email, msg['text'], self.id)
-                self.sender.sendMessage("Operação iniciada.")
+                self.sender.sendMessage("Operação iniciada. Se em 5min eu não avisar que está conectado, reincie a operação.")
                 self.comandos()
             else:
                 temporario = MongoDB.get_user(self.email)
@@ -346,16 +346,20 @@ class Assistente(amanobot.helper.ChatHandler):
                     self.iniciar_operacao = True
                 
                 else:
-                    self.sender.sendMessage("Sua conta já está em operação. Deseja parar a operação?",
+                    self.sender.sendMessage("Você quer parar a operação ou ver o relatório?",
                         reply_markup = ReplyKeyboardMarkup(
                             keyboard = [
-                                [KeyboardButton( text = "Sim" )],
-                                [KeyboardButton( text = "Não" )]
+                                [KeyboardButton( text = "Ver relatório" )],
+                                [KeyboardButton( text = "Parar operação" )]
                             ]
                         ))
-                    self.parar_operacao = True
         else:
             self.sender.sendMessage("Usuário não autenticado")
+
+    def ver_relatorio(self, msg):
+        self.sender.sendMessage("Pegando relatórios...")
+        resultado = controlador.pegar_log(self.email)
+        self.sender.sendMessage(resultado)
 
     def parar_operar(self, msg):
         '''
@@ -380,11 +384,9 @@ class Assistente(amanobot.helper.ChatHandler):
             self.sender.sendMessage("Listas atuais:", 
                 reply_markup = ReplyKeyboardRemove())
             self.sender.sendMessage("1 Gale:")
-            for entrada in entrada_1gale:
-                self.sender.sendMessage(entrada)
+            self.sender.sendMessage("\n".join(entrada_1gale))
             self.sender.sendMessage("\n2 Gales:")
-            for entrada in entrada_2gale:
-                self.sender.sendMessage(entrada)
+            self.sender.sendMessage("\n".join(entrada_2gale))
             self.sender.sendMessage("Fim das listas")
             self.comandos()
         else:
@@ -651,8 +653,10 @@ class Assistente(amanobot.helper.ChatHandler):
             self.login(msg)
         elif self.iniciar_operacao:
             self.operar(msg)
-        elif self.parar_operacao:
+        elif msg['text'] == "Parar operação":
             self.parar_operar(msg)
+        elif msg['text'] == "Ver relatório":
+            self.ver_relatorio(msg)
         elif msg['text'] == "Entrar":
             self.entrar()
         elif msg['text'] == 'Gerenciar':
@@ -665,7 +669,7 @@ class Assistente(amanobot.helper.ChatHandler):
             self.ver_configuracoes()
         elif msg['text'] == "Editar configurações":
             self.editar_configuracoes()
-        elif msg['text'] == "Operar":
+        elif msg['text'] == "Operação":
             self.operar(msg)
         elif msg['text'] == "Ver lista de sinais":
             self.ver_lista()

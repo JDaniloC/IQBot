@@ -160,7 +160,7 @@ Todas as carteiras:\n"""
             }
         }
         '''
-        print("Buscando pariadades...")
+        print("Buscando pariadades abertas...")
         payouts = {"binary":{}, "digital":{}}
         abertas, todos_binary = None, None
         for i in range(2):
@@ -175,6 +175,7 @@ Todas as carteiras:\n"""
             print("Reinicie o bot")
             return None
 
+        print("Buscando payouts...")
         for par in paridades:
             
             tipo_binaria = "turbo" if timeframe == 1 else "binary"
@@ -187,10 +188,18 @@ Todas as carteiras:\n"""
                 self.API.subscribe_strike_list(par, timeframe)
                 time.sleep(0.8)
                 payout_digital = False
+                contador_limite = 0
                 while not payout_digital:
                     payout_digital = self.API.get_digital_current_profit(par, timeframe)
-                payouts["digital"][par] = [
-                    True, round(payout_digital / 100, 2)]
+                    contador_limite += 1
+                    if contador_limite == 5:
+                        break
+                if contador_limite != 5:
+                    payouts["digital"][par] = [
+                        True, round(payout_digital / 100, 2)]
+                else:
+                    print(f"Não consegui pegar o payout de {par}")
+                    payouts['digital'][par] = [False]
             else:
                 payouts["digital"][par] = [False]
         return payouts
