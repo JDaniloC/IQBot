@@ -120,7 +120,7 @@ class Control:
     def pegar_log(self, email):
         alvo = self.procura_email(email)
         if alvo != None:
-            resultado = check_output(f"gcloud compute ssh {alvo.name} --command='cat {email}.log'")
+            resultado = check_output(f"gcloud compute ssh {alvo.name} --command='cat {email}.log'", shell = True)
             return resultado.decode()
         return "Registro não encontrado."
 
