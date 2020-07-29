@@ -54,6 +54,14 @@ class Control:
         self.instancias = []
         self.criar_instancia()
     
+    def procura_email(self, email):
+        alvo = None
+        for instancia in self.instancias:
+            if instancia.on_instance(email):
+                alvo = instancia
+                break
+        return alvo
+
     def adicionar_pessoa(self, email, senha, identificador):
         '''
         Verifica se o e-mail está em alguma instância
@@ -65,11 +73,7 @@ class Control:
             senha: string com a senha do usuário
         return: None
         '''
-        alvo = None
-        for instancia in self.instancias:
-            if instancia.on_instance(email):
-                alvo = instancia
-                break
+        alvo = self.procura_email(email)
         if alvo == None:
             if self.instancias[-1].is_full():
                 self.criar_instancia()
@@ -103,22 +107,22 @@ class Control:
             instancia.set_people(email)
         system(f"gcloud compute ssh {instancia.name} --zone us-central1-a --command='screen -dmS {email} -L -Logfile {email}.log /home/jdsc/.asdf/installs/python/3.8.0/bin/python iqbot/bot.py -o {email} {senha} {identificador}'")
 
+   
     def parar_operacao(self, email):
         '''
         Encontra a instancia que tem esse email
         E manda parar a operaçao
         '''
-        alvo = None
-        for instancia in self.instancias:
-            if instancia.on_instance(email):
-                alvo = instancia
-                break
+        alvo = self.procura_email(email)
         if alvo != None:
             system(f"gcloud compute ssh {alvo.name} --zone us-central1-a --command='screen -X -S {email} quit'")
 
     def pegar_log(self, email):
-        resultado = check_output(f"gcloud compute ssh {alvo.name} --command='cat {email}.log'")
-        return resultado.decode()
+        alvo = self.procura_email(email)
+        if alvo != None:
+            resultado = check_output(f"gcloud compute ssh {alvo.name} --command='cat {email}.log'")
+            return resultado.decode()
+        return "Registro não encontrado."
 
     def deletar_instancias(self):
         '''
