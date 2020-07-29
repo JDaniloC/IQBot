@@ -225,7 +225,7 @@ class IQ_Option:
                     self.api.get_api_option_init_all()
                     break
                 except:
-                    logging.error('**error** (get_all_init) preicsa se reconectar')
+                    logging.error('**error** (get_all_init) precisa se reconectar')
                     self.connect()
                     time.sleep(5)
                 if time.time() - start > 30:
@@ -916,7 +916,7 @@ class IQ_Option:
                 id = self.api.buy_multi_option[req_id]["id"]
             except:
                 pass
-            if 35 >= time.time() - start_t >= 30:
+            if 31 >= time.time() - start_t >= 30:
                 logging.error('**aviso** a compra demorou mais de 30 segundos!')
                 # return False, None
 
@@ -946,7 +946,7 @@ class IQ_Option:
                 id = self.api.buy_multi_option[req_id]["id"]
             except:
                 pass
-            if 35 >= time.time() - start_t >= 30:
+            if 31 >= time.time() - start_t >= 30:
                 logging.error('**aviso** a compra demorou mais de 30 segundos!')
                 # return False, None
 

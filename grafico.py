@@ -274,13 +274,17 @@ class Tendencia(Frame):
         par = self.par.get()
         periodo = int(self.periodo.get())
         modalidade = self.modalidade.get()
-
+        
         valor = self.media_dados[-1] - self.media_dados[-periodo]
-        if valor > 0:
+        tendencia = self.superior[-1] < self.dados[-1]
+        if (not self.medias_moveis 
+            or valor > 0) and (not self.bollinger or tendencia):
             threading.Thread(
                 target = self.api.ordem, 
                 args = (par, "call"), 
-                kwargs = {"tipo": modalidade}
+                kwargs = {
+                    "tipo": modalidade,
+                    "tempo": 5}
             ).start()
         else:
             messagebox.showwarning("Aviso", "Contra a tendência")
@@ -294,11 +298,15 @@ class Tendencia(Frame):
         modalidade = self.modalidade.get()
 
         valor = self.media_dados[-1] - self.media_dados[-periodo]
-        if valor < 0:
+        tendencia = self.inferior[-1] > self.dados[-1]
+        if (not self.medias_moveis 
+            or valor < 0) and (not self.bollinger or tendencia):
             threading.Thread(
                 target = self.api.ordem, 
                 args = (par, "put"), 
-                kwargs = {"tipo": modalidade}
+                kwargs = {
+                    "tipo": modalidade,
+                    "tempo": 5}
             ).start()
         else:
             messagebox.showwarning("Aviso", "Contra a tendência")

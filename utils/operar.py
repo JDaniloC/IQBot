@@ -123,6 +123,7 @@ class Operacao(IQ_API):
                 print(type(e), e)
                 print("Tentando se reconectar ao telegram...")
                 try:
+                    import amanobot
                     self.telegram = amanobot.Bot("1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao")
                     self.telegram.sendMessage(self.verboso, mensagem)
                 except Exception as e:
@@ -175,7 +176,7 @@ class Operacao(IQ_API):
  {round(-self.perda_total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
                 
                 if self.perda_total <= -(self.config['stoploss']):
-                    self.mostrar_mensagem(f"MARTINGALE CANCELADO: BATEU NO STOPLOSS: {round(self.perda_total, 2)}!")
+                    self.mostrar_mensagem(f"MARTINGALE CANCELADO: BATEU NO STOPLOSS: R$ {round(self.perda_total, 2)}!")
                     sys.exit(0)
 
                 perda += abs(lucro)
