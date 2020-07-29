@@ -186,10 +186,10 @@ Todas as carteiras:\n"""
 
             if abertas['digital'][par]["open"]:
                 self.API.subscribe_strike_list(par, timeframe)
-                time.sleep(0.8)
                 payout_digital = False
                 contador_limite = 0
                 while not payout_digital:
+                    time.sleep(0.8)
                     payout_digital = self.API.get_digital_current_profit(par, timeframe)
                     contador_limite += 1
                     if contador_limite == 5:
@@ -262,6 +262,7 @@ Todas as carteiras:\n"""
         Direção: {direcao.upper()}
         tempo: M{tempo}
         
+        Hora: {datetime.now().strftime("%H:%M")}
         Valor: R${round(valor, 2)}
         {resultado.capitalize()}: R${round(lucro, 2)} 
         {"- " * 20}
@@ -269,6 +270,34 @@ Todas as carteiras:\n"""
         ''')
 
         return resultado, lucro
+
+    def historico(self, quantidade, tipo = "binary-option"):
+        '''
+        Devolve o histórico das operações anteriores
+        Params:
+            quantidade: int (quantas operações)
+            tipo: binary-option ou turbo-option
+        '''
+        # Como pega a digital?
+        status, historico = self.API.get_position_history_v2(tipo, quantidade, 0, 0, 0)
+        lista = []
+        for operacao in historico['positions']:
+            lucro = operacao['close_profit']
+            resultado = {
+                "paridade": operacao['raw_event']['instrument_underlying'] if tipo == "turbo-option" else operacao['raw_event'].get('active'),
+                "abertura":  self.conversor_timestamp(operacao['open_time'] / 1000),
+                "fechamento": self.conversor_timestamp(operacao['close_time'] / 1000),
+                "lucro": lucro if lucro == 0 else round(lucro -  operacao['invest'], 2),
+                "direcao": operacao['raw_event']['instrument_dir'] if tipo == "turbo-option" else operacao['raw_event']['direction']
+            }
+            lista.append(resultado)
+
+        for operacao in lista:
+            for key, value in operacao.items():
+                print(f"{key}: {value}")
+            print()
+
+        return lista
     
     @staticmethod
     def esperarAte(horas, minutos, segundos = 0, data = (), tolerancia = 0, verboso = False):

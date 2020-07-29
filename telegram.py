@@ -78,7 +78,6 @@ class Assistente(amanobot.helper.ChatHandler):
 
         self.add_entrada = "0"        
         self.iniciar_operacao = False
-        self.parar_operacao = False
         self.alteracoes_avancadas = {
             "adm": False,     # Adicionar novo ADM
             "licenca": False, # Renovar licença
@@ -360,20 +359,19 @@ class Assistente(amanobot.helper.ChatHandler):
         self.sender.sendMessage("Pegando relatórios...")
         resultado = controlador.pegar_log(self.email)
         self.sender.sendMessage(resultado)
+        self.comandos()
 
     def parar_operar(self, msg):
         '''
         Apenas para linux, dá kill na operação através do e-mail
         '''
-        if msg['text'] == "Sim":
-            self.sender.sendMessage("Parando operação...")
-            MongoDB.Users_collection.find_one_and_update({'email': self.email}, {'$set' : {'operando': False}})
-            if os.name == "nt":
-                pass
-            else:
-                controlador.parar_operacao(self.email)
-            self.sender.sendMessage("Operação cancelada.")
-        self.parar_operacao = False
+        self.sender.sendMessage("Parando operação...")
+        MongoDB.Users_collection.find_one_and_update({'email': self.email}, {'$set' : {'operando': False}})
+        if os.name == "nt":
+            pass
+        else:
+            controlador.parar_operacao(self.email)
+        self.sender.sendMessage("Operação cancelada.")
         self.comandos()
 
     def ver_lista(self):

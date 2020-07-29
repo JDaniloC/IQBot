@@ -286,7 +286,7 @@ class Operacao(IQ_API):
                     thread.start()
 
                 if self.tipo == "auto":
-                    if time.time() - ultima_vez > 1800:
+                    if time.time() - ultima_vez > 900:
                         threading.Thread(
                         target = atualizar_profits,
                         args = (comando,)
