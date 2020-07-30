@@ -9,7 +9,7 @@ class IQ_API:
         '''
         self.API = IQ_Option(login, senha)
         if not self.conectar():
-            raise ConnectionError("Não conseguiu se conectar, reveja a senha.")
+            raise ConnectionError(" ❌ Não conseguiu se conectar, reveja a senha ❌ ")
 
     def conectar(self, tentativas = 5):
         '''
@@ -26,10 +26,10 @@ class IQ_API:
         self.API.connect()
         for tentativas in range(tentativas):
             if self.API.check_connect():
-                print("+ Conectado com sucesso!\n")
+                print(" ✅ Conectado com sucesso ✅\n")
                 return True
             else:
-                print("Tentando se conectar...")
+                print(" ⏱ Tentando se conectar ⏱")
                 self.API.connect()
                 time.sleep(1)
         return False
@@ -123,7 +123,7 @@ Todas as carteiras:\n"""
         return:
             dict: tuple
         '''
-        print(f"\nChecando as paridades abertas...\n")
+        print(f"\n ⚙️ Checando as paridades abertas ⚙️\n")
         paridades = self.API.get_all_open_time()
         abertas = {}
 
@@ -160,22 +160,22 @@ Todas as carteiras:\n"""
             }
         }
         '''
-        print("Buscando pariadades abertas...")
+        print(" ⚙️ Buscando pariadades abertas ⚙️")
         payouts = {"binary":{}, "digital":{}}
         abertas, todos_binary = None, None
         for i in range(2):
             abertas = self.API.get_all_open_time()
             todos_binary = self.API.get_all_profit()
             if abertas == None or todos_binary == None:
-                print("Algo deu errado, se conectando novamente.")
+                print(" ❌ Algo deu errado, se conectando novamente. ❌")
                 self.conectar()
             else:
                 break
         if abertas == None or todos_binary == None:
-            print("Reinicie o bot")
+            print(" ❌❌ Reinicie o bot ❌❌")
             return None
 
-        print("Buscando payouts...")
+        print(" ⚙️ Buscando payouts ⚙️")
         for par in paridades:
             
             tipo_binaria = "turbo" if timeframe == 1 else "binary"
@@ -198,7 +198,7 @@ Todas as carteiras:\n"""
                     payouts["digital"][par] = [
                         True, round(payout_digital / 100, 2)]
                 else:
-                    print(f"Não consegui pegar o payout de {par}")
+                    print(f" [❗️] Não consegui pegar o payout de {par} [❗️]")
                     payouts['digital'][par] = [False]
             else:
                 payouts["digital"][par] = [False]
@@ -231,10 +231,13 @@ Todas as carteiras:\n"""
                 status, identificador = self.API.buy_digital_spot(par, valor, direcao, tempo)
             
         if not status:
-            print(f"  ! Um erro aconteceu: {par}-{tipo} {direcao} {valor}!")
+            print(f"  ❌ Um erro aconteceu: {par}-{tipo} {direcao} {valor} ❌")
             return "error", 0
 
-        print(f"Operação realizada: {par}-{tipo} {direcao} ${round(valor, 2)} {tempo}min")
+        print(f'''
+               |operação realizada|
+            {par}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}
+        ''')
 
         # Versão que pega no histórico
         if tipo == "binary":
@@ -325,7 +328,7 @@ Todas as carteiras:\n"""
                 alvo = alvo.fromtimestamp(
                     alvo.timestamp() + tolerancia
                 )
-                print(f"\n [...] Esperando para fazer a operação das {alvo.strftime('%d/%m/%Y %H:%M:%S')} UTC-3 [...]")
+                print(f"\n ⏳ Esperando para fazer a operação das {alvo.strftime('%d/%m/%Y %H:%M:%S')} ⏳")
             time.sleep(segundos)
             return True
         if segundos > (-10 - tolerancia):

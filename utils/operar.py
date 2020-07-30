@@ -120,7 +120,6 @@ class Operacao(IQ_API):
             try:
                 self.telegram.sendMessage(self.verboso, mensagem)
             except Exception as e:
-                print(type(e), e)
                 print("Tentando se reconectar ao telegram...")
                 try:
                     import amanobot
@@ -261,7 +260,7 @@ class Operacao(IQ_API):
                         tipo = "digital"
                         payout = payouts["digital"][par][1]
                     else:
-                        print(f"{par} não está disponível nem binária nem digital na modalidade M{self.tempo}")
+                        print(f"\n [...] A paridade {par} está fechada no timeframe M{self.tempo} [...]\n")
                         continue
                 else:
                     payout = self.payout_binaria(par) / 100 if self.tipo == "binary" else self.payout_digital(par) / 100
@@ -269,7 +268,7 @@ class Operacao(IQ_API):
 
                 with self.cadeado:
                     if -self.config['stoploss'] >= self.perda_total or self.ganho_total >= self.config['goal']:
-                        self.mostrar_mensagem(f'''
+                        self.mostrar_mensagem(f'''{"- " * 20}
     Stopwin: {self.config['goal']}
     Total ganho: {round(self.ganho_total, 2)}
     Stoploss: {-self.config['stoploss']}

@@ -33,21 +33,23 @@ class Tendencia(Frame):
 
         self.par = StringVar(self, value = "EURUSD")
         self.modalidade = StringVar(self, value = "digital")
-        self.timeframe = IntVar(self, value = 60)
-        self.maximo_exibidas = IntVar(self, value = 100)
-        self.periodo = IntVar(self, value = 20)
-        self.desvio = DoubleVar(self, value = 2)
+        self.timeframe = IntVar(self, value = 300)
+        self.maximo_exibidas = IntVar(self, value = 500)
+        self.periodo = IntVar(self, value = 21)
+        self.desvio = DoubleVar(self, value = 0.1)
 
         self.medias_moveis = BooleanVar(value = False)
         self.bollinger = BooleanVar(value = False)
         self.topos_fundos = {
             key: BooleanVar(value = False) for key in [
-                "s3", "s2", "s1", "r1", "r2", "r3"]
+                "s3", "s2", "s1", "p",
+                "r1", "r2", "r3"]
         }
         self.colorido = BooleanVar(value = False)
 
         self.superior, self.media_dados, self.inferior = [], [], []
         self.suporte_resistencia = {}
+        self.operacoes = []
 
         estilo = t.Style()
         estilo.configure(
@@ -105,7 +107,7 @@ class Tendencia(Frame):
         escalas = {
             "Quantidade de velas": (self.maximo_exibidas, 50, 1000),
             "Período": (self.periodo, 3, 21),
-            "Desvio da tendência": (self.desvio, 0.1, 2)
+            "Desvio da tendência": (self.desvio, 0.1, 3)
         }
 
         for key, value in escalas.items():
@@ -174,17 +176,10 @@ class Tendencia(Frame):
             if indicator['candle_size'] == timeframe and 
             "Classic" in indicator['name']
         }
-        if linhas.get('p'):
-            del linhas['p']
         return linhas
 
     def plotar_topos_fundos(self, par, timeframe):
-        if self.suporte_resistencia == {}:
-            print("É vazio!")
-            self.suporte_resistencia = self.definir_topos_fundos(par, timeframe)
-        print("Percorrendo cada um:")
         for key, value in self.suporte_resistencia.items():
-            print(key, value)
             if self.topos_fundos[key].get():
                 self.subgrafo.plot(
                     [value for x in range(len(self.dados))],
@@ -224,20 +219,21 @@ class Tendencia(Frame):
             time.time())
         ]
         self.dados = self.para_analise[-maximo_exibidas:]
+        self.operacoes = []
 
         self.subgrafo.clear()
         self.subgrafo.plot(self.dados)
         self.mudar_estado("able")
+        self.definir_tendencias(par, timeframe, periodo, maximo_exibidas)
+        self.suporte_resistencia = self.definir_topos_fundos(par, timeframe)
 
         if self.bollinger.get() or self.medias_moveis.get():
-            self.definir_tendencias(par, timeframe, periodo, maximo_exibidas)
-
             if self.bollinger.get():
                 self.subgrafo.plot(self.superior)
                 self.subgrafo.plot(self.inferior)
             if self.medias_moveis.get():
                 self.subgrafo.plot(self.media_dados)
-        
+
         if any([x.get() for x in self.topos_fundos.values()]):
             self.plotar_topos_fundos(par, timeframe)
         self.canvas.draw()
@@ -284,8 +280,9 @@ class Tendencia(Frame):
                 if len(self.superior) != 0:
                     desvio = round(self.desvio.get(), 1)
                     superior, meio, inferior = BBANDS(
-                        numpy.array(self.dados[-(periodo + 5):]), timeperiod = periodo,
-                        nbdevup = desvio, nbdevdn = desvio)
+                        numpy.array(self.dados[-(periodo + 5):]), 
+                        timeperiod = periodo, nbdevup = desvio, 
+                        nbdevdn = desvio)
                     self.superior = numpy.append(self.superior, superior[-1])
                     self.media_dados = numpy.append(self.media_dados, meio[-1])
                     self.inferior = numpy.append(self.inferior, inferior[-1])
@@ -297,7 +294,13 @@ class Tendencia(Frame):
                     self.superior = self.superior[1:]      
                     self.inferior = self.inferior[1:] 
             if len(self.dados) >= maximo_exibidas:
-                self.dados.pop(0)     
+                self.dados.pop(0) 
+            remover = 0
+            for op in self.operacoes:
+                op['pos'] = (op['pos'][0] - 1, op['pos'][1])
+                if op['pos'][0] == 0:
+                    remover += 1
+            self.operacoes = self.operacoes[remover:] 
         else:
             self.dados[-1] = vela
 
@@ -319,28 +322,58 @@ class Tendencia(Frame):
             self.subgrafo.plot(self.inferior)
         if any([x.get() for x in self.topos_fundos.values()]):
             self.plotar_topos_fundos(par, timeframe)
+        
+        for op in self.operacoes:
+            self.subgrafo.plot(
+                op['pos'][0], op['pos'][1], "g^" if op['dir'] == "call" else "rv")
+            
         self.canvas.draw()
+
+    def cobre_valor(self, valor):
+        '''
+        Pega o suporte e resistência imediato de determinado valor
+        '''
+        resistencia = self.suporte_resistencia['r1']
+        suporte = self.suporte_resistencia['s1']
+        for nome, linha in self.suporte_resistencia.items():
+            if resistencia > linha > valor:
+                resistencia = linha
+            elif suporte < linha < valor:
+                suporte = linha
+        return (valor - suporte) / (resistencia - suporte) * 100
+
+    def devolve_tendencia(self):
+        '''
+        Devolve se o valor da tendência (positivo para alta e negativo para baixa)
+        '''
+        return self.media_dados[-1] - self.media_dados[-int(self.periodo.get())]
 
     def call(self):
         '''
         Verifica se o mercado está favorável para Call e executa
         '''
-        # Call automático quando bater bollinger
-        par = self.par.get()
-        periodo = int(self.periodo.get())
-        modalidade = self.modalidade.get()
-        
-        valor = self.media_dados[-1] - self.media_dados[-periodo]
-        tendencia = self.superior[-1] < self.dados[-1]
-        if (not self.medias_moveis 
-            or valor > 0) and (not self.bollinger or tendencia):
+        dado = self.dados[-1]
+        timeframe = self.timeframe.get() // 60
+        if timeframe < 1:
+            timeframe = 1
+
+        bollinger_band = (
+            self.cobre_valor(dado) < 80 if self.superior[-1] < dado else False)
+
+        if ((not self.medias_moveis.get() or self.devolve_tendencia() > 0) and 
+            (not self.bollinger.get() or bollinger_band)):
             threading.Thread(
                 target = self.api.ordem, 
-                args = (par, "call"), 
+                args = (self.par.get(), "call"), 
                 kwargs = {
-                    "tipo": modalidade,
-                    "tempo": 5}
+                    "tipo": self.modalidade.get(),
+                    "tempo": timeframe},
+                daemon = True
             ).start()
+            self.operacoes.append({
+                "dir": "call",
+                "pos": (len(self.dados) - 2, self.dados[-2])
+            })
         else:
             messagebox.showwarning("Aviso", "Contra a tendência")
 
@@ -348,21 +381,28 @@ class Tendencia(Frame):
         '''
         Verifica se o mercado está favorável para Put e executa
         '''
-        par = self.par.get()
-        periodo = int(self.periodo.get())
-        modalidade = self.modalidade.get()
+        dado = self.dados[-1]
+        timeframe = self.timeframe.get() // 60
+        if timeframe < 1:
+            timeframe = 1
 
-        valor = self.media_dados[-1] - self.media_dados[-periodo]
-        tendencia = self.inferior[-1] > self.dados[-1]
-        if (not self.medias_moveis 
-            or valor < 0) and (not self.bollinger or tendencia):
+        bollinger_band = (
+            self.cobre_valor(dado) > 20 if self.inferior[-1] > dado else False)
+
+        if ((not self.medias_moveis.get() or self.devolve_tendencia() < 0) and 
+            (not self.bollinger.get() or bollinger_band)):
             threading.Thread(
                 target = self.api.ordem, 
-                args = (par, "put"), 
+                args = (self.par.get(), "put"), 
                 kwargs = {
-                    "tipo": modalidade,
-                    "tempo": 5}
+                    "tipo": self.modalidade.get(),
+                    "tempo": timeframe},
+                daemon = True
             ).start()
+            self.operacoes.append({
+                "dir": "put",
+                "pos": (len(self.dados) - 2, self.dados[-2])
+            })
         else:
             messagebox.showwarning("Aviso", "Contra a tendência")
 
@@ -388,9 +428,7 @@ while rodando:
             program.atualizar()
             segundo_anterior = datetime.now()
     except Exception as e:
-        print(traceback.format_exception(e))
         break
     print(str(segundo_anterior)[:-7], end = "\r")
-# janela.mainloop()
 
 exit()
