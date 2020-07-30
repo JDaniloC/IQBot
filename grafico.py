@@ -15,7 +15,7 @@ from matplotlib.backend_bases import key_press_handler
 
 # Tendências
 from talib import BBANDS
-import numpy
+import numpy, traceback
 
 class Tendencia(Frame):
     def __init__(self, janela, email, senha):
@@ -40,7 +40,14 @@ class Tendencia(Frame):
 
         self.medias_moveis = BooleanVar(value = False)
         self.bollinger = BooleanVar(value = False)
+        self.topos_fundos = {
+            key: BooleanVar(value = False) for key in [
+                "s3", "s2", "s1", "r1", "r2", "r3"]
+        }
         self.colorido = BooleanVar(value = False)
+
+        self.superior, self.media_dados, self.inferior = [], [], []
+        self.suporte_resistencia = {}
 
         estilo = t.Style()
         estilo.configure(
@@ -61,6 +68,15 @@ class Tendencia(Frame):
 
         self.place_widgets()
 
+    def definir_verificador(self, verificadores, local_verificadores):
+        for key, value in verificadores.items():
+            local_verificador = t.Label(local_verificadores)
+            key = key.replace("s", "Suporte ") if len(key) == 2 else key
+            key = key.replace("r", "Resistência ") if len(key) == 2 else key
+            t.Label(local_verificador, text = key).pack()
+            t.Checkbutton(local_verificador, variable = value).pack()
+            local_verificador.pack(side = LEFT, padx = 10)
+
     def place_widgets(self):
         '''
         Coloca todos os widgets na tela
@@ -75,7 +91,7 @@ class Tendencia(Frame):
             "Modalidade": [self.modalidade,
                 ["digital", "binária"]],
             "Timeframe": [self.timeframe, 
-                [5, 10, 15, 30, 60]]
+                [5, 10, 15, 30, 60, 300]]
         }
         for key, value in opcoes.items():
             t.Label(cima, text = key).pack()
@@ -88,7 +104,7 @@ class Tendencia(Frame):
 
         escalas = {
             "Quantidade de velas": (self.maximo_exibidas, 50, 1000),
-            "Período": (self.periodo, 3, 20),
+            "Período": (self.periodo, 3, 21),
             "Desvio da tendência": (self.desvio, 0.1, 2)
         }
 
@@ -106,11 +122,11 @@ class Tendencia(Frame):
             "Cores": self.colorido
         }
         local_verificadores = t.Label(cima)
-        for key, value in verificadores.items():
-            local_verificador = t.Label(local_verificadores)
-            t.Label(local_verificador, text = key).pack()
-            t.Checkbutton(local_verificador, variable = value).pack()
-            local_verificador.pack(side = LEFT, padx = 10)
+        self.definir_verificador(verificadores, local_verificadores)
+        local_verificadores.pack()
+
+        local_verificadores = t.Label(cima)
+        self.definir_verificador(self.topos_fundos, local_verificadores)
         local_verificadores.pack()
 
         botoes = t.Label(cima)
@@ -148,6 +164,48 @@ class Tendencia(Frame):
             else:
                 widget.state(["disabled"])
 
+    def definir_topos_fundos(self, par, timeframe):
+        if timeframe < 60:
+            timeframe = 60
+        indicadores = self.api.API.get_technical_indicators(par)
+        linhas = {
+            indicator['name'].replace("Classic ", ""): indicator['value']
+            for indicator in indicadores 
+            if indicator['candle_size'] == timeframe and 
+            "Classic" in indicator['name']
+        }
+        if linhas.get('p'):
+            del linhas['p']
+        return linhas
+
+    def plotar_topos_fundos(self, par, timeframe):
+        if self.suporte_resistencia == {}:
+            print("É vazio!")
+            self.suporte_resistencia = self.definir_topos_fundos(par, timeframe)
+        print("Percorrendo cada um:")
+        for key, value in self.suporte_resistencia.items():
+            print(key, value)
+            if self.topos_fundos[key].get():
+                self.subgrafo.plot(
+                    [value for x in range(len(self.dados))],
+                    "blue")
+
+    def definir_tendencias(self, par, timeframe, periodo, maximo_exibidas):
+        self.para_analise = [
+            x['close'] for x in self.api.API.get_candles(
+            par, timeframe, maximo_exibidas + periodo,
+            time.time())
+        ]
+
+        desvio = round(self.desvio.get(), 1)
+        superior, meio, inferior = BBANDS(
+            numpy.array(self.para_analise), timeperiod = periodo, 
+            nbdevup = desvio, nbdevdn = desvio)
+        maximo_exibidas = len(self.dados)
+        self.superior = superior[-maximo_exibidas:]
+        self.media_dados = meio[-maximo_exibidas:]
+        self.inferior = inferior[-maximo_exibidas:]
+
     def plotar(self):
         '''
         Captura os dados de determinada paridade e plota
@@ -172,24 +230,16 @@ class Tendencia(Frame):
         self.mudar_estado("able")
 
         if self.bollinger.get() or self.medias_moveis.get():
-            desvio = round(self.desvio.get(), 1)
-            superior, meio, inferior = BBANDS(
-                numpy.array(self.para_analise), timeperiod = periodo, 
-                matype = 2, nbdevup = desvio, nbdevdn = desvio)
-            self.superior = superior[-maximo_exibidas:]
-            self.media_dados = meio[-maximo_exibidas:]
-            self.inferior = inferior[-maximo_exibidas:]
+            self.definir_tendencias(par, timeframe, periodo, maximo_exibidas)
 
             if self.bollinger.get():
                 self.subgrafo.plot(self.superior)
                 self.subgrafo.plot(self.inferior)
             if self.medias_moveis.get():
                 self.subgrafo.plot(self.media_dados)
-        else:
-            self.superior = self.dados[:]
-            self.media_dados = self.dados[:]
-            self.inferior = self.dados[:]
         
+        if any([x.get() for x in self.topos_fundos.values()]):
+            self.plotar_topos_fundos(par, timeframe)
         self.canvas.draw()
 
     def iniciar(self):
@@ -231,20 +281,23 @@ class Tendencia(Frame):
         if segundo % timeframe == 0:
             self.dados.append(vela)
             if bollinger or medias_moveis:
-                desvio = round(self.desvio.get(), 1)
-                superior, meio, inferior = BBANDS(
-                    numpy.array(self.dados[-(periodo + 5):]), timeperiod = periodo,
-                    matype = 2, nbdevup = desvio, nbdevdn = desvio)
-                self.superior = numpy.append(self.superior, superior[-1])
-                self.media_dados = numpy.append(self.media_dados, meio[-1])
-                self.inferior = numpy.append(self.inferior, inferior[-1])
+                if len(self.superior) != 0:
+                    desvio = round(self.desvio.get(), 1)
+                    superior, meio, inferior = BBANDS(
+                        numpy.array(self.dados[-(periodo + 5):]), timeperiod = periodo,
+                        nbdevup = desvio, nbdevdn = desvio)
+                    self.superior = numpy.append(self.superior, superior[-1])
+                    self.media_dados = numpy.append(self.media_dados, meio[-1])
+                    self.inferior = numpy.append(self.inferior, inferior[-1])
+                else:
+                    self.definir_tendencias(par, timeframe, periodo, maximo_exibidas)
 
+                if len(self.media_dados) > maximo_exibidas:
+                    self.media_dados = self.media_dados[1:]      
+                    self.superior = self.superior[1:]      
+                    self.inferior = self.inferior[1:] 
             if len(self.dados) >= maximo_exibidas:
-                self.dados.pop(0)
-            if len(self.media_dados) > maximo_exibidas:
-                self.media_dados = self.media_dados[1:]      
-                self.superior = self.superior[1:]      
-                self.inferior = self.inferior[1:]      
+                self.dados.pop(0)     
         else:
             self.dados[-1] = vela
 
@@ -259,11 +312,13 @@ class Tendencia(Frame):
                         [self.dados[indice - 1], value], color)
         else:
             self.subgrafo.plot(self.dados)
-        if medias_moveis:
+        if medias_moveis and len(self.media_dados) != 0:
             self.subgrafo.plot(self.media_dados)
-        if bollinger:
+        if bollinger and len(self.superior) != 0:
             self.subgrafo.plot(self.superior)
             self.subgrafo.plot(self.inferior)
+        if any([x.get() for x in self.topos_fundos.values()]):
+            self.plotar_topos_fundos(par, timeframe)
         self.canvas.draw()
 
     def call(self):
@@ -333,7 +388,7 @@ while rodando:
             program.atualizar()
             segundo_anterior = datetime.now()
     except Exception as e:
-        print(e)
+        print(traceback.format_exception(e))
         break
     print(str(segundo_anterior)[:-7], end = "\r")
 # janela.mainloop()
