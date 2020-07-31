@@ -325,7 +325,7 @@ class Assistente(amanobot.helper.ChatHandler):
             self.sender.sendMessage("Carregando...")
 
             if self.iniciar_operacao:
-                self.sender.sendMessage("Iniciando operação...",
+                self.sender.sendMessage("Iniciando operação, tenha paciência, isso pode demorar.",
                     reply_markup = ReplyKeyboardRemove())   
                 self.iniciar_operacao = False
                 self.informacoes["operando"] = True

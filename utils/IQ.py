@@ -1,7 +1,6 @@
 from iqoptionapi.stable_api import IQ_Option
-from talib import BBANDS
 from datetime import datetime
-import numpy, time
+import time
 
 class IQ_API:
     def __init__(self, login, senha):
@@ -279,6 +278,8 @@ Todas as carteiras:\n"""
         '''
         Devolve se a decisão está de acordo com a estratégia M.M_007
         '''
+        import numpy
+        from talib import BBANDS
         # pega a última vela  e calcula a banda de bollinger
         dados = [
             x['close'] for x in self.API.get_candles(
