@@ -15,7 +15,7 @@ from matplotlib.backend_bases import key_press_handler
 
 # Tendências
 from talib import BBANDS
-import numpy, traceback
+import numpy
 
 class Tendencia(Frame):
     def __init__(self, janela, email, senha):
@@ -87,7 +87,8 @@ class Tendencia(Frame):
         cima = t.Label(self, background = "white")
         cima.pack()
         t.Label(cima, text = "Paridade").pack()
-        t.Entry(cima, textvariable = self.par).pack()
+        self.entry_par = t.Entry(cima, textvariable = self.par)
+        self.entry_par.pack()
         
         opcoes = {
             "Modalidade": [self.modalidade,
@@ -159,26 +160,61 @@ class Tendencia(Frame):
 
         self.mudar_estado("disabled")
 
+    def iniciar(self):
+        '''
+        Plota e começa a calcular em tempo real
+        '''
+        self.plotar()
+        self.entry_par.state(['disabled'])
+        self.rodando.set(True)
+
+    def parar(self):
+        '''
+        Para de calcular em tempo real
+        '''
+        self.rodando.set(False)
+        self.entry_par.state(['!disabled'])
+        self.mudar_estado("disable")
+
     def mudar_estado(self, opcao):
+        '''
+        Habulita/desabilita os botões de call/put
+        '''
         for widget in self.baixo.winfo_children():
             if opcao != "disabled":
                 widget.state(["!disabled"])
             else:
                 widget.state(["disabled"])
 
-    def definir_topos_fundos(self, par, timeframe):
+    def busca_topos_fundos(self, par, timeframe):
+        '''
+        Pega as linhas de suporte e resistência e devolve
+        um dicionário no estilo:
+        {
+            "s1": 0.8772134,
+            "p": 0.86213412
+            ...
+        }
+        '''
         if timeframe < 60:
             timeframe = 60
         indicadores = self.api.API.get_technical_indicators(par)
-        linhas = {
-            indicator['name'].replace("Classic ", ""): indicator['value']
-            for indicator in indicadores 
-            if indicator['candle_size'] == timeframe and 
-            "Classic" in indicator['name']
-        }
+        if type(indicadores) == list:
+            linhas = {
+                indicator['name'].replace("Classic ", ""): indicator['value']
+                for indicator in indicadores 
+                if indicator['candle_size'] == timeframe and 
+                "Classic" in indicator['name']
+            }
+        else:
+            messagebox.showinfo("Aviso", "Indicadores não disponíveis para essa paridade")
+            linhas = {}
         return linhas
 
     def plotar_topos_fundos(self, par, timeframe):
+        '''
+        Plota cada linha de suporte/resistencia que estiver habilitada
+        '''
         for key, value in self.suporte_resistencia.items():
             if self.topos_fundos[key].get():
                 self.subgrafo.plot(
@@ -186,6 +222,9 @@ class Tendencia(Frame):
                     "blue")
 
     def definir_tendencias(self, par, timeframe, periodo, maximo_exibidas):
+        '''
+        Pega as velas para análise e calcula a banda de bollinger
+        '''
         self.para_analise = [
             x['close'] for x in self.api.API.get_candles(
             par, timeframe, maximo_exibidas + periodo,
@@ -225,7 +264,7 @@ class Tendencia(Frame):
         self.subgrafo.plot(self.dados)
         self.mudar_estado("able")
         self.definir_tendencias(par, timeframe, periodo, maximo_exibidas)
-        self.suporte_resistencia = self.definir_topos_fundos(par, timeframe)
+        self.suporte_resistencia = self.busca_topos_fundos(par, timeframe)
 
         if self.bollinger.get() or self.medias_moveis.get():
             if self.bollinger.get():
@@ -237,20 +276,6 @@ class Tendencia(Frame):
         if any([x.get() for x in self.topos_fundos.values()]):
             self.plotar_topos_fundos(par, timeframe)
         self.canvas.draw()
-
-    def iniciar(self):
-        '''
-        Plota e começa a calcular em tempo real
-        '''
-        self.plotar()
-        self.rodando.set(True)
-
-    def parar(self):
-        '''
-        Para de calcular em tempo real
-        '''
-        self.rodando.set(False)
-        self.mudar_estado("disable")
 
     def atualizar(self):
         '''
@@ -329,18 +354,20 @@ class Tendencia(Frame):
             
         self.canvas.draw()
 
-    def cobre_valor(self, valor):
+    def proximidade_bbands(self, valor):
         '''
         Pega o suporte e resistência imediato de determinado valor
         '''
-        resistencia = self.suporte_resistencia['r1']
-        suporte = self.suporte_resistencia['s1']
-        for nome, linha in self.suporte_resistencia.items():
-            if resistencia > linha > valor:
-                resistencia = linha
-            elif suporte < linha < valor:
-                suporte = linha
-        return (valor - suporte) / (resistencia - suporte) * 100
+        if self.suporte_resistencia != {}:
+            resistencia = self.suporte_resistencia['r1']
+            suporte = self.suporte_resistencia['s1']
+            for nome, linha in self.suporte_resistencia.items():
+                if resistencia > linha > valor:
+                    resistencia = linha
+                elif suporte < linha < valor:
+                    suporte = linha
+            return (valor - suporte) / (resistencia - suporte) * 100
+        return 50
 
     def devolve_tendencia(self):
         '''
@@ -358,7 +385,7 @@ class Tendencia(Frame):
             timeframe = 1
 
         bollinger_band = (
-            self.cobre_valor(dado) < 80 if self.superior[-1] < dado else False)
+            self.proximidade_bbands(dado) < 80 if self.superior[-1] < dado else False)
 
         if ((not self.medias_moveis.get() or self.devolve_tendencia() > 0) and 
             (not self.bollinger.get() or bollinger_band)):
@@ -387,7 +414,7 @@ class Tendencia(Frame):
             timeframe = 1
 
         bollinger_band = (
-            self.cobre_valor(dado) > 20 if self.inferior[-1] > dado else False)
+            self.proximidade_bbands(dado) > 20 if self.inferior[-1] > dado else False)
 
         if ((not self.medias_moveis.get() or self.devolve_tendencia() < 0) and 
             (not self.bollinger.get() or bollinger_band)):

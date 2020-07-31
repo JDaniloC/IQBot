@@ -1,4 +1,4 @@
-Versão 2.6 - All control of time
+Versão 3.8 - Bollinger indicator
 
             [RUN]
 Para rodar
@@ -21,6 +21,7 @@ O que significa:
  - valor: o valor da entrada
  - tempo: o tempo da entrada
  - profit_minimo: porcentagem da retorno
+ - tendencia: se vai querer negar entradas caso estiver contra a tendencia
  - correcao_entrada: segundos para se descontar do tempo de entrada
  - goal: valor objetivo que para se alcançar
  - soros: se vai realizar a sorosgale
@@ -46,6 +47,7 @@ otc = True|False
 valor = 1-inf
 tempo = 1|5|15
 profit_minimo = 0-100
+tendencia = True|False
 
 [WIN]
 goal = 2-inf
@@ -57,7 +59,7 @@ stoploss = 1-inf
 martin = True|False
 percent_martin = 0-inf
 max_gale = 1-inf
-tipo_gale = seguro|simples|leve|agressivo|porcento
+tipo_gale = seguro|simples|leve|agressivo|porcento|2.0-inf
 
 [AJUSTES]
 correcao_entrada = 0-inf

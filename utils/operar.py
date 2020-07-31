@@ -52,7 +52,8 @@ class Operacao(IQ_API):
                                                |___|           
 ''')
 
-    def __init__(self, config, comandos, maximo = 0, verboso = False):
+    def __init__(self, config, comandos, 
+        maximo = 0, verboso = False):
         self.maximo = maximo
         self.cadeado = threading.Lock()
 
@@ -91,6 +92,8 @@ class Operacao(IQ_API):
                 self.valor = config['valor']
                 self.tempo = config['tempo']
                 self.max_gale = config["max_gale"]
+                if config['tendencia']:
+                    self.config['correcao'] += 3
 
                 self.computar()
             except KeyboardInterrupt:
@@ -275,6 +278,12 @@ class Operacao(IQ_API):
     Total perdido: {round(self.perda_total, 2)}''')
                         break
                 
+                if self.config['tendencia'] and not self.calcular_tendencia(
+                    par, ordem, self.tempo, 21, 0.1 # personalizável
+                ):
+                    self.mostrar_mensagem(f"[ ❗️] {par}|{ordem} às {horas}:{minutos} entrou contra a tendência. [ ❗️]")
+                    continue
+
                 if self.config["minimo"] / 100 <= payout:
                     thread = threading.Thread(
                         target = self.operar, 
@@ -292,7 +301,7 @@ class Operacao(IQ_API):
                         ).start()
             else:
                 momento = datetime.utcnow().timestamp() - 10800 # -3Horas
-                print(f"UTC-3: {datetime.fromtimestamp(momento).strftime('dia %d - %H:%M')} | {comando['par']} - {horas}:{minutos} passou da hora.")
+                print(f" - {datetime.fromtimestamp(momento).strftime('dia %d - %H:%M')} | {comando['par']} - {horas}:{minutos} passou da hora - ")
         for thread in espera:
             thread.join()
 

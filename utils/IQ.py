@@ -1,6 +1,7 @@
 from iqoptionapi.stable_api import IQ_Option
+from talib import BBANDS
 from datetime import datetime
-import time
+import numpy, time
 
 class IQ_API:
     def __init__(self, login, senha):
@@ -160,7 +161,7 @@ Todas as carteiras:\n"""
             }
         }
         '''
-        print(" ⚙️ Buscando pariadades abertas ⚙️")
+        print(" ⚙️  Buscando paridades abertas ⚙️")
         payouts = {"binary":{}, "digital":{}}
         abertas, todos_binary = None, None
         for i in range(2):
@@ -273,6 +274,59 @@ Todas as carteiras:\n"""
         ''')
 
         return resultado, lucro
+
+    def calcular_tendencia(self, par, direcao, timeframe, periodo, desvio):
+        '''
+        Devolve se a decisão está de acordo com a estratégia M.M_007
+        '''
+        # pega a última vela  e calcula a banda de bollinger
+        dados = [
+            x['close'] for x in self.API.get_candles(
+            par, timeframe * 60, periodo + 5, time.time())
+        ]
+        superior, meio, inferior = BBANDS(
+            numpy.array(dados), timeperiod = periodo, 
+            nbdevup = desvio, nbdevdn = desvio)
+        
+        dado = dados[-1]
+
+        '''
+        Pega as linhas de suporte e resistência e devolve
+        um dicionário no estilo:
+        {
+            "s1": 0.8772134,
+            "p": 0.86213412
+            ...
+        }
+        '''
+        indicadores = self.API.get_technical_indicators(par)
+        if type(indicadores) == list:
+            suporte_resistencia = {
+                indicator['name'].replace("Classic ", ""): indicator['value']
+                for indicator in indicadores 
+                if indicator['candle_size'] == timeframe * 60 and 
+                "Classic" in indicator['name']
+            }
+        else:
+            print(f"[ ❗️] {par} não tem linhas de suporte/resistência [ ❗️]")
+            return (superior[-1] < dado if direcao.lower() == "call"
+                else inferior[-1] > dado)
+        '''
+        Pega o suporte e resistência imediato de determinado valor
+        '''
+        resistencia = suporte_resistencia['r1']
+        suporte = suporte_resistencia['s1']
+        for nome, linha in suporte_resistencia.items():
+            if resistencia > linha > dado:
+                resistencia = linha
+            elif suporte < linha < dado:
+                suporte = linha
+        proximidade = (dado - suporte) / (resistencia - suporte) * 100
+
+        if direcao.lower() == "call":
+            return proximidade < 80 if superior[-1] < dado else False
+        else:
+            return proximidade > 20 if inferior[-1] > dado else False
 
     def historico(self, quantidade, tipo = "binary-option"):
         '''

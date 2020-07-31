@@ -107,7 +107,8 @@ def configuracoes(nome = LOCALCONFIG):
         "minimo": int(arquivo.get("ENTRADAS", "profit_minimo")),
         "correcao": int(arquivo.get("AJUSTES", "correcao_entrada")),
         "delay": float(arquivo.get("AJUSTES", "delay")),
-        "otc": arquivo.get("ENTRADAS", "otc").capitalize() == "True"
+        "otc": arquivo.get("ENTRADAS", "otc").capitalize() == "True",
+        "tendencia": arquivo.get("ENTRADAS", "tendencia").capitalize() == "True"
     }
 
     config["tipo_gale"] = config["tipo_gale"] if not numerico(config['tipo_gale'].replace(",", ".")) else float(config['tipo_gale'].replace(",", "."))

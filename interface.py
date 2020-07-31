@@ -28,9 +28,10 @@ class Config(Frame):
                     "StopLoss": "stoploss"
                 },
                 "booleans": {
-                    "OTC?": "otc",
-                    "Sorosgale?": "soros",
-                    "Martingale?": "martin"
+                    "OTC": "otc",
+                    "Soros": "soros",
+                    "Martingale": "martin",
+                    "Tendencia": "tendencia"
                 },
                 "numericos": {
                     "Máximo de martingales": "max_gale",
@@ -76,13 +77,15 @@ class Config(Frame):
         Button(self, text = "Selecionar", command = self.mudar_entrada).grid(row = 2, column = 5)
 
         self.condicionais = {
-            "OTC?": BooleanVar(value = False), 
-            "Sorosgale?": BooleanVar(),
-            "Martingale?": BooleanVar()
+            "OTC": BooleanVar(value = False), 
+            "Soros": BooleanVar(value = False),
+            "Martingale": BooleanVar(value = True),
+            "Tendencia": BooleanVar(value = False)
         }
-        for nome in self.condicionais.keys():
-            ttk.Checkbutton(self, text = nome, variable = self.condicionais[nome]).grid(row = pos, columnspan = 6)
-            pos += 1
+        for indice, nome in enumerate(self.condicionais.keys()):
+            ttk.Checkbutton(self, text = nome, variable = self.condicionais[nome]).grid(
+                row = pos, column = indice)
+        pos += 1
 
 
         self.numericos = { 
@@ -191,19 +194,20 @@ class Config(Frame):
         editor["ENTRADAS"] = {
             "arquivo": tudo["Arquivo de entradas"].get(),
             "tipo_par": tudo["Tipo de paridade"].get(),
-            "otc": tudo["OTC?"].get(),
+            "otc": tudo["OTC"].get(),
             "valor": tudo["Valor da entrada"].get(),
             "tempo": tudo["Tempo"].get(),
             "profit_minimo": tudo["Profit mínimo"].get(),
+            'tendencia': tudo['Tendencia'].get()
         }
         editor["WIN"] = {
             "goal": tudo["StopWin"].get(),
-            "soros": tudo["Sorosgale?"].get(),
+            "soros": tudo["Soros"].get(),
             "percent_soros": tudo["Percentual do soros"].get()
         }
         editor["LOSS"] = {
             "stoploss": tudo["StopLoss"].get(),
-            "martin": tudo["Martingale?"].get(),
+            "martin": tudo["Martingale"].get(),
             "percent_martin": tudo["Percentual do martin"].get(),
             "max_gale": tudo["Máximo de martingales"].get(),
             "tipo_gale": tudo["tipo de martingale"].get().lower().replace(",", ".")

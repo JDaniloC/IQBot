@@ -14,4 +14,5 @@ user = {
     "percent_martin": 0,
     "max_gale": 2,
     "tipo_gale": "seguro",
+    "tendencia": False
 }

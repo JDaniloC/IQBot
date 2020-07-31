@@ -487,6 +487,7 @@ class IQ_Option:
 
     def get_candles(self, ACTIVES, interval, count, endtime):
         self.api.candles.candles_data = None
+        cont = 0
         while True:
             try:
                 self.api.getcandles(
@@ -496,8 +497,11 @@ class IQ_Option:
                 if self.api.candles.candles_data != None:
                     break
             except:
-                logging.error('**error** get_candles need reconnect')
+                cont += 1 
+                logging.error('**error** (get_candles) precisa se reconectar')
                 self.connect()
+                if cont == 5:
+                    return None
 
         return self.api.candles.candles_data
 

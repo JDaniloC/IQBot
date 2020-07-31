@@ -97,7 +97,8 @@ class Assistente(amanobot.helper.ChatHandler):
             "Martingale": ["martin", False, bool], 
             "Percentual do martin": ["percent_martin", False, float],
             "Máximo de gales": ["max_gale", False, list],
-            "Tipo de martingale": ["tipo_gale", False, list]
+            "Tipo de martingale": ["tipo_gale", False, list],
+            "Seguir tendência": ["tendencia", False, bool]
         }
 
         self.informacoes = {
@@ -424,6 +425,7 @@ class Assistente(amanobot.helper.ChatHandler):
                         [KeyboardButton( text = "Percentual do martin" )],
                         [KeyboardButton( text = "Máximo de gales" )],
                         [KeyboardButton( text = "Tipo de martingale" )],
+                        [KeyboardButton( text = "Seguir tendência" )],
                         [KeyboardButton( text = "Voltar ao menu" )]
             ]))
         else:
