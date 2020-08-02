@@ -10,6 +10,7 @@ from database import *
 from controlador import Control
 
 TOKEN = "1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao"
+bot_name = "robô MM_007"
 
 # Funções
 def strDateHour(number):
@@ -112,7 +113,8 @@ class Assistente(amanobot.helper.ChatHandler):
             "martin": True,
             "percent_martin": 0,
             "max_gale": 2,
-            "tipo_gale": "seguro"
+            "tipo_gale": "seguro",
+            "tendencia": False
         }
 
     def open(self, msg, id):
@@ -128,7 +130,7 @@ class Assistente(amanobot.helper.ChatHandler):
             self.nome_usuario = msg['chat']['username']
         print(f"Usuário {self.nome_usuario} começou conversa.\n")
 
-        self.sender.sendMessage("Olá, eu sou seu assistente do robô MM_007.", 
+        self.sender.sendMessage(f"Olá, eu sou seu assistente do {bot_name}.", 
             reply_markup = ReplyKeyboardMarkup(
                 keyboard = [[KeyboardButton(text = "Entrar")]]
         ))
@@ -174,8 +176,9 @@ class Assistente(amanobot.helper.ChatHandler):
             # Caso o usuário não estiver na lista de espera ele adiciona
             MongoDB.Users_em_aprovacao.insert_one(
                 {"email":email})
-            
-            self.sender.sendMessage(f"Seu e-mail foi colocado para analise. Espere a confirmação do administrador e mande seu e-mail novamente para logar.")
+            MongoDB.aprovar(email)
+            self.sender.sendMessage("Usuário aprovado.")
+            # self.sender.sendMessage(f"Seu e-mail foi colocado para analise. Espere a confirmação do administrador e mande seu e-mail novamente para logar.")
             self.close()
 
     def gerenciar(self):

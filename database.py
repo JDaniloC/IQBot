@@ -4,6 +4,8 @@ from mongodb_py import waiting_schema
 from mongodb_py import adms_schema
 import time, pprint
 
+autenticacao = "mongodb+srv://Danilo:Donilo123@cluster0-6cyzb.mongodb.net/iqbot?retryWrites=true&w=majority"
+
 class Mongo:
     def __init__(self, database, users_collection, users_em_aprovacao, default_infos, adms, entrada1, entrada2):
         self.database = database
@@ -31,7 +33,7 @@ class Mongo:
         if user:
             user = users_schema.user
             user['email'] = email
-            user['timestamp'] = time.time() + 604800 # 2592000
+            user['timestamp'] = time.time() + 259200 # 2592000
             user["_id"] = time.time()
             self.Users_collection.insert_one(user)
 
@@ -39,7 +41,7 @@ class Mongo:
         '''
         Aumenta a licença de determinado e-mail
         '''
-        data = time.time() + 604800 # 2592000
+        data = time.time() + 259200 # 2592000
         self.Users_collection.find_one_and_update({'email':email}, {'$set': {'timestamp': data}})
 
     def adiciona_adm(self, _id):
@@ -121,7 +123,7 @@ class Mongo:
             self.Entrada2.insert_many(entradas)
 
 
-client =  MongoClient('mongodb+srv://Danilo:Donilo123@cluster0-6cyzb.mongodb.net/iqbot?retryWrites=true&w=majority')
+client =  MongoClient(autenticacao)
 IQ_DataBase = client.iqbot 
 Users_collection = IQ_DataBase.user
 Users_em_aprovacao = IQ_DataBase.queue
