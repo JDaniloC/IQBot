@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from utils.IQ import IQ_API
 import threading, traceback, time, re, sys
 from pprint import pprint
@@ -177,6 +177,8 @@ class Operacao(IQ_API):
                         f"\n | {round(self.ganho_total/self.config['goal'] * 100, 2)}% perto do objetivo |\
  {round(-self.perda_total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
                 
+                # self.esperar_anteriores(threading.currentThread().name)
+
                 if self.perda_total <= -(self.config['stoploss']):
                     self.mostrar_mensagem(f"MARTINGALE CANCELADO: BATEU NO STOPLOSS: R$ {round(self.perda_total, 2)}!")
                     sys.exit(0)
@@ -185,6 +187,8 @@ class Operacao(IQ_API):
                 lucro = self.valor * payout if self.config["tipo_gale"] != "porcento" else self.config["percent_martin"] / 100
                 valor = self.martingale(self.config['tipo_gale'], payout, perda, valor, lucro)
                 valor = 1 if valor < 1 else valor # Caso der doji
+
+                threading.currentThread().setName(str(time.time()))
 
                 resultado, lucro = self.ordem(par, ordem, self.tempo, valor, tipo, self.cadeado, self.config['delay'])
                 num_gales += 1
@@ -202,7 +206,7 @@ class Operacao(IQ_API):
  {round(-self.perda_total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
 
         elif resultado == "error":
-            print(f"\nErro na operação das {threading.current_thread().name}")
+            print(f"\nErro na operação às {str(datetime.utcnow())[:-7]}")
 
     def computar(self):
         '''
@@ -211,7 +215,7 @@ class Operacao(IQ_API):
         3 - Calcula o payout da paridade
         4 - Cria uma thread para o método operar
         '''
-        espera = []
+        self.espera = []
 
         if self.tipo == "auto":
             ultima_vez = time.time()
@@ -220,7 +224,7 @@ class Operacao(IQ_API):
                 paridade = par['par']
                 paridade = paridade + "-OTC" if self.config['otc'] else paridade
                 paridades.append(paridade)
-            payouts = self.aberta_profit(paridades, self.tempo)
+            payouts = self.aberta_profit(self.tempo)
 
             def atualizar_profits(comando):
                 '''
@@ -231,7 +235,7 @@ class Operacao(IQ_API):
                     paridade = par['par']
                     paridade = paridade + "-OTC" if self.config['otc'] else paridade
                     paridades.append(paridade)
-                novo = self.aberta_profit(paridades, self.tempo)
+                novo = self.aberta_profit(self.tempo)
                 if novo == None:
                     raise ConnectionAbortedError("Não estou conseguindo pegar as paridades. Reinicie o bot")
                 payouts.update(novo)
@@ -269,6 +273,14 @@ class Operacao(IQ_API):
                     payout = self.payout_binaria(par) / 100 if self.tipo == "binary" else self.payout_digital(par) / 100
                     tipo = self.tipo
 
+                if self.config['tendencia'] and not self.calcular_tendencia(
+                    par, ordem, self.tempo, 21, 0.1 # personalizável
+                ):
+                    self.mostrar_mensagem(f"[ ❗️] {par}|{ordem} às {horas}:{minutos} entrou contra a tendência. [ ❗️]")
+                    continue
+                
+                # self.esperar_anteriores()
+
                 with self.cadeado:
                     if -self.config['stoploss'] >= self.perda_total or self.ganho_total >= self.config['goal']:
                         self.mostrar_mensagem(f'''{"- " * 20}
@@ -277,20 +289,14 @@ class Operacao(IQ_API):
     Stoploss: {-self.config['stoploss']}
     Total perdido: {round(self.perda_total, 2)}''')
                         break
-                
-                if self.config['tendencia'] and not self.calcular_tendencia(
-                    par, ordem, self.tempo, 21, 0.1 # personalizável
-                ):
-                    self.mostrar_mensagem(f"[ ❗️] {par}|{ordem} às {horas}:{minutos} entrou contra a tendência. [ ❗️]")
-                    continue
 
                 if self.config["minimo"] / 100 <= payout:
                     thread = threading.Thread(
                         target = self.operar, 
-                        name = f"{horas}:{minutos}", 
+                        name = f"{time.time()}", 
                         args = (valor, par, ordem, payout, tipo)
                         )
-                    espera.append(thread)
+                    self.espera.append(thread)
                     thread.start()
 
                 if self.tipo == "auto":
@@ -302,7 +308,7 @@ class Operacao(IQ_API):
             else:
                 momento = datetime.utcnow().timestamp() - 10800 # -3Horas
                 print(f" - {datetime.fromtimestamp(momento).strftime('dia %d - %H:%M')} | {comando['par']} - {horas}:{minutos} passou da hora - ")
-        for thread in espera:
+        for thread in self.espera:
             thread.join()
 
         self.mostrar_mensagem(f"\nFim da operação resultado final: R$ {round(self.ganho_total, 2)}\n")
@@ -315,3 +321,30 @@ class Operacao(IQ_API):
                     self.API.unsubscribe_strike_list(par, self.config["tempo"])
         except:
             pass
+    
+    def esperar_anteriores(self, atual = 0):
+        esperar_anteriores = True
+
+        while esperar_anteriores:
+            esperar_anteriores = False
+            ativos = [
+                datetime.fromtimestamp(float(x.name)) for x in threading.enumerate() if self.istime(x.name) and x.name != atual]
+            for timing in ativos:
+                momento_atual = datetime.fromtimestamp(time.time())
+                anteriores = (atual == 0 or datetime.fromtimestamp(float(atual)) > timing)
+
+                perto_de_terminar = (self.tempo * 60 + 30 >= 
+                                 (momento_atual - timing).seconds >= 
+                                 self.tempo * 60 - 30)
+                if anteriores and perto_de_terminar:
+                    time.sleep(1)
+                    print("Esperando as operações anteriores acabar...")
+                    esperar_anteriores = True
+                    break
+
+    def istime(self, string):
+        try:
+            float(string)
+            return True
+        except:
+            return False

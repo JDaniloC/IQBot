@@ -140,7 +140,7 @@ Todas as carteiras:\n"""
 
         return abertas
 
-    def aberta_profit(self, paridades, timeframe):
+    def aberta_profit(self, timeframe):
         '''
         Verifica se a paridade está aberta e devolve o profit
         de forma que seja otimizado, devolvendo ambos os tipos
@@ -175,15 +175,16 @@ Todas as carteiras:\n"""
             print(" ❌❌ Reinicie o bot ❌❌")
             return None
 
-        print(" ⚙️ Buscando payouts ⚙️")
-        for par in paridades:
-            
-            tipo_binaria = "turbo" if timeframe == 1 else "binary"
+        print(" ⚙️  Buscando payouts ⚙️")
+        tipo_binaria = "turbo" if timeframe == 1 else "binary"
+        for par in abertas[tipo_binaria]:
             if abertas[tipo_binaria][par]["open"]:
-                payouts["binary"][par] = [True, todos_binary[par][tipo_binaria]]
+                payouts["binary"][par] = [
+                    True, todos_binary[par][tipo_binaria]]
             else:
                 payouts["binary"][par] = [False]
-
+        
+        for par in abertas['digital']:
             if abertas['digital'][par]["open"]:
                 self.API.subscribe_strike_list(par, timeframe)
                 payout_digital = False
@@ -198,12 +199,30 @@ Todas as carteiras:\n"""
                     payouts["digital"][par] = [
                         True, round(payout_digital / 100, 2)]
                 else:
-                    print(f" [❗️] Não consegui pegar o payout de {par} [❗️]")
-                    payouts['digital'][par] = [False]
+                    print(
+                        f" [ ❗️] Não consegui pegar o payout de {par} [ ❗️]")
+                    payouts['digital'][par] = [True, 0.7]
             else:
                 payouts["digital"][par] = [False]
         return payouts
+    
+    def top_ranking(self, quantidade, filtro = "Worldwide"):
+        '''
+        Devolve a lista de ID's do top ranking ou uma lista vazia.
+        '''
+        ranking = []
+        contador = 0
+        while contador < 2 and ranking == []:
+            ranking = API.get_leader_board(filtro, 1, quantidade, 0)
+            contador += 1
 
+        if ranking == []:
+            print(" [❗️] Não consegui pegar os top ranking [❗️]")
+            return []
+        else:
+            return [ranking['result']['positional'][trader]['user_id']
+                for trader in ranking['result']['positional']]
+   
     def ordem(self, par, direcao = "call", tempo = 1, valor = 1, tipo = "binary", bloqueador = None, delay = 0):
         '''
         Faz uma ordem e devolve o resultado.
@@ -309,7 +328,7 @@ Todas as carteiras:\n"""
                 "Classic" in indicator['name']
             }
         else:
-            print(f"[ ❗️] {par} não tem linhas de suporte/resistência [ ❗️]")
+            print(f" [ ❗️] {par} não tem linhas de suporte/resistência [ ❗️]")
             return (superior[-1] < dado if direcao.lower() == "call"
                 else inferior[-1] > dado)
         '''
@@ -357,6 +376,14 @@ Todas as carteiras:\n"""
 
         return lista
     
+    def pegar_velas(self, par, timeframe, quantidade, fim = None):
+        if fim == None:
+            fim = time.time()
+        return [
+            x['close'] for x in self.api.API.get_candles(
+            par, timeframe, quantidade, fim)
+        ]
+
     @staticmethod
     def esperarAte(horas, minutos, segundos = 0, data = (), tolerancia = 0, verboso = False):
         '''
