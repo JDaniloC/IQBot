@@ -140,7 +140,7 @@ Todas as carteiras:\n"""
 
         return abertas
 
-    def aberta_profit(self, timeframe):
+    def aberta_profit(self, timeframe, paridades):
         '''
         Verifica se a paridade está aberta e devolve o profit
         de forma que seja otimizado, devolvendo ambos os tipos
@@ -185,7 +185,7 @@ Todas as carteiras:\n"""
                 payouts["binary"][par] = [False]
         
         for par in abertas['digital']:
-            if abertas['digital'][par]["open"]:
+            if abertas['digital'][par]["open"] and (par in paridades or paridades == []):
                 self.API.subscribe_strike_list(par, timeframe)
                 payout_digital = False
                 contador_limite = 0
@@ -204,6 +204,13 @@ Todas as carteiras:\n"""
                     payouts['digital'][par] = [True, 0.7]
             else:
                 payouts["digital"][par] = [False]
+        
+        for par in paridades:
+            if par not in payouts['binary']:
+                payouts['binary'][par] = [False]
+            if par not in payouts['digital']:
+                payouts['digital'][par] = [False]
+
         return payouts
     
     def top_ranking(self, quantidade, filtro = "Worldwide"):

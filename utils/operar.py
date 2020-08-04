@@ -224,7 +224,7 @@ class Operacao(IQ_API):
                 paridade = par['par']
                 paridade = paridade + "-OTC" if self.config['otc'] else paridade
                 paridades.append(paridade)
-            payouts = self.aberta_profit(self.tempo)
+            payouts = self.aberta_profit(self.tempo, paridades)
 
             def atualizar_profits(comando):
                 '''
@@ -235,7 +235,7 @@ class Operacao(IQ_API):
                     paridade = par['par']
                     paridade = paridade + "-OTC" if self.config['otc'] else paridade
                     paridades.append(paridade)
-                novo = self.aberta_profit(self.tempo)
+                novo = self.aberta_profit(self.tempo, paridades)
                 if novo == None:
                     raise ConnectionAbortedError("Não estou conseguindo pegar as paridades. Reinicie o bot")
                 payouts.update(novo)
@@ -255,7 +255,7 @@ class Operacao(IQ_API):
                 valor = self.valor
 
                 if self.tipo == "auto":
-                    if ((payouts["binary"][par][0] and payouts["digital"][par][0]) 
+                    if ((payouts["binary"][par][0] and payouts["digital"][par][0])
                         and 
                         (payouts["binary"][par][1] < payouts["digital"][par][1])):
                         tipo = "digital"
