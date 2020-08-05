@@ -416,7 +416,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         if self.autenticacao:
             self.sender.sendMessage(
-                "O que você deveja alterar?", reply_markup = ReplyKeyboardMarkup(
+                "O que você deseja alterar?", reply_markup = ReplyKeyboardMarkup(
                     keyboard = [
                         [KeyboardButton( text = "Tipo de conta" )],
                         [KeyboardButton( text = "Valor de entrada" )],
@@ -608,7 +608,12 @@ class Assistente(amanobot.helper.ChatHandler):
                 elif value[2] == bool:
                     novo = bool(novo.strip() == "Sim")
                 elif value[0] in ["tempo", "max_gale"]:
-                    novo = int(novo)
+                    try:
+                        novo = int(novo)
+                    except Exception as e:
+                        dicionario[key][1] = False
+                        self.sender.sendMessage("Deve ser um número.")
+                        return False
                 elif novo == "individual":
                     self.sender.sendMessage(
                         "Digite o fator do martingale:\nEx: 2.5", 
@@ -713,6 +718,9 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         if self.autenticacao:
             MongoDB.modifica_usuario(self.informacoes, self.email)
+        if self.id in adms:
+            for key in mapeamento_avancado:
+                mapeamento_avancado[key][1] = False
 
         print(f"Usuário {self.nome_usuario} saiu.\n")
         self.sender.sendMessage("Obrigado pela preferência, irei atender outras pessoas, qualquer coisa é só chamar.", reply_markup = ReplyKeyboardRemove())
