@@ -363,7 +363,7 @@ class Assistente(amanobot.helper.ChatHandler):
         self.sender.sendMessage("Pegando relatórios...")
         try:
             resultado = controlador.pegar_log(self.email)
-            resultado = "\n".join(resultado.split("\n")[:-40])
+            resultado = "\n".join(resultado.split("\n")[-50:])
             self.sender.sendMessage(resultado)
         except Exception as e:
             self.sender.sendMessage("Recebi esse erro:\n", e)
