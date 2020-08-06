@@ -33,7 +33,7 @@ class Mongo:
         if user:
             user = users_schema.user
             user['email'] = email
-            user['timestamp'] = time.time() + 259200 # 2592000
+            user['timestamp'] = time.time() + 2592000
             user["_id"] = time.time()
             self.Users_collection.insert_one(user)
 
@@ -41,7 +41,7 @@ class Mongo:
         '''
         Aumenta a licença de determinado e-mail
         '''
-        data = time.time() + 259200 # 2592000
+        data = time.time() + 2592000
         self.Users_collection.find_one_and_update({'email':email}, {'$set': {'timestamp': data}})
 
     def adiciona_adm(self, _id):
@@ -122,6 +122,14 @@ class Mongo:
             self.Entrada2.delete_many({"ordem": 'put'})
             self.Entrada2.insert_many(entradas)
 
+    def modificar_banco_users(self, opcao):
+        if opcao == "clear":
+            self.Users_collection.delete_many({})
+        elif opcao == "off":
+            self.Users_collection.update_many({}, {'$set': {'operando': False}})
+        elif opcao == "time":
+            data = time.time() + 2592000
+            self.Users_collection.update_many({}, {'$set': {'timestamp': data}})
 
 client =  MongoClient(autenticacao)
 IQ_DataBase = client.iqbot 
