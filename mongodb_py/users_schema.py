@@ -18,7 +18,7 @@ user = {
     "tipo_tendencia": "velas",
     "periodo_tendencia": 21,
     "desvio_tendencia": 0.1,
-    "tipo_lista":"casa",
+    "tipo_lista":"propria",
     "lista": [],
     "plano": "comum"
 }

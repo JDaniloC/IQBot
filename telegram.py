@@ -9,7 +9,7 @@ from amanobot.delegate import (
 from database import *
 from controlador import Control
 
-TOKEN = "1359919203:AAHA3hXHOf_3vrkBo_TLypwHWqOnAl711go"
+TOKEN = "1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao"
 bot_name = "robô MM_007"
 
 # Funções
@@ -134,7 +134,7 @@ class Assistente(amanobot.helper.ChatHandler):
             "tipo_tendencia": "velas",
             "periodo_tendencia": 21,
             "desvio_tendencia": 0.1,
-            "tipo_lista": "pessoal",
+            "tipo_lista": "propria",
             "lista": [],
             "plano": "comum"
         }
@@ -585,7 +585,7 @@ class Assistente(amanobot.helper.ChatHandler):
                         "max_gale": [1, 2],
                         "tempo": [1, 5, 15],
                         "tipo_par": ["binary", "digital", "auto"],
-                        "tipo_lista": ["casa", "individual"],
+                        "tipo_lista": ["casa", "propria"],
                         "tipo_gale": [
                             "martin", "soros"],
                         "tipo_tendencia": [
