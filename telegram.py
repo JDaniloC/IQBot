@@ -9,7 +9,7 @@ from amanobot.delegate import (
 from database import *
 from controlador import Control
 
-TOKEN = "1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao"
+TOKEN = "1359919203:AAHA3hXHOf_3vrkBo_TLypwHWqOnAl711go"
 bot_name = "robô MM_007"
 
 # Funções
@@ -34,7 +34,10 @@ def carregar_entradas(opcao):
         lista de strings dessas entradas
     '''
     lista_entradas = []
-    lista = MongoDB.get_entradas(opcao)
+    if type(opcao) != []:
+        lista = MongoDB.get_entradas(opcao)
+    else:
+        lista = opcao
     for linha in lista:
         lista_entradas.append(f'''
 📊 Ativo: {linha["par"]}
@@ -48,10 +51,8 @@ def carregar_entradas(opcao):
 def get_adms():
     return [x[0] for x in [list(value.values()) for value in list(MongoDB.ADMS.find())]]
 
-#with open("clients/default.json", encoding = "utf-8") as file:
-#    default = json.load(file) 
-
-
+# São atributos gerais para todas as contas
+# Pois o objeto Assistente é instanciado por usuário 
 adms = get_adms()
 entrada_1gale = carregar_entradas(1)
 entrada_2gale = carregar_entradas(2)
@@ -60,9 +61,9 @@ if os.name != "nt":
 rodando = True
 
 mapeamento_avancado = {
-    "Mudar tipo de paridade": ["tipo_par", False, list],
-    "Mudar configuração OTC": ["otc", False, bool],
-    "Alterar timeframe": ["tempo", False, list],
+    "Tipo de paridade": ["tipo_par", False, tuple],
+    "Ativar OTC": ["otc", False, bool],
+    "Mudar timeframe": ["tempo", False, tuple],
     "Mudar a correção": ["correcao", False, int],
     "Mudar o delay": ["delay", False, float]
 }
@@ -79,6 +80,7 @@ class Assistente(amanobot.helper.ChatHandler):
 
         self.add_entrada = "0"        
         self.iniciar_operacao = False
+        self.parar_bot = False
         self.alteracoes_avancadas = {
             "adm": False,     # Adicionar novo ADM
             "licenca": False, # Renovar licença
@@ -88,18 +90,32 @@ class Assistente(amanobot.helper.ChatHandler):
         }
 
         self.mapeamento = {
-            "Tipo de conta": ["tipo_conta", False, list], 
+            "Tipo de conta": ["tipo_conta", False, tuple], 
             "Valor de entrada": ["valor", False, float],
             "Payout mínimo": ["minimo", False, int], 
             "StopWin": ["goal", False, float],
             "Soros": ["soros", False, bool], 
-            "Percentual da soros": ["percent_soros", False, float],
+            "Percentual da soros": [
+                "percent_soros", False, float],
             "StopLoss": ["stoploss", False, float],
-            "Martingale": ["martin", False, bool], 
-            "Percentual do martin": ["percent_martin", False, float],
-            "Máximo de gales": ["max_gale", False, list],
-            "Tipo de martingale": ["tipo_gale", False, list],
-            "Seguir tendência": ["tendencia", False, bool]
+            "Gerenciamento": [
+                "tipo_gale", False, tuple], 
+            "Percentual do martin": [
+                "percent_martin", False, float],
+            "Máximo de gales": [
+                "max_gale", False, tuple],
+            "Tipo de martingale": [
+                "tipo_martin", False, tuple],
+            "Seguir tendência": [
+                "tendencia", False, bool],
+            "Tipo de tendência": [
+                "tipo_tendencia", False, tuple],
+            "Período da tendência": [
+                "periodo_tendencia", False, tuple],
+            "Desvio da tendência": [
+                "desvio_tendencia", False, float],
+            "Adicionar lista": ["lista", False, list],
+            "Tipo de lista": ["tipo_lista", False, tuple]
         }
 
         self.informacoes = {
@@ -110,11 +126,17 @@ class Assistente(amanobot.helper.ChatHandler):
             "soros": False,
             "percent_soros": 0,
             "stoploss": 20,
-            "martin": True,
             "percent_martin": 0,
             "max_gale": 2,
-            "tipo_gale": "seguro",
-            "tendencia": False
+            "tipo_gale": "martin",
+            "tipo_martin": "seguro",
+            "tendencia": False,
+            "tipo_tendencia": "velas",
+            "periodo_tendencia": 21,
+            "desvio_tendencia": 0.1,
+            "tipo_lista": "pessoal",
+            "lista": [],
+            "plano": "comum"
         }
 
     def open(self, msg, id):
@@ -132,8 +154,7 @@ class Assistente(amanobot.helper.ChatHandler):
 
         self.sender.sendMessage(f"Olá, eu sou seu assistente do {bot_name}.", 
             reply_markup = ReplyKeyboardMarkup(
-                keyboard = [[KeyboardButton(text = "Entrar")]]
-        ))
+                keyboard = [[KeyboardButton(text = "Entrar")]]))
 
     def entrar(self):
         if not self.autenticacao:
@@ -158,7 +179,7 @@ class Assistente(amanobot.helper.ChatHandler):
         if MongoDB.Users_collection.find_one({"email": email}): 
             # Verifica se está no banco de dados e entra na conta
             self.email = msg["text"].lower()
-            self.informacoes = MongoDB.get_user(self.email)
+            self.informacoes.update(MongoDB.get_user(self.email))
             restante = self.informacoes['timestamp'] - time.time()
             if restante > 0:
                 self.entrada = False
@@ -190,25 +211,49 @@ class Assistente(amanobot.helper.ChatHandler):
             return False
 
         teclado = ReplyKeyboardMarkup(keyboard = [
-            [KeyboardButton( text = "Aprovar usuários" )],
-            [KeyboardButton( text = "Renovar licença" )],
-            [KeyboardButton( text = "Ver configuração atual" )],
-            [KeyboardButton( text = "Adicionar entradas" )],
-            [KeyboardButton( text = "Mudar tipo de paridade" )],
-            [KeyboardButton( text = "Mudar configuração OTC" )],
-            [KeyboardButton( text = "Alterar timeframe" )],
-            [KeyboardButton( text = "Mudar a correção" )],
-            [KeyboardButton( text = "Mudar o delay" )],
-            [KeyboardButton( text = "Tirar de cadastro" )],
-            [KeyboardButton( text = "Remover usuários" )],
-            [KeyboardButton( text = "Atualizar informações" )],
-            [KeyboardButton( text = "Adicionar administrador" )],
+            [KeyboardButton( text = "Configurações avançadas" )],
+            [KeyboardButton( text = "Administração" )],
             [KeyboardButton( text = "Parar bot" )],
             [KeyboardButton( text = "Voltar ao menu" )]
         ])
 
         self.sender.sendMessage("Configurações avançadas para admnistradores:",
             reply_markup = teclado)
+
+
+    def submenu_avancado(self, msg):
+        if self.id not in adms:
+            return False
+
+        verificador = False
+        if msg['text'] == "Configurações avançadas":
+            self.ver_avancadas()
+            teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "Adicionar entradas" ),
+                KeyboardButton( text = "Tipo de paridade" )],
+                [KeyboardButton( text = "Ativar OTC" ),
+                KeyboardButton( text = "Mudar timeframe" )],
+                [KeyboardButton( text = "Mudar a correção" ),
+                KeyboardButton( text = "Mudar o delay" )],
+                [KeyboardButton( text = "Atualizar informações" )],
+                [KeyboardButton( text = "Gerenciar" )]
+            ])
+            verificador = True
+        elif msg['text'] == "Administração":
+            teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "Aprovar usuários" ),
+                KeyboardButton( text = "Renovar licença" )],
+                [KeyboardButton( text = "Tirar de cadastro" ),
+                KeyboardButton( text = "Remover usuários" )],
+                [KeyboardButton( text = "Adicionar administrador" )],
+                [KeyboardButton( text = "Gerenciar" )]
+            ])
+            verificador = True
+        if verificador:
+            self.sender.sendMessage("Escolha a opção:",
+                reply_markup = teclado)        
+            return True
+        return False
 
     def ver_avancadas(self):
         '''
@@ -218,10 +263,12 @@ class Assistente(amanobot.helper.ChatHandler):
             self.sender.sendMessage("Usuário não tem permissão")
             return False
         default = MongoDB.get_avancadas()
+        resultado = ""
         for key, value in default.items():
             if key not in ["_id", "arquivo"]:
-                self.sender.sendMessage(f"{key}: {value}",
-                reply_markup = ReplyKeyboardRemove())
+                resultado += f"{key}: {value}\n"
+        self.sender.sendMessage(resultado,
+            reply_markup = ReplyKeyboardRemove())
 
     def adicionar_entrada(self, msg):
         '''
@@ -270,7 +317,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         global entrada_1gale, entrada_2gale
         if self.id not in adms:
-            return False
+            return
         if self.add_entrada != "0":
             self.sender.sendMessage("Processando...")
             # Procura o início das velas
@@ -289,16 +336,21 @@ class Assistente(amanobot.helper.ChatHandler):
                 primeiro = self.pegar_entrada(para_verificar[1])
                 segundo = self.pegar_entrada(para_verificar[2])
             elif self.add_entrada == "1":
-                primeiro = self.pegar_entrada(msg['text'].split("\n"))
+                primeiro = self.pegar_entrada(
+                    msg['text'].split("\n"))
             elif self.add_entrada == "2":
-                segundo = self.pegar_entrada(msg['text'].split("\n"))
+                segundo = self.pegar_entrada(
+                    msg['text'].split("\n"))
+            
             if self.add_entrada in ["ambos", "1"]:
                 MongoDB.set_entradas(1, primeiro)
             if self.add_entrada in ["ambos", "2"]:
                 MongoDB.set_entradas(2, segundo)
-            self.add_entrada = "0"
+            
             entrada_1gale = carregar_entradas(1)
             entrada_2gale = carregar_entradas(2)
+            
+            self.add_entrada = "0"
             self.sender.sendMessage("Salvo")
             self.gerenciar()
 
@@ -318,11 +370,28 @@ class Assistente(amanobot.helper.ChatHandler):
                 reply_markup = teclado)
         else:
             self.sender.sendMessage("Usuário não autenticado")
-
+    
+    def submenu_comandos(self, msg):
+        '''
+        Verifica se a pessoa clicou em alguma opção
+        do menu principal, devolvendo um boolean
+        '''
+        texto = msg['text']
+        if texto == "Operação":
+            return self.operar(msg)
+        elif texto == "Ver configurações":
+            return self.ver_configuracoes()
+        elif texto == "Editar configurações":
+            return self.editar_configuracoes()
+        elif texto == "Ver lista de sinais":
+            return self.ver_lista()
+        return False
+    
     def operar(self, msg):
         '''
-        Opção que inicia a operação, no qual salva as informações
-        do usuário e abre um novo processo com o bot
+        Opção que inicia a operação.
+        E então salva as informações atuais
+        Devolve um boolean se autenticado
         '''
         if self.autenticacao:
             self.sender.sendMessage("Carregando...")
@@ -356,8 +425,10 @@ class Assistente(amanobot.helper.ChatHandler):
                                 [KeyboardButton( text = "Parar operação" )]
                             ]
                         ))
+            return True
         else:
             self.sender.sendMessage("Usuário não autenticado")
+        return False
 
     def ver_relatorio(self, msg):
         self.sender.sendMessage("Pegando relatórios...")
@@ -384,56 +455,117 @@ class Assistente(amanobot.helper.ChatHandler):
 
     def ver_lista(self):
         '''
-        Método que mostra as listas de sinais
+        Mostra as listas de sinais (casa|pessoal)
+        Devolve um boolean se está autenticado
         '''
         if self.autenticacao:
-            self.sender.sendMessage("Listas atuais:", 
-                reply_markup = ReplyKeyboardRemove())
-            self.sender.sendMessage("1 Gale:")
-            self.sender.sendMessage("\n".join(entrada_1gale))
-            self.sender.sendMessage("\n2 Gales:")
-            self.sender.sendMessage("\n".join(entrada_2gale))
-            self.sender.sendMessage("Fim das listas")
-            self.comandos()
+            if self.informacoes['tipo_lista'] == "casa":
+                self.sender.sendMessage("Entradas:", 
+                    reply_markup = ReplyKeyboardRemove())
+                
+                self.sender.sendMessage("1 Gale:")
+                self.sender.sendMessage(
+                    "\n".join(entrada_1gale))
+                
+                self.sender.sendMessage("2 Gales:")
+                self.sender.sendMessage(
+                    "\n".join(entrada_2gale))
+                self.comandos()
+                return True
+            else:
+                self.sender.sendMessage("\n".join(
+                    carregar_entradas(
+                        self.informacoes['lista'])))
         else:
             self.sender.sendMessage("Usuário não autenticado")
+        return False
 
     def ver_configuracoes(self):
         '''
-        Mostra as configurações atuais
+        Mostra as configurações de usuário
+        Devolve um boolean se está autenticado.
         '''
         if self.autenticacao:
             mensagem = ""
             for key, value in self.mapeamento.items():
-               mensagem += key + ": " + str(self.informacoes[value[0]]).replace("True", "Sim").replace("False", "Não") + "\n"
+                if value[0] not in ["lista", "tipo_lista", "plano"]:
+                    mensagem += key + ": " + str(self.informacoes[value[0]]).replace("True", "Sim").replace("False", "Não") + "\n"
             self.sender.sendMessage(mensagem)
+            self.comandos()
+            return True
         else:
             self.sender.sendMessage("Usuário não autenticado")
+        return False
 
     def editar_configuracoes(self):
         '''
         Menu de opções para editar as configurações
+        Devolve um boolean se está autenticado
         '''
         if self.autenticacao:
             self.sender.sendMessage(
-                "O que você deseja alterar?", reply_markup = ReplyKeyboardMarkup(
-                    keyboard = [
-                        [KeyboardButton( text = "Tipo de conta" )],
-                        [KeyboardButton( text = "Valor de entrada" )],
-                        [KeyboardButton( text = "Payout mínimo" )],
-                        [KeyboardButton( text = "StopWin" )],
-                        [KeyboardButton( text = "StopLoss" )],
-                        [KeyboardButton( text = "Soros" )],
-                        [KeyboardButton( text = "Percentual da soros" )],
-                        [KeyboardButton( text = "Martingale" )],
-                        [KeyboardButton( text = "Percentual do martin" )],
-                        [KeyboardButton( text = "Máximo de gales" )],
-                        [KeyboardButton( text = "Tipo de martingale" )],
-                        [KeyboardButton( text = "Seguir tendência" )],
-                        [KeyboardButton( text = "Voltar ao menu" )]
-            ]))
+                "O que você deseja alterar?", 
+                reply_markup = ReplyKeyboardMarkup( keyboard = [
+                    [KeyboardButton( text = "Conta" ),
+                    KeyboardButton( text = "Entrada" )],
+                    [KeyboardButton( text = "Limites" ),
+                    KeyboardButton( text = "Tendência" )],
+                    [KeyboardButton( text = "Martingale e Soros" )],
+                    [KeyboardButton( text = "Voltar ao menu" )]
+            ], resize_keyboard = True))
+            return True
         else:
             self.sender.sendMessage("Usuário não autenticado")
+        return False
+
+    def submenu_configuracoes(self, msg):
+        verificador = False
+        if msg['text'] == 'Conta':
+            teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "Tipo de conta" )],
+                [KeyboardButton( text = "Tipo de lista" )],
+                [KeyboardButton( text = "Adicionar lista" )],
+                [KeyboardButton( text = "Editar configurações" )]])
+            verificador = True
+        elif msg['text'] == 'Entrada':
+            teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "Valor de entrada" )],
+                [KeyboardButton( text = "Gerenciamento" )],
+                [KeyboardButton( text = "Payout mínimo" )],
+                [KeyboardButton( text = "Editar configurações" )]
+                ])
+            verificador = True
+        elif msg['text'] == 'Tendência':
+            teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "Seguir tendência" )],
+                [KeyboardButton( text = "Tipo de tendência" )],
+                [KeyboardButton( text = "Período" ),
+                KeyboardButton( text = "Desvio" )],
+                [KeyboardButton( text = "Editar configurações" )]
+                ])
+            verificador = True
+        elif msg['text'] == 'Limites':
+            teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "StopWin" )],
+                [KeyboardButton( text = "StopLoss" )],
+                [KeyboardButton( text = "Máximo de gales" )],
+                [KeyboardButton( text = "Editar configurações" )]
+                ])
+            verificador = True
+        elif msg['text'] == 'Martingale e Soros':
+            teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "Tipo de martingale" ),
+                KeyboardButton( text = "Percentual do martin" )],
+                [KeyboardButton( text = "Soros" ),
+                KeyboardButton( text = "Percentual da soros" )],
+                [KeyboardButton( text = "Editar configurações" )]])
+            verificador = True
+        if verificador:
+            self.sender.sendMessage(
+                "Qual das opções?", 
+                reply_markup = teclado)
+            return True
+        return False
 
     def mapear(self, dicionario, text):
         '''
@@ -441,42 +573,47 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         for key, value in dicionario.items():
             if text == key:
-                dicionario[text][1] = True
                 mensagem = "Escolha uma das opções abaixo:"
                 if value[2] == bool:
-                    teclado = ReplyKeyboardMarkup( keyboard = [
-                                [KeyboardButton( text = "Sim" )],
-                                [KeyboardButton( text = "Não" )]])
-                elif value[2] == list:
-                    if value[0] == "tipo_conta":
-                        teclado = ReplyKeyboardMarkup( keyboard = [
-                                [KeyboardButton( text = "treino" )],
-                                [KeyboardButton( text = "real" )]])
-                    elif value[0] == "max_gale":
-                        teclado = ReplyKeyboardMarkup( keyboard = [
-                                [KeyboardButton( text = 1 )],
-                                [KeyboardButton( text = 2 )]])
-                    elif value[0] == "tempo":
-                        teclado = ReplyKeyboardMarkup( keyboard = [
-                                [KeyboardButton( text = 1 )],
-                                [KeyboardButton( text = 5 )],
-                                [KeyboardButton( text = 15 )]])
-                    elif value[0] == "tipo_par":
-                        teclado = ReplyKeyboardMarkup( keyboard = [
-                                [KeyboardButton( text = "binary" )],
-                                [KeyboardButton( text = "digital" )],
-                                [KeyboardButton( text = "auto" )]])
+                    teclado = ReplyKeyboardMarkup( 
+                        keyboard = [
+                        [KeyboardButton( text = "Sim" ),
+                        KeyboardButton( text = "Não" )]])
+                elif value[2] == tuple:
+                    opcoes = {
+                        "tipo_conta": ["treino", "real"],
+                        "max_gale": [1, 2],
+                        "tempo": [1, 5, 15],
+                        "tipo_par": ["binary", "digital", "auto"],
+                        "tipo_lista": ["casa", "individual"],
+                        "tipo_gale": [
+                            "martin", "soros"],
+                        "tipo_tendencia": [
+                            "bollinger", "velas"],
+                        "tipo_martin": [
+                            "seguro", "leve", "agressivo",
+                            "porcento", "individual"]
+                    }
+                    if value[0] in ["tipo_martin", "tipo_par"]:
+                        # Um abaixo do outro
+                        teclado = ReplyKeyboardMarkup( 
+                        keyboard = [
+                            [KeyboardButton( text = x )] 
+                            for x in opcoes[value[0]]])
                     else:
-                        teclado = ReplyKeyboardMarkup( keyboard = [
-                                [KeyboardButton( text = "seguro" )],
-                                [KeyboardButton( text = "leve" )],
-                                [KeyboardButton( text = "agressivo" )],
-                                [KeyboardButton( text = "porcento" )],
-                                [KeyboardButton( text = "individual" )]])
+                        # Um do lado do outro
+                        teclado = teclado = ReplyKeyboardMarkup( 
+                        keyboard = [
+                            [KeyboardButton( text = x )
+                            for x in opcoes[value[0]]]])
+                elif value[0] == "tipo_lista" and self.informacoes['plano'] == "comum":
+                    self.sender.sendMessage("Você não tem acesso a lista da casa, peça um upgrade na sua conta.")
+                    return False
                 else:
                     mensagem = "Digite a nova informação: "
                     teclado = ReplyKeyboardRemove()
                 
+                dicionario[text][1] = True
                 self.sender.sendMessage(mensagem, 
                     reply_markup = teclado)
                 return True
@@ -528,17 +665,12 @@ class Assistente(amanobot.helper.ChatHandler):
             else:
                 self.sender.sendMessage("Nenhum usuário no banco")
         elif msg['text'] == "Parar bot":
-            if os.name != "nt":
-                self.sender.sendMessage("Deletando todas as instâncias...")
-                usuarios = controlador.deletar_instancias()
-                self.sender.sendMessage("Resetando o banco de dados...")
-                for email in usuarios:
-                    MongoDB.Users_collection.find_one_and_update(
-                        {'email': email}, {'$set' : {'operando': False}})
-            self.sender.sendMessage("Desligando o bot...")
-            rodando = False
-            self.close()
-            sys.exit(0)
+            self.parar_bot = True
+            self.sender.sendMessage("Tem certeza?",
+                reply_markup = ReplyKeyboardMarkup(
+                    keyboard = [
+                    KeyboardButton( text = "Sim" ),
+                    KeyboardButton( text = "Não" )]))
         else:
             return self.mapear(mapeamento_avancado, msg['text'])
         return True
@@ -598,13 +730,19 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         for key, value in dicionario.items():
             if value[1]:
-                if value[2] not in [list, bool]:
+                if value[2] in [int, float]:
                     try:
-                        novo = value[2](novo.strip().replace(",", ".").replace("%", ""))
+                        novo = value[2](
+                            novo.strip().replace(",", ".").replace("%", ""))
                     except Exception as e:
-                        print(e)
-                        self.sender.sendMessage("Deve ser um número! Tente novamente")
-                        return False
+                        if value[0] == "delay":
+                            novo = False
+                        else:
+                            print(e)
+                            self.sender.sendMessage("Deve ser um número! Tente novamente")
+                            return False
+                elif value[2] == list:
+                    novo = self.pegar_entrada(novo.split("\n"))
                 elif value[2] == bool:
                     novo = bool(novo.strip() == "Sim")
                 elif value[0] in ["tempo", "max_gale"]:
@@ -619,7 +757,7 @@ class Assistente(amanobot.helper.ChatHandler):
                         "Digite o fator do martingale:\nEx: 2.5", 
                         reply_markup = ReplyKeyboardRemove())
                     return False
-                elif value[0] == "tipo_gale" and novo not in [
+                elif value[0] == "tipo_martin" and novo not in [
                     "seguro", "leve", "agressivo", "porcento"]:
                     novo = float(novo.strip().replace(",", "."))
                 dicionario[key][1] = False
@@ -628,8 +766,7 @@ class Assistente(amanobot.helper.ChatHandler):
 
     def confirmar_alteracao_avancada(self, msg):
         '''
-        Método que altera no dicionário a nova informação
-        E salva o default.json novo.
+        Método que altera as informações avançadas
         '''
         if self.id not in adms:
             return False
@@ -639,6 +776,7 @@ class Assistente(amanobot.helper.ChatHandler):
             MongoDB.modifica_avancadas(info, valor)
             self.sender.sendMessage(f"Valor salvo.")
             self.ver_avancadas()
+            self.gerenciar()
             return True
         return False
 
@@ -654,56 +792,66 @@ class Assistente(amanobot.helper.ChatHandler):
                 self.informacoes[info] = valor
                 self.sender.sendMessage("Alteração salva!")
                 self.ver_configuracoes()
+                self.editar_configuracoes()
                 return True
         return False
+
+    def desligar_bot(self):
+        if os.name != "nt":
+            self.sender.sendMessage("Deletando todas as instâncias...")
+            usuarios = controlador.deletar_instancias()
+            self.sender.sendMessage("Resetando o banco de dados...")
+            for email in usuarios:
+                MongoDB.Users_collection.find_one_and_update(
+                    {'email': email}, {'$set' : {'operando': False}})
+        self.sender.sendMessage("Desligando o bot...")
+        rodando = False
+        self.close()
+        sys.exit(0)
 
     def on_chat_message(self, msg):
         '''
         Método que é chamado sempre que é digitado alguma coisa
         '''
         if self.entrada:
-            self.login(msg)
+            self.login(msg)         # [0] Login
         elif self.iniciar_operacao:
-            self.operar(msg)
+            self.operar(msg)        # [3] Opções
         elif msg['text'] == "Parar operação":
-            self.parar_operar(msg)
+            self.parar_operar(msg)  # [4] Opções
         elif msg['text'] == "Ver relatório":
-            self.ver_relatorio(msg)
+            self.ver_relatorio(msg) # [4] Opções
         elif msg['text'] == "Entrar":
-            self.entrar()
+            self.entrar()           # [1] Login
         elif msg['text'] == 'Gerenciar':
-            self.gerenciar()
+            self.gerenciar()        # [1] Avançadas
         elif msg['text'] == "Voltar ao menu":
-            if not self.autenticacao:
-                self.entrar()
-            self.comandos()
-        elif msg['text'] == "Ver configurações":
-            self.ver_configuracoes()
-        elif msg['text'] == "Editar configurações":
-            self.editar_configuracoes()
-        elif msg['text'] == "Operação":
-            self.operar(msg)
-        elif msg['text'] == "Ver lista de sinais":
-            self.ver_lista()
-        elif msg['text'] == "Ver configuração atual":
-            self.ver_avancadas()
-            self.gerenciar()
+            if not self.autenticacao: self.entrar()
+            else: self.comandos()   # [1] Opções
+        elif self.submenu_comandos(msg):
+            pass                    # [2] Opções
+        elif self.submenu_configuracoes(msg):
+            pass                    # [1] Alterações
         elif msg['text'] == "Adicionar entradas":
-            self.adicionar_entrada(msg)
+            self.adicionar_entrada(msg) # [1] Entradas
         elif self.salvar_alteracoes_avancadas(msg):
-            self.gerenciar()
+            self.gerenciar() # [4] Avançadas (ADM)
         elif self.confirmar_alteracao(msg):
-            self.editar_configuracoes()
+            pass # [3] Alterações
         elif self.habilitar_alteracao(msg):
-            pass
+            pass # [2] Alterações
         elif self.confirmar_alteracao_avancada(msg):
-            self.gerenciar()
+            pass # [4] Avançadas (Inf)
         elif self.habilitar_avancadas(msg):
-            pass
+            pass # [3] Avançadas
+        elif self.submenu_avancado(msg):
+            pass # [2] Avançadas
         elif self.confirmar_entradas(msg):
-            self.gerenciar()
+            pass # [3] Entradas
         elif self.habilitar_entradas(msg):
-            pass
+            pass # [2] Entradas
+        elif self.parar_bot and msg['text'] == "Sim":
+            self.desligar_bot()
         
     def on__idle(self, event):
         '''

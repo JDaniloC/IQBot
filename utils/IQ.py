@@ -230,7 +230,9 @@ Todas as carteiras:\n"""
             return [ranking['result']['positional'][trader]['user_id']
                 for trader in ranking['result']['positional']]
    
-    def ordem(self, par, direcao = "call", tempo = 1, valor = 1, tipo = "binary", bloqueador = None, delay = 0):
+    def ordem(
+        self, par, direcao = "call", tempo = 1, valor = 1, 
+        tipo = "binary", bloqueador = None, delay = False):
         '''
         Faz uma ordem e devolve o resultado.
         Params:
@@ -265,28 +267,29 @@ Todas as carteiras:\n"""
             {par}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}
         ''')
 
-        # Versão que pega no histórico
-        if tipo == "binary":
-            resultado, lucro = self.API.check_win_v4(identificador) # binary
-        else:
-            status = False
-            time.sleep(tempo * 60 - 10)
-            while not status:
-                status, lucro = self.API.check_win_digital_v2(identificador)
-                time.sleep(0.5)
-            if lucro > 0:
-                resultado = "win"
-            elif lucro < 0:
-                resultado = "loose"
+        if delay == False:
+            # Versão que pega no histórico
+            if tipo == "binary":
+                resultado, lucro = self.API.check_win_v4(identificador) # binary
             else:
-                resultado = "equal"
-        
-        # Versão que pega na hora
-        # resultado, lucro = self.API.check_win_v5(identificador, tipo, delay)
+                status = False
+                time.sleep(tempo * 60 - 10)
+                while not status:
+                    status, lucro = self.API.check_win_digital_v2(identificador)
+                    time.sleep(0.5)
+                if lucro > 0:
+                    resultado = "win"
+                elif lucro < 0:
+                    resultado = "loose"
+                else:
+                    resultado = "equal"
+        else:
+            # Versão que pega na hora
+            resultado, lucro = self.API.check_win_v5(identificador, tipo, delay)
 
         print(f'''
 
-        {"- " * 20}
+        {"- " * 18}
         Paridade: {par}|{tipo}
         Direção: {direcao.upper()}
         tempo: M{tempo}
@@ -294,15 +297,18 @@ Todas as carteiras:\n"""
         Hora: {datetime.now().strftime("%H:%M")}
         Valor: R${round(valor, 2)}
         {resultado.capitalize()}: R${round(lucro, 2)} 
-        {"- " * 20}
+        {"- " * 18}
         
         ''')
 
         return resultado, lucro
 
-    def calcular_tendencia(self, par, direcao, timeframe, periodo, desvio):
+    def calcular_tendencia(
+        self, tipo, par, direcao, timeframe, 
+        periodo = 21, desvio = 0.1):
         '''
         Devolve se a decisão está de acordo com a estratégia M.M_007
+        tipo: velas|bollinger
         '''
         import numpy
         from talib import BBANDS
@@ -314,46 +320,77 @@ Todas as carteiras:\n"""
         superior, meio, inferior = BBANDS(
             numpy.array(dados), timeperiod = periodo, 
             nbdevup = desvio, nbdevdn = desvio)
-        
-        dado = dados[-1]
+        if tipo == "bollinger":
+            
+            dado = dados[-1]
 
-        '''
-        Pega as linhas de suporte e resistência e devolve
-        um dicionário no estilo:
-        {
-            "s1": 0.8772134,
-            "p": 0.86213412
-            ...
-        }
-        '''
-        indicadores = self.API.get_technical_indicators(par)
-        if type(indicadores) == list:
-            suporte_resistencia = {
-                indicator['name'].replace("Classic ", ""): indicator['value']
-                for indicator in indicadores 
-                if indicator['candle_size'] == timeframe * 60 and 
-                "Classic" in indicator['name']
+            '''
+            Pega as linhas de suporte e resistência e devolve
+            um dicionário no estilo:
+            {
+                "s1": 0.8772134,
+                "p": 0.86213412
+                ...
             }
-        else:
-            print(f" [ ❗️] {par} não tem linhas de suporte/resistência [ ❗️]")
-            return (superior[-1] < dado if direcao.lower() == "call"
-                else inferior[-1] > dado)
-        '''
-        Pega o suporte e resistência imediato de determinado valor
-        '''
-        resistencia = suporte_resistencia['r1']
-        suporte = suporte_resistencia['s1']
-        for nome, linha in suporte_resistencia.items():
-            if resistencia > linha > dado:
-                resistencia = linha
-            elif suporte < linha < dado:
-                suporte = linha
-        proximidade = (dado - suporte) / (resistencia - suporte) * 100
+            '''
+            indicadores = self.API.get_technical_indicators(par)
+            if type(indicadores) == list:
+                suporte_resistencia = {
+                    indicator['name'].replace("Classic ", ""): indicator['value']
+                    for indicator in indicadores 
+                    if indicator['candle_size'] == timeframe * 60 and 
+                    "Classic" in indicator['name']
+                }
+            else:
+                print(f" [ ❗️] {par} não tem linhas de suporte/resistência [ ❗️]")
+                return ((
+                    (desvio < 2 and superior[-1] < dado) or
+                    (desvio >= 2 and superior[-1] >= dado))
+                    if direcao.lower() == "call" else 
+                    ((desvio < 2 and inferior[-1] > dado) or
+                    (desvio >= 2 and inferior[-1] <= dado))
+                )
+            '''
+            Pega o suporte e resistência imediato de determinado valor
+            '''
+            resistencia = suporte_resistencia['r1']
+            suporte = suporte_resistencia['s1']
+            for nome, linha in suporte_resistencia.items():
+                if resistencia > linha > dado:
+                    resistencia = linha
+                elif suporte < linha < dado:
+                    suporte = linha
+            proximidade = (dado - suporte) / (resistencia - suporte) * 100
 
-        if direcao.lower() == "call":
-            return proximidade < 80 if superior[-1] < dado else False
+            if direcao.lower() == "call":
+                return proximidade < 80 if (
+                    (desvio < 2 and superior[-1] < dado) or
+                    (desvio >= 2 and superior[-1] >= dado)
+                ) else False
+            else:
+                return proximidade > 20 if (
+                    (desvio < 2 and inferior[-1] > dado) or
+                    (desvio >= 2 and inferior[-1] <= dado)
+                ) else False
         else:
-            return proximidade > 20 if inferior[-1] > dado else False
+            velas = self.API.get_candles(
+                par, timeframe * 60, 3, time.time())
+
+            velas = [
+                1 if x['close'] - x['open'] > 0 else 
+                0 if x['close'] - x['open'] == 0 else 
+                -1 for x in velas
+            ]
+
+            if velas[0] == velas[1] == velas[2]:
+                direcao = 1 if direcao.lower() == "call" else -1
+                return velas[0] == direcao
+            else:
+                diferenca = meio[-1] - meio[-periodo]
+                return True if (
+                    direcao.lower() == "call" and diferenca > 0
+                    ) or (
+                    direcao.lower() == "put" and diferenca < 0)else False
 
     def historico(self, quantidade, tipo = "binary-option"):
         '''

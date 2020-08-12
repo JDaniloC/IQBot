@@ -10,9 +10,15 @@ user = {
     "soros": False,
     "percent_soros": 0,
     "stoploss": 20,
-    "martin": True,
     "percent_martin": 0,
     "max_gale": 2,
-    "tipo_gale": "seguro",
-    "tendencia": False
+    "tipo_martin": "seguro",
+    "tipo_gale": "martin",
+    "tendencia": False,
+    "tipo_tendencia": "velas",
+    "periodo_tendencia": 21,
+    "desvio_tendencia": 0.1,
+    "tipo_lista":"casa",
+    "lista": [],
+    "plano": "comum"
 }

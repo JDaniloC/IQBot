@@ -92,7 +92,7 @@ class Tendencia(Frame):
         
         opcoes = {
             "Modalidade": [self.modalidade,
-                ["digital", "binária"]],
+                ["digital", "binary"]],
             "Timeframe": [self.timeframe, 
                 [5, 10, 15, 30, 60, 300]]
         }
@@ -301,6 +301,7 @@ class Tendencia(Frame):
         segundo = datetime.now().second
         if segundo % timeframe == 0:
             self.dados.append(vela)
+            
             if bollinger or medias_moveis:
                 if len(self.superior) != 0:
                     desvio = round(self.desvio.get(), 1)
@@ -311,9 +312,12 @@ class Tendencia(Frame):
                     self.superior = numpy.append(self.superior, superior[-1])
                     self.media_dados = numpy.append(self.media_dados, meio[-1])
                     self.inferior = numpy.append(self.inferior, inferior[-1])
-                else:
-                    self.definir_tendencias(par, timeframe, periodo, maximo_exibidas)
 
+                else:
+                    # Define novas tendências
+                    self.definir_tendencias(
+                        par, timeframe, periodo, maximo_exibidas)
+                                
                 if len(self.media_dados) > maximo_exibidas:
                     self.media_dados = self.media_dados[1:]      
                     self.superior = self.superior[1:]      
@@ -354,7 +358,7 @@ class Tendencia(Frame):
             
         self.canvas.draw()
 
-    def proximidade_bbands(self, valor):
+    def proximidade_supres(self, valor):
         '''
         Pega o suporte e resistência imediato de determinado valor
         '''
@@ -373,21 +377,42 @@ class Tendencia(Frame):
         '''
         Devolve se o valor da tendência (positivo para alta e negativo para baixa)
         '''
-        return self.media_dados[-1] - self.media_dados[-int(self.periodo.get())]
+        par = self.par.get()
+        timeframe = self.timeframe.get() // 60
+        if timeframe < 1: timeframe = 1
+        velas = self.api.API.get_candles(
+            par, timeframe * 60, 3, time.time())
 
+        velas = [
+            1 if x['close'] - x['open'] > 0 else 
+            0 if x['close'] - x['open'] == 0 else 
+            -1 for x in velas
+        ]
+
+        if velas[0] == velas[1] == velas[2]:
+            return velas[0]
+
+        diferenca = self.media_dados[-1] - self.media_dados[-int(self.periodo.get())]
+        inclinacao = diferenca / int(self.periodo.get())
+        return inclinacao
+        
     def call(self):
         '''
         Verifica se o mercado está favorável para Call e executa
         '''
         dado = self.dados[-1]
         timeframe = self.timeframe.get() // 60
-        if timeframe < 1:
-            timeframe = 1
+        if timeframe < 1: timeframe = 1
 
-        bollinger_band = (
-            self.proximidade_bbands(dado) < 80 if self.superior[-1] < dado else False)
+        proximidade = self.proximidade_supres(dado) < 80
+        desvio_curto = self.desvio.get() < 1
+        
+        bollinger_band = True if not desvio_curto or (
+            desvio_curto and self.superior[-1] < dado and proximidade
+        ) else False
 
-        if ((not self.medias_moveis.get() or self.devolve_tendencia() > 0) and 
+        if ((not self.medias_moveis.get() or 
+            self.devolve_tendencia() > 0) and 
             (not self.bollinger.get() or bollinger_band)):
             threading.Thread(
                 target = self.api.ordem, 
@@ -400,7 +425,7 @@ class Tendencia(Frame):
             self.operacoes.append({
                 "dir": "call",
                 "pos": (len(self.dados) - 2, self.dados[-2])
-            })
+                })
         else:
             messagebox.showwarning("Aviso", "Contra a tendência")
 
@@ -410,13 +435,17 @@ class Tendencia(Frame):
         '''
         dado = self.dados[-1]
         timeframe = self.timeframe.get() // 60
-        if timeframe < 1:
-            timeframe = 1
+        if timeframe < 1: timeframe = 1
 
-        bollinger_band = (
-            self.proximidade_bbands(dado) > 20 if self.inferior[-1] > dado else False)
+        proximidade = self.proximidade_supres(dado) > 20
+        desvio_curto = self.desvio.get() < 1
+        
+        bollinger_band = True if not desvio_curto or (
+            desvio_curto and self.inferior[-1] > dado and proximidade
+        ) else False
 
-        if ((not self.medias_moveis.get() or self.devolve_tendencia() < 0) and 
+        if ((not self.medias_moveis.get() 
+            or self.devolve_tendencia() < 0) and 
             (not self.bollinger.get() or bollinger_band)):
             threading.Thread(
                 target = self.api.ordem, 
@@ -455,6 +484,7 @@ while rodando:
             program.atualizar()
             segundo_anterior = datetime.now()
     except Exception as e:
+        print(type(e), e)
         break
     print(str(segundo_anterior)[:-7], end = "\r")
 

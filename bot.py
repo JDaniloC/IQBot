@@ -92,26 +92,48 @@ def configuracoes(nome = LOCALCONFIG):
         "email": arquivo.get("CONTA", "email"),
         "senha": arquivo.get("CONTA", "senha"),
         "tipo_conta": arquivo.get("CONTA", "tipo").lower(),
-        "goal": float(arquivo.get("WIN", "goal").replace(",", ".")),
-        "soros": arquivo.get("WIN", "soros").capitalize() == "True",
-        "percent_soros": float(arquivo.get("WIN", "percent_soros").replace(",", ".")),
-        "stoploss": float(arquivo.get("LOSS", "stoploss").replace(",", ".")),
-        "martin": arquivo.get("LOSS", "martin").capitalize() == "True",
+        "goal": float(
+            arquivo.get("WIN", "goal").replace(",", ".")),
+        "soros": arquivo.get(
+            "WIN", "soros").capitalize() == "True",
+        "percent_soros": float(arquivo.get(
+            "WIN", "percent_soros").replace(",", ".")),
+        "stoploss": float(
+            arquivo.get("LOSS", "stoploss").replace(",", ".")),
         "tipo_gale": arquivo.get("LOSS", "tipo_gale").lower(),
+        "tipo_martin": arquivo.get("LOSS", "tipo_martin").lower(),
         "max_gale": int(arquivo.get("LOSS", "max_gale")),
-        "percent_martin": float(arquivo.get("LOSS", "percent_martin").replace(",", ".")),
+        "percent_martin": float(arquivo.get(
+            "LOSS", "percent_martin").replace(",", ".")),
         "arquivo": arquivo.get("ENTRADAS", "arquivo"),
-        "valor": float(arquivo.get("ENTRADAS", "valor").replace(",", ".")),
+        "valor": float(
+            arquivo.get("ENTRADAS", "valor").replace(",", ".")),
         "tipo_par": arquivo.get("ENTRADAS", "tipo_par").lower(),
         "tempo": int(arquivo.get("ENTRADAS", "tempo")),
         "minimo": int(arquivo.get("ENTRADAS", "profit_minimo")),
-        "correcao": int(arquivo.get("AJUSTES", "correcao_entrada")),
-        "delay": float(arquivo.get("AJUSTES", "delay")),
-        "otc": arquivo.get("ENTRADAS", "otc").capitalize() == "True",
-        "tendencia": arquivo.get("ENTRADAS", "tendencia").capitalize() == "True"
+        "correcao": int(
+            arquivo.get("AJUSTES", "correcao_entrada")),
+        "delay": arquivo.get("AJUSTES", "delay").replace(",", "."),
+        "otc": arquivo.get(
+            "ENTRADAS", "otc").capitalize() == "True",
+        "tendencia": arquivo.get(
+            "TENDENCIA", "tendencia").capitalize() == "True",
+        "tipo_tendencia": arquivo.get(
+            "TENDENCIA", "tipo_tendencia"),
+        "periodo_tendencia": int(arquivo.get(
+            "TENDENCIA", "periodo_tendencia")),
+        "desvio_tendencia": float(arquivo.get(
+            "TENDENCIA", "desvio_tendencia").replace(",", "."))
     }
 
-    config["tipo_gale"] = config["tipo_gale"] if not numerico(config['tipo_gale'].replace(",", ".")) else float(config['tipo_gale'].replace(",", "."))
+    # Caso colocar um float pra multiplicar
+    config["tipo_martin"] = config["tipo_martin"] if not numerico(
+        config['tipo_martin'].replace(",", ".")
+    ) else float(config['tipo_martin'].replace(",", "."))
+
+    # No caso queira pegar o resultado no histórico
+    config['delay'] = float(config['delay']
+        ) if numerico(config['delay']) else False
 
     return config
 
@@ -183,7 +205,10 @@ def recebe_comandos(comandos):
             config.update(MongoDB.get_avancadas())
             
             # Define o arquivo de entradas a partir do gale máximo
-            entradas = MongoDB.get_entradas(int(config['max_gale']))
+            if config['tipo_lista'] == "casa":
+                entradas = MongoDB.get_entradas(int(config['max_gale']))
+            else:
+                entradas = config['lista']
             Operacao(config, entradas, 0, comandos[3])
         else:
             print('''

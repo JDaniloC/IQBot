@@ -117,7 +117,7 @@ class Mongo:
             self.Entrada1.delete_many({"ordem": 'call'})
             self.Entrada1.delete_many({"ordem": 'put'})
             self.Entrada1.insert_many(entradas)
-        else:
+        elif modo == 2:
             self.Entrada2.delete_many({"ordem": 'call'})
             self.Entrada2.delete_many({"ordem": 'put'})
             self.Entrada2.insert_many(entradas)
@@ -126,10 +126,12 @@ class Mongo:
         if opcao == "clear":
             self.Users_collection.delete_many({})
         elif opcao == "off":
-            self.Users_collection.update_many({}, {'$set': {'operando': False}})
+            self.Users_collection.update_many(
+                {}, {'$set': {'operando': False}})
         elif opcao == "time":
             data = time.time() + 2592000
-            self.Users_collection.update_many({}, {'$set': {'timestamp': data}})
+            self.Users_collection.update_many(
+                {}, {'$set': {'timestamp': data}})
 
 client =  MongoClient(autenticacao)
 IQ_DataBase = client.iqbot 
