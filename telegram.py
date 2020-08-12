@@ -667,10 +667,9 @@ class Assistente(amanobot.helper.ChatHandler):
         elif msg['text'] == "Parar bot":
             self.parar_bot = True
             self.sender.sendMessage("Tem certeza?",
-                reply_markup = ReplyKeyboardMarkup(
-                    keyboard = [
-                    KeyboardButton( text = "Sim" ),
-                    KeyboardButton( text = "Não" )]))
+                reply_markup = ReplyKeyboardMarkup(keyboard = [
+                    [KeyboardButton( text = "Sim" ),
+                    KeyboardButton( text = "Não" )]]))
         else:
             return self.mapear(mapeamento_avancado, msg['text'])
         return True
@@ -850,8 +849,11 @@ class Assistente(amanobot.helper.ChatHandler):
             pass # [3] Entradas
         elif self.habilitar_entradas(msg):
             pass # [2] Entradas
-        elif self.parar_bot and msg['text'] == "Sim":
-            self.desligar_bot()
+        elif self.parar_bot:
+            if msg['text'] == "Sim":
+                self.desligar_bot()
+            else:
+                self.parar_bot = False
         
     def on__idle(self, event):
         '''
