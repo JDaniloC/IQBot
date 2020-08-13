@@ -25,7 +25,7 @@ class Mongo:
             return False
         return True
 
-    def aprovar(self, email):
+    def aprovar(self, email, plano):
         '''
         Tira o e-mail de em aprovação e coloca no rol de usuários
         '''
@@ -34,15 +34,20 @@ class Mongo:
             user = users_schema.user
             user['email'] = email
             user['timestamp'] = time.time() + 2592000
+            user['plano'] = plano
             user["_id"] = time.time()
             self.Users_collection.insert_one(user)
 
-    def renovar_licenca(self, email):
+    def renovar_licenca(self, email, plano):
         '''
         Aumenta a licença de determinado e-mail
         '''
         data = time.time() + 2592000
-        self.Users_collection.find_one_and_update({'email':email}, {'$set': {'timestamp': data}})
+        self.Users_collection.find_one_and_update(
+            {'email':email}, {'$set': {
+                'timestamp': data,
+                'plano': plano
+        }})
 
     def adiciona_adm(self, _id):
         '''

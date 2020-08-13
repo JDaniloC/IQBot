@@ -9,7 +9,7 @@ from amanobot.delegate import (
 from database import *
 from controlador import Control
 
-TOKEN = "1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao"
+TOKEN = "1359919203:AAHA3hXHOf_3vrkBo_TLypwHWqOnAl711go"
 bot_name = "robô MM_007"
 
 # Funções
@@ -86,7 +86,8 @@ class Assistente(amanobot.helper.ChatHandler):
             "licenca": False, # Renovar licença
             "aprovar": False, # Aprovar usuário
             "remover": False, # Tirar um usuário cadastrado
-            "apagar": False   # Tirar um usuário em cadastro
+            "apagar": False,  # Tirar um usuário em cadastro
+            "plano": False    # Pra escolher o plano
         }
 
         self.mapeamento = {
@@ -197,7 +198,7 @@ class Assistente(amanobot.helper.ChatHandler):
             # Caso o usuário não estiver na lista de espera ele adiciona
             MongoDB.Users_em_aprovacao.insert_one(
                 {"email":email})
-            MongoDB.aprovar(email)
+            MongoDB.aprovar(email, "premium")
             self.sender.sendMessage("Usuário aprovado.")
             # self.sender.sendMessage(f"Seu e-mail foi colocado para analise. Espere a confirmação do administrador e mande seu e-mail novamente para logar.")
             self.close()
@@ -579,6 +580,11 @@ class Assistente(amanobot.helper.ChatHandler):
                         keyboard = [
                         [KeyboardButton( text = "Sim" ),
                         KeyboardButton( text = "Não" )]])
+                elif (self.informacoes['plano'] == "comum" and 
+                      value[0] == "tipo_lista"):
+                    print(self.informacoes['plano'])
+                    self.sender.sendMessage("Você não tem acesso a lista da casa, peça um upgrade na sua conta.")
+                    return False
                 elif value[2] == tuple:
                     opcoes = {
                         "tipo_conta": ["treino", "real"],
@@ -606,9 +612,6 @@ class Assistente(amanobot.helper.ChatHandler):
                         keyboard = [
                             [KeyboardButton( text = x )
                             for x in opcoes[value[0]]]])
-                elif value[0] == "tipo_lista" and self.informacoes['plano'] == "comum":
-                    self.sender.sendMessage("Você não tem acesso a lista da casa, peça um upgrade na sua conta.")
-                    return False
                 else:
                     mensagem = "Digite a nova informação: "
                     teclado = ReplyKeyboardRemove()
@@ -656,12 +659,14 @@ class Assistente(amanobot.helper.ChatHandler):
                     reply_markup = ReplyKeyboardMarkup(keyboard = lista_usuarios))
                 if msg['text'] == "Aprovar usuários":
                     self.alteracoes_avancadas['aprovar'] = True
+                    self.alteracoes_avancadas['plano'] = True
                 elif msg['text'] == "Tirar de cadastro":
                     self.alteracoes_avancadas['apagar'] = True
                 elif msg['text'] == "Remover usuários":
                     self.alteracoes_avancadas['remover'] = True
                 else:
                     self.alteracoes_avancadas['licenca'] = True
+                    self.alteracoes_avancadas['plano'] = True
             else:
                 self.sender.sendMessage("Nenhum usuário no banco")
         elif msg['text'] == "Parar bot":
@@ -699,13 +704,22 @@ class Assistente(amanobot.helper.ChatHandler):
             self.sender.sendMessage("Adminstrador adicionado.")
             self.alteracoes_avancadas["adm"] = False
             return True
+        elif self.alteracoes_avancadas['plano'] == True:
+            self.sender.sendMessage("Escolha o tipo de plano",
+                reply_markup = ReplyKeyboardMarkup(keyboard = [
+                    [KeyboardButton( text = "comum" ),
+                    KeyboardButton( text = "premium" )]]))
+            self.alteracoes_avancadas['plano'] = msg
+            return False
         elif self.alteracoes_avancadas['aprovar']:
-            MongoDB.aprovar(msg)
+            MongoDB.aprovar(
+                self.alteracoes_avancadas['plano'], msg)
             self.sender.sendMessage("Usuário aprovado.")
             self.alteracoes_avancadas["aprovar"] = False
             return True
         elif self.alteracoes_avancadas['licenca']:
-            MongoDB.renovar_licenca(msg)
+            MongoDB.renovar_licenca(
+                self.alteracoes_avancadas['plano'], msg)
             self.sender.sendMessage("Licença renovada")
             self.alteracoes_avancadas["licenca"] = False
             return True

@@ -13,15 +13,15 @@ profit_minimo = 0
 
 [WIN]
 goal = 10
-soros = True
+soros = False
 percent_soros = 0
 
 [LOSS]
-stoploss = 4
+stoploss = 20
 percent_martin = 0
 max_gale = 5
 tipo_gale = martin
-tipo_martin = seguro
+tipo_martin = agressivo
 
 [AJUSTES]
 correcao_entrada = 2

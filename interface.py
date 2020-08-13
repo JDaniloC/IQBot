@@ -148,10 +148,10 @@ class Config(Frame):
         self.alternativos = {
             "Tipo de conta":["Treino", "Real"], 
             "Tipo de paridade":["Binaria", "Digital", "Auto"], 
-            "Gerenciamento": ["martin", "soros"],
+            "Gerenciamento": ["Martin", "Soros", "Nenhum"],
             "Tipo de martingale":["Seguro", "Simples", "Leve", "Agressivo", "Porcento"],
             "Tempo":["1", "5", "15"],
-            "Tipo de tendência":["bollinger", "velas"]
+            "Tipo de tendência":["Bollinger", "Velas"]
         }
         for key in self.alternativos.keys():
             ttk.Label(self.lado_esquerdo, text = key
@@ -323,13 +323,10 @@ class Config(Frame):
             dic['tipo_martin'].replace(",", ".")
             ) else float(dic['tipo_martin'].replace(",", "."))
         dic["valor"] = float(dic["valor"].replace(",", "."))
-        dic["tipo_par"] = dic["tipo_par"].lower()
         dic["tempo"] = int(dic["tempo"])
-        # dic["max_gale"] = int(dic["max_gale"])
-        # dic["minimo"] = int(dic["minimo"])
-        # dic["correcao"] = int(dic["correcao"])
-        # dic["periodo_tendencia"] = int(dic["periodo_tendencia"])
-        # dic["desvio_tendencia"] = float(dic["desvio_tendencia"])
+        dic["tipo_par"] = dic["tipo_par"].lower()
+        dic["tipo_gale"] = dic["tipo_gale"].lower()
+        dic["tipo_tendencia"] = dic["tipo_tendencia"].lower()
         return dic
 
     def numerico(self, x):

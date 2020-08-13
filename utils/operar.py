@@ -171,9 +171,10 @@ class Operacao(IQ_API):
             
             perda = 0
             num_gales = 0
-            while (self.config['goal'] > self.ganho_total):
+            while (self.config['goal'] > self.ganho_total and
+                self.config['tipo_gale'] in ["martin", "soros"]):
                 with self.cadeado:
-                    if lucro < 0: # Sorosgale tem win
+                    if resultado == 'loose': # Sorosgale tem win
                         self.ganho_total -= round(abs(lucro), 2)
                         self.perda_total -= round(abs(lucro), 2)
                     self.mostrar_mensagem(
@@ -187,7 +188,7 @@ class Operacao(IQ_API):
                     self.mostrar_mensagem(f"BATEU NO STOPLOSS: R$ {round(self.perda_total, 2)}!")
                     sys.exit(0)
 
-                if lucro < 0:
+                if resultado == 'loose':
                     perda += abs(lucro)
                 else:
                     perda -= lucro
@@ -200,11 +201,12 @@ class Operacao(IQ_API):
                     valor = self.martingale(self.config['tipo_martin'], 
                         payout, perda, valor, lucro)
                 else:
-                    # Sorosgale
-                    if lucro < 0:
+                    print(f"\n [SOROSGALE] na operação {par}|{ordem} {valor} -> ", end = "")
+                    if resultado == 'loose':
                         valor = perda / 2
                     else:
                         valor += lucro
+                    print(valor)
                 valor = 1 if valor < 1 else valor # Caso der doji ou divisão < 2
 
                 resultado, lucro = self.ordem(
@@ -212,12 +214,14 @@ class Operacao(IQ_API):
                     self.cadeado, self.config['delay'])
                 
                 num_gales += 1
+                print(num_gales, self.max_gale, self.config['tipo_gale'])
                 if self.config['tipo_gale'] == "martin" and (
-                    self.max_gale > num_gales or lucro >= 0):
+                    self.max_gale <= num_gales or resultado != 'loose'):
+                    print(f"Fim do martingale {self.config['tipo_gale'] == 'martin'} {self.max_gale <= num_gales} {resultado != 'loose'}")
                     break
                 elif self.config['tipo_gale'] != "martin" and (
-                    resultado == "win" and (perda - lucro) <= 0):
-                        break
+                    resultado == "win" and (perda - -abs(lucro)) <= 0):
+                    break
 
         if resultado not in ["error", "equal"]:
             with self.cadeado:
