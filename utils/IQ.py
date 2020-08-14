@@ -114,33 +114,8 @@ Todas as carteiras:\n"""
         if valor == None:
             return False
         return valor['binary'] * 100 if valor.get("binary") else valor["turbo"] * 100
-    
-    def abertas(self):
-        '''
-        Exibe todas as paridades abertas
-        Devolve um dicionário onde a chave é a paridade
-        E o valor é a rentabilidade
-        return:
-            dict: tuple
-        '''
-        print(f"\n ⚙️ Checando as paridades abertas ⚙️\n")
-        paridades = self.API.get_all_open_time()
-        abertas = {}
 
-        payouts = self.API.get_all_profit()
-        for par in paridades["turbo"]:
-            if paridades['turbo'][par]["open"]: 
-                abertas[str(par)] = payouts[par]['turbo'] * 100
-                
-                print(f"[TURBO] {par} - {int(payouts[par]['turbo'] * 100) if type(payouts[par]['turbo']) != dict else '00'}%")
-        for par in paridades["digital"]:
-            if paridades['digital'][par]["open"]: 
-                abertas[str(par)] = self.payout_digital(par)
-                print(f"[DIGITAL] {par} {self.payout_digital(par)}%")
-
-        return abertas
-
-    def aberta_profit(self, timeframe, paridades):
+    def abertas(self, timeframe, paridades):
         '''
         Verifica se a paridade está aberta e devolve o profit
         de forma que seja otimizado, devolvendo ambos os tipos

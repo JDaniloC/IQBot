@@ -61,6 +61,7 @@ class Operacao(IQ_API):
         self.comandos = comandos
         self.ganho_total = 0
         self.perda_total = 0
+        self.perda_atual = 0 # Para sorosgale
         self.verboso = verboso
 
         if self.maximo < 3:
@@ -85,9 +86,9 @@ class Operacao(IQ_API):
                 else:
                     self.tipo = "digital" if config['tipo_par'] == 'digital' else "binary"
 
-                if config['soros']:
-                    self.valor_inicial = config['valor']
-                    self.soros_atual = 0
+                # Para soros
+                self.valor_inicial = config['valor']
+                self.soros_atual = 0
 
                 self.valor = config['valor']
                 self.tempo = config['tempo']
@@ -126,16 +127,34 @@ class Operacao(IQ_API):
                 print("Tentando se reconectar ao telegram...")
                 try:
                     import amanobot
-                    self.telegram = amanobot.Bot("1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao")
+                    self.telegram = amanobot.Bot(
+                        "1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao")
                     self.telegram.sendMessage(self.verboso, mensagem)
                 except Exception as e:
                     print(type(e), e)
+
 
     def operar(self, valor, par, ordem, payout, tipo):
         '''
         Faz a operação e a depender da configuração faz:
         Martingale/Sorosgale e calcula o ganhoTotal/perdaTotal
         '''
+        def mostra_resultado():
+            perto_win = round(
+                self.ganho_total/self.config['goal'] * 100, 2)
+            perto_loss = round(
+                -self.perda_total/self.config['stoploss'] * 100, 2)
+            self.mostrar_mensagem(
+f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
+
+        def desconta_perda(resultado, lucro):
+            with self.cadeado:
+                if resultado == "win":
+                    self.ganho_total += round(lucro, 2)
+                else:
+                    self.ganho_total -= round(abs(lucro), 2)
+                    self.perda_total -= round(abs(lucro), 2)
+
         resultado = None
         for i in range(2):
             try:
@@ -150,90 +169,80 @@ class Operacao(IQ_API):
             raise ConnectionAbortedError(
                 "Não estou conseguindo fazer as operações, reinicie o bot.")
         
-        if resultado == "win" and self.config['soros']:
+        if resultado == "win" and (self.config['soros'] or self.perda_atual > 0):
             if self.soros_atual < self.max_gale:
                 with self.cadeado:
-                    novo = (valor + lucro if self.config["percent_soros"] == 0 
-                        else valor + valor * self.config["percent_soros"] / 100)
-                    print(f"\n [SOROS] : {round(valor, 2)} -> {round(novo, 2)}")
-                    self.valor = novo
-                    self.soros_atual += 1
+                    # Caso estiver em sorosgale
+                    verificador = True
+                    if self.perda_atual > 0:
+                        self.perda_atual -= lucro
+                        if self.perda_atual < 0: 
+                            # Caso terminou o sorosgale
+                            verificador = False
+                            self.perda_atual = 0
+
+                    if verificador:
+                        novo = (valor + lucro if self.config["percent_soros"] == 0 
+                            else valor + valor * self.config["percent_soros"] / 100)
+                        print(f"\n [SOROS] : {round(valor, 2)} -> {round(novo, 2)}")
+                        self.valor = novo
+                        self.soros_atual += 1
             else:
                 self.soros_atual = 0
                 print(f" [SOROS] Preservando capital: R$ {valor} -> R$ {self.valor_inicial}")
                 self.valor = self.valor_inicial
         
         if resultado == "loose":
-            if self.config['soros']:
+            if self.config['soros'] and self.soros_atual > 0:
                 self.soros_atual = 0
                 print(f" [SOROS] Preservando capital: R$ {valor} -> R$ {self.valor_inicial}")
                 self.valor = self.valor_inicial
             
-            perda = 0
-            num_gales = 0
-            while (self.config['goal'] > self.ganho_total and
-                self.config['tipo_gale'] in ["martin", "soros"]):
-                with self.cadeado:
-                    if resultado == 'loose': # Sorosgale tem win
-                        self.ganho_total -= round(abs(lucro), 2)
-                        self.perda_total -= round(abs(lucro), 2)
-                    self.mostrar_mensagem(
-                    f"\n | {round(self.ganho_total/self.config['goal'] * 100, 2)}% perto do objetivo |\
-    {round(-self.perda_total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
+            if self.config['tipo_gale'] == "martin":
+                perda = 0
+                num_gales = 0
+                while (self.config['goal'] > self.ganho_total and (
+                    self.max_gale > num_gales and resultado == 'loose')):
+                    print("Dentro do martingale")
+                    desconta_perda(resultado, lucro)
+                    mostra_resultado()
         
-                # self.esperar_anteriores(threading.currentThread().name)
-                # threading.currentThread().setName(str(time.time()))
+                    # self.esperar_anteriores(threading.currentThread().name)
+                    # threading.currentThread().setName(str(time.time()))
 
-                if self.perda_total <= -(self.config['stoploss']):
-                    self.mostrar_mensagem(f"BATEU NO STOPLOSS: R$ {round(self.perda_total, 2)}!")
-                    sys.exit(0)
+                    if self.perda_total <= -(self.config['stoploss']):
+                        self.mostrar_mensagem(
+                            f"BATEU NO STOPLOSS: R$ {round(self.perda_total, 2)}!")
+                        sys.exit(0)
 
-                if resultado == 'loose':
                     perda += abs(lucro)
-                else:
-                    perda -= lucro
 
-                if self.config['tipo_gale'] == "martin":
                     print(f"\n [MARTINGALE] do tipo {self.config['tipo_martin']} na operação {par}|{ordem}")
                         
                     lucro = (self.valor * payout if self.config["tipo_martin"] != "porcento" 
                             else self.config["percent_martin"] / 100)
                     valor = self.martingale(self.config['tipo_martin'], 
                         payout, perda, valor, lucro)
-                else:
-                    print(f"\n [SOROSGALE] na operação {par}|{ordem} {valor} -> ", end = "")
-                    if resultado == 'loose':
-                        valor = perda / 2
-                    else:
-                        valor += lucro
-                    print(valor)
-                valor = 1 if valor < 1 else valor # Caso der doji ou divisão < 2
+                    
+                    valor = 1 if valor < 1 else valor # Caso der doji
 
-                resultado, lucro = self.ordem(
-                    par, ordem, self.tempo, valor, tipo, 
-                    self.cadeado, self.config['delay'])
+                    resultado, lucro = self.ordem(
+                        par, ordem, self.tempo, valor, tipo, 
+                        self.cadeado, self.config['delay'])
                 
-                num_gales += 1
-                print(num_gales, self.max_gale, self.config['tipo_gale'])
-                if self.config['tipo_gale'] == "martin" and (
-                    self.max_gale <= num_gales or resultado != 'loose'):
-                    print(f"Fim do martingale {self.config['tipo_gale'] == 'martin'} {self.max_gale <= num_gales} {resultado != 'loose'}")
-                    break
-                elif self.config['tipo_gale'] != "martin" and (
-                    resultado == "win" and (perda - -abs(lucro)) <= 0):
-                    break
+                    num_gales += 1
+                    
+            elif self.config['tipo_gale'] == 'soros':
+                print(f"\n [SOROSGALE] na operação {par}|{ordem} {valor} -> ", end = "")
+                self.perda_atual += abs(valor)
+                self.soros_atual = 0
+                self.valor = self.perda_atual / 2
+                self.valor = 1 if self.valor < 1 else self.valor
+                print(self.valor)
 
         if resultado not in ["error", "equal"]:
-            with self.cadeado:
-                if resultado == "win":
-                    self.ganho_total += round(lucro, 2)
-                else:
-                    self.ganho_total -= round(abs(lucro), 2)
-                    self.perda_total -= round(abs(lucro), 2)
-                
-            self.mostrar_mensagem(
-                f"\n | {round(self.ganho_total/self.config['goal'] * 100, 2)}% perto do objetivo |\
- {round(-self.perda_total/self.config['stoploss'] * 100, 2)}% perto do stoploss |\n")
+            desconta_perda(resultado, lucro)                
+            mostra_resultado()
 
         elif resultado == "error":
             print(f"\nErro na operação às {str(datetime.utcnow())[:-7]}")
@@ -254,7 +263,7 @@ class Operacao(IQ_API):
                 paridade = par['par']
                 paridade = paridade + "-OTC" if self.config['otc'] else paridade
                 paridades.append(paridade)
-            payouts = self.aberta_profit(self.tempo, paridades)
+            payouts = self.abertas(self.tempo, paridades)
 
             def atualizar_profits(comando):
                 '''
@@ -265,9 +274,10 @@ class Operacao(IQ_API):
                     paridade = par['par']
                     paridade = paridade + "-OTC" if self.config['otc'] else paridade
                     paridades.append(paridade)
-                novo = self.aberta_profit(self.tempo, paridades)
+                novo = self.abertas(self.tempo, paridades)
                 if novo == None:
-                    raise ConnectionAbortedError("Não estou conseguindo pegar as paridades. Reinicie o bot")
+                    raise ConnectionAbortedError(
+                "Não estou conseguindo pegar as paridades. Reinicie o bot")
                 payouts.update(novo)
 
         self.mostrar_mensagem("Conectado com sucesso.")
@@ -276,7 +286,9 @@ class Operacao(IQ_API):
             data = comando["data"]
             horas, minutos = comando["hora"]
             segundos = 0
-            if self.esperarAte(horas, minutos, segundos, data, self.config['correcao'] + 1, True):
+            if self.esperarAte(
+                horas, minutos, segundos, data, 
+                self.config['correcao'] + 1, True):
 
                 par = comando['par']
                 par += "-OTC" if self.config["otc"] else ""
@@ -297,7 +309,7 @@ class Operacao(IQ_API):
                         tipo = "digital"
                         payout = payouts["digital"][par][1]
                     else:
-                        print(f"\n [...] A paridade {par} está fechada no timeframe M{self.tempo} [...]\n")
+                        print(f"\n [...] {par} está fechada no timeframe M{self.tempo} [...]\n")
                         continue
                 else:
                     payout = self.payout_binaria(par) / 100 if self.tipo == "binary" else self.payout_digital(par) / 100
@@ -305,15 +317,15 @@ class Operacao(IQ_API):
 
                 if self.config['tendencia'] and not self.calcular_tendencia(
                     self.config['tipo_tendencia'], par, ordem, self.tempo, 
-                    self.config['periodo_tendencia'], self.config['desvio_tendecia']
-                ):
+                    self.config['periodo_tendencia'], self.config['desvio_tendecia']):
                     self.mostrar_mensagem(f"[ ❗️] {par}|{ordem} às {horas}:{minutos} entrou contra a tendência. [ ❗️]")
                     continue
                 
                 # self.esperar_anteriores()
 
                 with self.cadeado:
-                    if -self.config['stoploss'] >= self.perda_total or self.ganho_total >= self.config['goal']:
+                    if (-self.config['stoploss'] >= self.perda_total or 
+                        self.ganho_total >= self.config['goal']):
                         self.mostrar_mensagem(f'''{"- " * 20}
     Stopwin: {self.config['goal']}
     Total ganho: {round(self.ganho_total, 2)}
@@ -342,7 +354,8 @@ class Operacao(IQ_API):
         for thread in self.espera:
             thread.join()
 
-        self.mostrar_mensagem(f"\nFim da operação resultado final: R$ {round(self.ganho_total, 2)}\n")
+        self.mostrar_mensagem(
+            f"\nFim da operação resultado final: R$ {round(self.ganho_total, 2)}\n")
         
         try:
             if self.tipo == "auto":

@@ -33,7 +33,8 @@ def pegar_comando(texto):
             data = [hoje.day, hoje.month, hoje.year]
         hora = re.search(r'\d{2}:\d{2}', texto)[0]
         hora = [int(x) for x in re.split(r'\W', hora)]
-        par = re.search(r'[A-Za-z]{6}', texto.replace("/", ""))[0]
+        par = re.search(
+            r'[A-Za-z]{6}(-OTC)?', texto.replace("/", ""))[0]
         ordem = re.search(r'CALL|PUT|call|put', texto)[0].lower()
     except:
         print(f"Ocorreu um erro no arquivo de entradas, revise o comando {texto}")

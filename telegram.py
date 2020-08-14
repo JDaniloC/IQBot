@@ -9,7 +9,7 @@ from amanobot.delegate import (
 from database import *
 from controlador import Control
 
-TOKEN = "1359919203:AAHA3hXHOf_3vrkBo_TLypwHWqOnAl711go"
+TOKEN = "1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao"
 bot_name = "robô MM_007"
 
 # Funções
@@ -492,7 +492,6 @@ class Assistente(amanobot.helper.ChatHandler):
                 if value[0] not in ["lista", "tipo_lista", "plano"]:
                     mensagem += key + ": " + str(self.informacoes[value[0]]).replace("True", "Sim").replace("False", "Não") + "\n"
             self.sender.sendMessage(mensagem)
-            self.comandos()
             return True
         else:
             self.sender.sendMessage("Usuário não autenticado")
@@ -582,7 +581,6 @@ class Assistente(amanobot.helper.ChatHandler):
                         KeyboardButton( text = "Não" )]])
                 elif (self.informacoes['plano'] == "comum" and 
                       value[0] == "tipo_lista"):
-                    print(self.informacoes['plano'])
                     self.sender.sendMessage("Você não tem acesso a lista da casa, peça um upgrade na sua conta.")
                     return False
                 elif value[2] == tuple:
@@ -810,6 +808,7 @@ class Assistente(amanobot.helper.ChatHandler):
         return False
 
     def desligar_bot(self):
+        global rodando
         if os.name != "nt":
             self.sender.sendMessage("Deletando todas as instâncias...")
             usuarios = controlador.deletar_instancias()
