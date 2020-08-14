@@ -34,7 +34,7 @@ def carregar_entradas(opcao):
         lista de strings dessas entradas
     '''
     lista_entradas = []
-    if type(opcao) != []:
+    if type(opcao) != list:
         lista = MongoDB.get_entradas(opcao)
     else:
         lista = opcao
@@ -181,6 +181,7 @@ class Assistente(amanobot.helper.ChatHandler):
             # Verifica se está no banco de dados e entra na conta
             self.email = msg["text"].lower()
             self.informacoes.update(MongoDB.get_user(self.email))
+            pprint.pprint(self.informacoes)
             restante = self.informacoes['timestamp'] - time.time()
             if restante > 0:
                 self.entrada = False
@@ -591,7 +592,7 @@ class Assistente(amanobot.helper.ChatHandler):
                         "tipo_par": ["binary", "digital", "auto"],
                         "tipo_lista": ["casa", "propria"],
                         "tipo_gale": [
-                            "martin", "soros"],
+                            "martin", "soros", "nenhum"],
                         "tipo_tendencia": [
                             "bollinger", "velas"],
                         "tipo_martin": [
