@@ -62,7 +62,6 @@ rodando = True
 
 mapeamento_avancado = {
     "Tipo de paridade": ["tipo_par", False, tuple],
-    "Ativar OTC": ["otc", False, bool],
     "Mudar timeframe": ["tempo", False, tuple],
     "Mudar a correção": ["correcao", False, int],
     "Mudar o delay": ["delay", False, float]
@@ -233,12 +232,10 @@ class Assistente(amanobot.helper.ChatHandler):
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Adicionar entradas" ),
                 KeyboardButton( text = "Tipo de paridade" )],
-                [KeyboardButton( text = "Ativar OTC" ),
-                KeyboardButton( text = "Mudar timeframe" )],
                 [KeyboardButton( text = "Mudar a correção" ),
                 KeyboardButton( text = "Mudar o delay" )],
-                [KeyboardButton( text = "Atualizar informações" )],
-                [KeyboardButton( text = "Gerenciar" )]
+                [KeyboardButton( text = "Mudar timeframe" ),
+                KeyboardButton( text = "Gerenciar" )]
             ])
             verificador = True
         elif msg['text'] == "Administração":

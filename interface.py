@@ -39,7 +39,6 @@ class Config(Frame):
                     "StopLoss": "stoploss"
                 },
                 "booleans": {
-                    "OTC": "otc",
                     "Soros": "soros",
                     "Tendencia": "tendencia"
                 },
@@ -113,7 +112,6 @@ class Config(Frame):
             ).grid(row = 2, column = 2, columnspan = 6, sticky = "e")
 
         self.condicionais = {
-            "OTC": BooleanVar(value = False), 
             "Soros": BooleanVar(value = False),
             "Tendencia": BooleanVar(value = False),
             "Ativar delay": BooleanVar(value = False)
@@ -253,7 +251,6 @@ class Config(Frame):
         editor["ENTRADAS"] = {
             "arquivo": tudo["Arquivo de entradas"].get(),
             "tipo_par": tudo["Tipo de paridade"].get(),
-            "otc": tudo["OTC"].get(),
             "valor": tudo["Valor da entrada"].get(),
             "tempo": tudo["Tempo"].get(),
             "profit_minimo": tudo["Profit mínimo"].get()

@@ -115,7 +115,7 @@ Todas as carteiras:\n"""
             return False
         return valor['binary'] * 100 if valor.get("binary") else valor["turbo"] * 100
 
-    def abertas(self, timeframe, paridades):
+    def abertas(self, paridades):
         '''
         Verifica se a paridade está aberta e devolve o profit
         de forma que seja otimizado, devolvendo ambos os tipos
@@ -124,11 +124,13 @@ Todas as carteiras:\n"""
         Lembrando que ele considera que você já se inscreveu na digital
         Params:
             - par: paridade
-            - timeframe: 1|5|15...
         return:
             {
             "binary": {
-                "EURUSD": [True, 0.76]
+                "turbo": {
+                    "EURUSD": [True, 0.76]},
+                "binary": {
+                    "EURUSD": [False]}
             },
             "digital": {
                 "EURUSD": [False, 0.95]
@@ -136,7 +138,10 @@ Todas as carteiras:\n"""
         }
         '''
         print(" ⚙️  Buscando paridades abertas ⚙️")
-        payouts = {"binary":{}, "digital":{}}
+        payouts = {"binary":{
+            "turbo": {},
+            "binary": {}
+        }, "digital":{}}
         abertas, todos_binary = None, None
         for i in range(2):
             abertas = self.API.get_all_open_time()
@@ -151,22 +156,24 @@ Todas as carteiras:\n"""
             return None
 
         print(" ⚙️  Buscando payouts ⚙️")
-        tipo_binaria = "turbo" if timeframe == 1 else "binary"
-        for par in abertas[tipo_binaria]:
-            if abertas[tipo_binaria][par]["open"]:
-                payouts["binary"][par] = [
-                    True, todos_binary[par][tipo_binaria]]
-            else:
-                payouts["binary"][par] = [False]
+        for tipo_binaria in ['turbo', 'binary']:
+            for par in abertas[tipo_binaria]:
+                if abertas[tipo_binaria][par]["open"]:
+                    payouts["binary"][tipo_binaria][par] = [
+                        True, todos_binary[par][tipo_binaria]]
+                else:
+                    payouts["binary"][tipo_binaria][par] = [False]
         
         for par in abertas['digital']:
-            if abertas['digital'][par]["open"] and (par in paridades or paridades == []):
-                self.API.subscribe_strike_list(par, timeframe)
+            if abertas['digital'][par]["open"] and (
+                par in paridades or paridades == []):
+                self.API.subscribe_strike_list(par, 1)
                 payout_digital = False
                 contador_limite = 0
                 while not payout_digital:
                     time.sleep(0.8)
-                    payout_digital = self.API.get_digital_current_profit(par, timeframe)
+                    payout_digital = self.API.get_digital_current_profit(
+                        par, 1)
                     contador_limite += 1
                     if contador_limite == 5:
                         break
@@ -221,6 +228,8 @@ Todas as carteiras:\n"""
         return:
             (resultado, lucro)
         '''
+        hora_atual = datetime.fromtimestamp(
+            datetime.utcnow().timestamp() - 10800)
         if bloqueador != None:
             with bloqueador:
                 if tipo == "binary":
@@ -234,11 +243,10 @@ Todas as carteiras:\n"""
                 status, identificador = self.API.buy_digital_spot(par, valor, direcao, tempo)
             
         if not status:
-            print(f"  ❌ Um erro aconteceu: {par}-{tipo} {direcao} {valor} ❌")
+            print(f"  ❌ {par}-{tipo} {direcao} fechada ou máximo de operações ❌")
             return "error", 0
 
         print(f'''
-               |operação realizada|
             {par}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}
         ''')
 
@@ -248,8 +256,11 @@ Todas as carteiras:\n"""
                 resultado, lucro = self.API.check_win_v4(identificador) # binary
             else:
                 status = False
-                time.sleep(tempo * 60 - 10)
+                print(f"Esperando: {tempo * 60 - 10}")
+                time.sleep((tempo * 60) - 10)
+                print("Terminou de esperar")
                 while not status:
+                    print("Tentando pegar")
                     status, lucro = self.API.check_win_digital_v2(identificador)
                     time.sleep(0.5)
                 if lucro > 0:
@@ -269,7 +280,7 @@ Todas as carteiras:\n"""
         Direção: {direcao.upper()}
         tempo: M{tempo}
         
-        Hora: {datetime.now().strftime("%H:%M")}
+        Hora: {hora_atual.strftime("%H:%M")}
         Valor: R${round(valor, 2)}
         {resultado.capitalize()}: R${round(lucro, 2)} 
         {"- " * 18}

@@ -20,7 +20,8 @@ def pegar_comando(texto):
         "data": [dia, mes, ano],
         "hora": [hora, minuto]
         "par": par,
-        "ordem": ordem
+        "ordem": ordem,
+        "timeframe": int
     }
     No qual o conteúdo das listas são inteiros
     '''
@@ -34,20 +35,25 @@ def pegar_comando(texto):
         hora = re.search(r'\d{2}:\d{2}', texto)[0]
         hora = [int(x) for x in re.split(r'\W', hora)]
         par = re.search(
-            r'[A-Za-z]{6}(-OTC)?', texto.replace("/", ""))[0]
+        r'[A-Za-z]{6}(-OTC)?', texto.upper().replace("/", ""))[0]
         ordem = re.search(r'CALL|PUT|call|put', texto)[0].lower()
-    except:
-        print(f"Ocorreu um erro no arquivo de entradas, revise o comando {texto}")
+        timeframe = re.search(r'M[1-6]?[0-5]', texto.upper())
+        if timeframe: timeframe = int(timeframe[0].strip("M"))
+        else: timeframe = 0
+    except Exception as e:
+        print(f"Revise o comando {texto}")
         data = [1, 1, 2000]
         hora = [00, 00]
         par = "EURUSD"
         ordem = "PUT"
+        timeframe = 0
 
     comando = {
         "data": data,
         "hora": hora,
         "par": par,
-        "ordem": ordem
+        "ordem": ordem,
+        "timeframe": timeframe
     }
 
     return comando
@@ -114,9 +120,8 @@ def configuracoes(nome = LOCALCONFIG):
         "minimo": int(arquivo.get("ENTRADAS", "profit_minimo")),
         "correcao": int(
             arquivo.get("AJUSTES", "correcao_entrada")),
-        "delay": arquivo.get("AJUSTES", "delay").replace(",", "."),
-        "otc": arquivo.get(
-            "ENTRADAS", "otc").capitalize() == "True",
+        "delay": arquivo.get(
+            "AJUSTES", "delay").replace(",", "."),
         "tendencia": arquivo.get(
             "TENDENCIA", "tendencia").capitalize() == "True",
         "tipo_tendencia": arquivo.get(

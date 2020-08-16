@@ -134,7 +134,7 @@ class Operacao(IQ_API):
                     print(type(e), e)
 
 
-    def operar(self, valor, par, ordem, payout, tipo):
+    def operar(self, valor, par, ordem, tempo, payout, tipo):
         '''
         Faz a operação e a depender da configuração faz:
         Martingale/Sorosgale e calcula o ganhoTotal/perdaTotal
@@ -159,7 +159,7 @@ f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
         for i in range(2):
             try:
                 resultado, lucro = self.ordem(
-                    par, ordem, self.tempo, valor, tipo, 
+                    par, ordem, tempo, valor, tipo, 
                     self.cadeado, self.config['delay'])
                 break
             except Exception as e:
@@ -203,7 +203,6 @@ f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
                 num_gales = 0
                 while (self.config['goal'] > self.ganho_total and (
                     self.max_gale > num_gales and resultado == 'loose')):
-                    print("Dentro do martingale")
                     desconta_perda(resultado, lucro)
                     mostra_resultado()
         
@@ -219,7 +218,7 @@ f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
 
                     print(f"\n [MARTINGALE] do tipo {self.config['tipo_martin']} na operação {par}|{ordem}")
                         
-                    lucro = (self.valor * payout if self.config["tipo_martin"] != "porcento" 
+                    lucro = (valor * payout if self.config["tipo_martin"] != "porcento" 
                             else self.config["percent_martin"] / 100)
                     valor = self.martingale(self.config['tipo_martin'], 
                         payout, perda, valor, lucro)
@@ -227,7 +226,7 @@ f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
                     valor = 1 if valor < 1 else valor # Caso der doji
 
                     resultado, lucro = self.ordem(
-                        par, ordem, self.tempo, valor, tipo, 
+                        par, ordem, tempo, valor, tipo, 
                         self.cadeado, self.config['delay'])
                 
                     num_gales += 1
@@ -261,9 +260,8 @@ f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
             paridades = []
             for par in self.comandos:
                 paridade = par['par']
-                paridade = paridade + "-OTC" if self.config['otc'] else paridade
                 paridades.append(paridade)
-            payouts = self.abertas(self.tempo, paridades)
+            payouts = self.abertas(paridades)
 
             def atualizar_profits(comando):
                 '''
@@ -272,9 +270,8 @@ f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
                 paridades = []
                 for par in self.comandos[self.comandos.index(comando):]:
                     paridade = par['par']
-                    paridade = paridade + "-OTC" if self.config['otc'] else paridade
                     paridades.append(paridade)
-                novo = self.abertas(self.tempo, paridades)
+                novo = self.abertas(paridades)
                 if novo == None:
                     raise ConnectionAbortedError(
                 "Não estou conseguindo pegar as paridades. Reinicie o bot")
@@ -285,38 +282,40 @@ f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
             
             data = comando["data"]
             horas, minutos = comando["hora"]
+            tempo = comando['timeframe'] if comando['timeframe'] != 0 else self.tempo
             segundos = 0
             if self.esperarAte(
                 horas, minutos, segundos, data, 
                 self.config['correcao'] + 1, True):
 
                 par = comando['par']
-                par += "-OTC" if self.config["otc"] else ""
-
                 ordem = comando['ordem']
                 valor = self.valor
 
                 if self.tipo == "auto":
-                    if ((payouts["binary"][par][0] and payouts["digital"][par][0])
+                    tipo_binaria = "turbo" if tempo <= 5 else "binary"
+                    if ((payouts["binary"][tipo_binaria][par][0] and 
+                        payouts["digital"][par][0])
                         and 
-                        (payouts["binary"][par][1] < payouts["digital"][par][1])):
+                        (payouts["binary"][tipo_binaria][par][1] < 
+                        payouts["digital"][par][1])):
                         tipo = "digital"
                         payout = payouts["digital"][par][1]
-                    elif payouts["binary"][par][0]:
+                    elif payouts["binary"][tipo_binaria][par][0]:
                         tipo = "binary"
-                        payout = payouts["binary"][par][1]
+                        payout = payouts["binary"][tipo_binaria][par][1]
                     elif payouts["digital"][par][0]:
                         tipo = "digital"
                         payout = payouts["digital"][par][1]
                     else:
-                        print(f"\n [...] {par} está fechada no timeframe M{self.tempo} [...]\n")
+                        print(f"\n [...] {par} está fechada no timeframe M{tempo} [...]\n")
                         continue
                 else:
                     payout = self.payout_binaria(par) / 100 if self.tipo == "binary" else self.payout_digital(par) / 100
                     tipo = self.tipo
 
                 if self.config['tendencia'] and not self.calcular_tendencia(
-                    self.config['tipo_tendencia'], par, ordem, self.tempo, 
+                    self.config['tipo_tendencia'], par, ordem, tempo, 
                     self.config['periodo_tendencia'], self.config['desvio_tendecia']):
                     self.mostrar_mensagem(f"[ ❗️] {par}|{ordem} às {horas}:{minutos} entrou contra a tendência. [ ❗️]")
                     continue
@@ -337,7 +336,7 @@ f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
                     thread = threading.Thread(
                         target = self.operar, 
                         name = f"{time.time()}", 
-                        args = (valor, par, ordem, payout, tipo)
+                        args = (valor, par, ordem, tempo, payout, tipo)
                         )
                     self.espera.append(thread)
                     thread.start()
@@ -361,7 +360,6 @@ f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
             if self.tipo == "auto":
                 for comando in self.comandos:
                     par = comando["par"]
-                    par += "-OTC" if self.config["otc"] else ""
                     self.API.unsubscribe_strike_list(par, self.config["tempo"])
         except:
             pass
