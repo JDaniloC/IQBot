@@ -16,6 +16,12 @@ class Mongo:
         self.Entrada1 = entrada1
         self.Entrada2 = entrada2
 
+    def adicionar_cadastro(self, email):
+        '''
+        Adiciona o e-mail na fila de aprovação
+        '''
+        self.Users_em_aprovacao.insert_one({"email": email})
+
     def verifica_cadastro(self, email):
         '''
         Verifica se o e-mail está em aprovação

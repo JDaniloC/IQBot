@@ -91,31 +91,32 @@ class Assistente(amanobot.helper.ChatHandler):
 
         self.mapeamento = {
             "Tipo de conta": ["tipo_conta", False, tuple], 
+            "Tipo de lista": ["tipo_lista", False, tuple],
+            
             "Valor de entrada": ["valor", False, float],
+            "Gerenciamento": ["tipo_gale", False, tuple], 
             "Payout mínimo": ["minimo", False, int], 
+            
             "StopWin": ["goal", False, float],
-            "Soros": ["soros", False, bool], 
-            "Percentual da soros": [
-                "percent_soros", False, float],
             "StopLoss": ["stoploss", False, float],
-            "Gerenciamento": [
-                "tipo_gale", False, tuple], 
-            "Percentual do martin": [
-                "percent_martin", False, float],
-            "Máximo de gales": [
-                "max_gale", False, tuple],
-            "Tipo de martingale": [
-                "tipo_martin", False, tuple],
-            "Seguir tendência": [
-                "tendencia", False, bool],
-            "Tipo de tendência": [
-                "tipo_tendencia", False, tuple],
-            "Período da tendência": [
-                "periodo_tendencia", False, tuple],
-            "Desvio da tendência": [
-                "desvio_tendencia", False, float],
-            "Adicionar lista": ["lista", False, list],
-            "Tipo de lista": ["tipo_lista", False, tuple]
+            "Máximo de gales": ["max_gale", False, tuple],
+            
+            "Tipo de martingale": ["tipo_martin", False, tuple],
+            "Percentual do martin": ["percent_martin", False, float],
+            "Soros": ["soros", False, bool], 
+            "Percentual da soros": ["percent_soros", False, float],
+            
+            "Seguir tendência": ["tendencia", False, bool],
+            "Tipo de tendência": ["tipo_tendencia", False, tuple],
+            "Período da tendência": ["periodo_tendencia", False, tuple],
+            "Desvio da tendência": ["desvio_tendencia", False, float],
+            
+            "Paridade": ["tipo_par", False, tuple],
+            "Timeframe": ["tempo", False, tuple],
+            "Correção": ["correcao", False, int],
+            "Delay": ["delay", False, float],
+            
+            "Adicionar lista": ["lista", False, list]
         }
 
         self.informacoes = {
@@ -136,7 +137,11 @@ class Assistente(amanobot.helper.ChatHandler):
             "desvio_tendencia": 0.1,
             "tipo_lista": "propria",
             "lista": [],
-            "plano": "comum"
+            "plano": "comum",
+            "tipo_par": "auto",
+            "delay": False,
+            "correcao": 1,
+            "tempo": 5
         }
 
     def open(self, msg, id):
@@ -180,7 +185,6 @@ class Assistente(amanobot.helper.ChatHandler):
             # Verifica se está no banco de dados e entra na conta
             self.email = msg["text"].lower()
             self.informacoes.update(MongoDB.get_user(self.email))
-            pprint.pprint(self.informacoes)
             restante = self.informacoes['timestamp'] - time.time()
             if restante > 0:
                 self.entrada = False
@@ -196,11 +200,8 @@ class Assistente(amanobot.helper.ChatHandler):
             self.close()
         else:
             # Caso o usuário não estiver na lista de espera ele adiciona
-            MongoDB.Users_em_aprovacao.insert_one(
-                {"email":email})
-            MongoDB.aprovar(email, "premium")
-            self.sender.sendMessage("Usuário aprovado.")
-            # self.sender.sendMessage(f"Seu e-mail foi colocado para analise. Espere a confirmação do administrador e mande seu e-mail novamente para logar.")
+            MongoDB.adicionar_cadastro(email)
+            self.sender.sendMessage(f"Seu e-mail foi colocado para analise. Espere a confirmação do administrador e mande seu e-mail novamente para logar.")
             self.close()
 
     def gerenciar(self):
@@ -264,7 +265,7 @@ class Assistente(amanobot.helper.ChatHandler):
         default = MongoDB.get_avancadas()
         resultado = ""
         for key, value in default.items():
-            if key not in ["_id", "arquivo"]:
+            if key not in ["_id"]:
                 resultado += f"{key}: {value}\n"
         self.sender.sendMessage(resultado,
             reply_markup = ReplyKeyboardRemove())
@@ -485,10 +486,21 @@ class Assistente(amanobot.helper.ChatHandler):
         Devolve um boolean se está autenticado.
         '''
         if self.autenticacao:
+            
+            headers = {
+                "Tipo de conta": "Conta e listas",
+                "Valor de entrada": "Entrada",
+                "StopWin": "Limites",
+                "Tipo de martingale": "Martingale e Soros",
+                "Seguir tendência": "Tendência",
+                "Paridade": "Ajustes"
+            }
             mensagem = ""
             for key, value in self.mapeamento.items():
-                if value[0] not in ["lista", "tipo_lista", "plano"]:
-                    mensagem += key + ": " + str(self.informacoes[value[0]]).replace("True", "Sim").replace("False", "Não") + "\n"
+                if value[0] not in ["lista"]:
+                    if key in headers:
+                        mensagem += f"\n⚙️ {headers[key]} ⚙️\n"
+                    mensagem += f"{key}: {str(self.informacoes[value[0]]).replace('True', 'Sim').replace('False', 'Não')}\n"
             self.sender.sendMessage(mensagem)
             return True
         else:
@@ -504,11 +516,12 @@ class Assistente(amanobot.helper.ChatHandler):
             self.sender.sendMessage(
                 "O que você deseja alterar?", 
                 reply_markup = ReplyKeyboardMarkup( keyboard = [
-                    [KeyboardButton( text = "Conta" ),
+                    [KeyboardButton( text = "Conta e listas" ),
                     KeyboardButton( text = "Entrada" )],
                     [KeyboardButton( text = "Limites" ),
                     KeyboardButton( text = "Tendência" )],
-                    [KeyboardButton( text = "Martingale e Soros" )],
+                    [KeyboardButton( text = "Martingale e Soros" ),
+                    KeyboardButton( text = "Ajustes" )],
                     [KeyboardButton( text = "Voltar ao menu" )]
             ], resize_keyboard = True))
             return True
@@ -518,7 +531,7 @@ class Assistente(amanobot.helper.ChatHandler):
 
     def submenu_configuracoes(self, msg):
         verificador = False
-        if msg['text'] == 'Conta':
+        if msg['text'] == 'Conta e listas':
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Tipo de conta" )],
                 [KeyboardButton( text = "Tipo de lista" )],
@@ -556,6 +569,14 @@ class Assistente(amanobot.helper.ChatHandler):
                 KeyboardButton( text = "Percentual do martin" )],
                 [KeyboardButton( text = "Soros" ),
                 KeyboardButton( text = "Percentual da soros" )],
+                [KeyboardButton( text = "Editar configurações" )]])
+            verificador = True
+        elif msg['text'] == "Ajustes":
+            teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "Paridade" ),
+                KeyboardButton( text = "Timeframe" )],
+                [KeyboardButton( text = "Correção" ),
+                KeyboardButton( text = "Delay" )],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         if verificador:

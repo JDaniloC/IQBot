@@ -308,10 +308,12 @@ f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
                         tipo = "digital"
                         payout = payouts["digital"][par][1]
                     else:
-                        print(f"\n [...] {par} está fechada no timeframe M{tempo} [...]\n")
-                        continue
+                        print(f"\n [...] {par} está fechada para M{tempo} [...]\n")
+                        # continue
                 else:
-                    payout = self.payout_binaria(par) / 100 if self.tipo == "binary" else self.payout_digital(par) / 100
+                    payout = (self.payout_binaria(par) / 100 if 
+                              self.tipo == "binary" else 
+                              self.payout_digital(par) / 100)
                     tipo = self.tipo
 
                 if self.config['tendencia'] and not self.calcular_tendencia(

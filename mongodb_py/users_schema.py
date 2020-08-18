@@ -18,6 +18,10 @@ user = {
     "tipo_tendencia": "velas",
     "periodo_tendencia": 21,
     "desvio_tendencia": 0.1,
+    "tipo_par": "auto",
+    "delay": False,
+    "correcao": 1,
+    "tempo": 5,
     "tipo_lista":"propria",
     "lista": [],
     "plano": "comum"

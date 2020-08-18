@@ -91,14 +91,15 @@ Todas as carteiras:\n"""
             contador = 0
             self.API.subscribe_strike_list(par, timeframe)
             while True:
-                resultado = self.API.get_digital_current_profit(par, timeframe)
+                resultado = self.API.get_digital_current_profit(
+                    par, timeframe)
                 if resultado:
                     resultado = int(resultado)
                     break
                 time.sleep(0.5)
                 contador += 1
-                if contador == 60:
-                    return False
+                if contador == 30:
+                    return 0.5
             self.API.unsubscribe_strike_list(par, timeframe)
             return resultado
         except:
@@ -112,7 +113,7 @@ Todas as carteiras:\n"""
         payouts = self.API.get_all_profit()
         valor = payouts.get(par)
         if valor == None:
-            return False
+            return 100
         return valor['binary'] * 100 if valor.get("binary") else valor["turbo"] * 100
 
     def abertas(self, paridades):
@@ -256,11 +257,8 @@ Todas as carteiras:\n"""
                 resultado, lucro = self.API.check_win_v4(identificador) # binary
             else:
                 status = False
-                print(f"Esperando: {tempo * 60 - 10}")
                 time.sleep((tempo * 60) - 10)
-                print("Terminou de esperar")
                 while not status:
-                    print("Tentando pegar")
                     status, lucro = self.API.check_win_digital_v2(identificador)
                     time.sleep(0.5)
                 if lucro > 0:

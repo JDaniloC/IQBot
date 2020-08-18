@@ -206,12 +206,11 @@ def recebe_comandos(comandos):
             # Carrega o arquivo de configurações a partir do e-mail
             config = MongoDB.get_user(comandos[1])
             config['senha'] = comandos[2]
-
-            # Une com as informações gerais
-            config.update(MongoDB.get_avancadas())
-            
-            # Define o arquivo de entradas a partir do gale máximo
+  
+            # Define o arquivo de entradas a partir do gale máximo/própria
             if config['tipo_lista'] == "casa":
+                # Une com as informações gerais
+                config.update(MongoDB.get_avancadas())
                 entradas = MongoDB.get_entradas(int(config['max_gale']))
             else:
                 entradas = config['lista']
