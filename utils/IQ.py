@@ -275,11 +275,11 @@ Todas as carteiras:\n"""
 
         {"- " * 18}
         Paridade: {par}|{tipo}
-        Direção: {direcao.upper()}
-        tempo: M{tempo}
+        Direção:  {direcao.upper()}
+        tempo:    M{tempo}
         
-        Hora: {hora_atual.strftime("%H:%M")}
-        Valor: R${round(valor, 2)}
+        Hora:     {hora_atual.strftime("%H:%M")}
+        Valor:    R${round(valor, 2)}
         {resultado.capitalize()}: R${round(lucro, 2)} 
         {"- " * 18}
         

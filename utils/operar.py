@@ -318,7 +318,7 @@ f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
 
                 if self.config['tendencia'] and not self.calcular_tendencia(
                     self.config['tipo_tendencia'], par, ordem, tempo, 
-                    self.config['periodo_tendencia'], self.config['desvio_tendecia']):
+                    self.config['periodo_tendencia'], self.config['desvio_tendencia']):
                     self.mostrar_mensagem(f"[ ❗️] {par}|{ordem} às {horas}:{minutos} entrou contra a tendência. [ ❗️]")
                     continue
                 
