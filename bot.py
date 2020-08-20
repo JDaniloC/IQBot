@@ -42,11 +42,7 @@ def pegar_comando(texto):
         else: timeframe = 0
     except Exception as e:
         print(f"Revise o comando {texto}")
-        data = [1, 1, 2000]
-        hora = [00, 00]
-        par = "EURUSD"
-        ordem = "PUT"
-        timeframe = 0
+        return {}
 
     comando = {
         "data": data,
@@ -75,7 +71,8 @@ def abrir_arquivo(nome):
     for entrada in entradas:
         if entrada not in ['', '\n']:
             comando = pegar_comando(entrada)
-            comandos.append(comando)
+            if comando != {}:
+                comandos.append(comando)
     return comandos
 
 def numerico(x):

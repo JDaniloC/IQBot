@@ -261,7 +261,7 @@ f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
             for par in self.comandos:
                 paridade = par['par']
                 paridades.append(paridade)
-            payouts = self.abertas(paridades)
+            self.payouts = self.abertas(paridades)
 
             def atualizar_profits(comando):
                 '''
@@ -275,7 +275,7 @@ f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
                 if novo == None:
                     raise ConnectionAbortedError(
                 "Não estou conseguindo pegar as paridades. Reinicie o bot")
-                payouts.update(novo)
+                self.payouts.update(novo)
 
         self.mostrar_mensagem("Conectado com sucesso.")
         for comando in self.comandos:
@@ -293,23 +293,9 @@ f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
                 valor = self.valor
 
                 if self.tipo == "auto":
-                    tipo_binaria = "turbo" if tempo <= 5 else "binary"
-                    if ((payouts["binary"][tipo_binaria][par][0] and 
-                        payouts["digital"][par][0])
-                        and 
-                        (payouts["binary"][tipo_binaria][par][1] < 
-                        payouts["digital"][par][1])):
-                        tipo = "digital"
-                        payout = payouts["digital"][par][1]
-                    elif payouts["binary"][tipo_binaria][par][0]:
-                        tipo = "binary"
-                        payout = payouts["binary"][tipo_binaria][par][1]
-                    elif payouts["digital"][par][0]:
-                        tipo = "digital"
-                        payout = payouts["digital"][par][1]
-                    else:
-                        print(f"\n [...] {par} está fechada para M{tempo} [...]\n")
-                        # continue
+                    maior = self.maior_payout(par, tempo)
+                    if maior: tipo, payout = maior
+                    else: tipo, payout = "binary", 0.5
                 else:
                     payout = (self.payout_binaria(par) / 100 if 
                               self.tipo == "binary" else 
@@ -324,22 +310,15 @@ f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
                 
                 # self.esperar_anteriores()
 
-                with self.cadeado:
-                    if (-self.config['stoploss'] >= self.perda_total or 
-                        self.ganho_total >= self.config['goal']):
-                        self.mostrar_mensagem(f'''{"- " * 20}
-    Stopwin: {self.config['goal']}
-    Total ganho: {round(self.ganho_total, 2)}
-    Stoploss: {-self.config['stoploss']}
-    Total perdido: {round(self.perda_total, 2)}''')
-                        break
+                if self.verificar_stop():
+                    break
 
                 if self.config["minimo"] / 100 <= payout:
                     thread = threading.Thread(
                         target = self.operar, 
                         name = f"{time.time()}", 
-                        args = (valor, par, ordem, tempo, payout, tipo)
-                        )
+                        args = (
+                        valor, par, ordem, tempo, payout, tipo))
                     self.espera.append(thread)
                     thread.start()
 
@@ -366,6 +345,37 @@ f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
         except:
             pass
     
+    def maior_payout(self, par, tempo):
+        tipo_binaria = "turbo" if tempo <= 5 else "binary"
+        if ((self.payouts["binary"][tipo_binaria][par][0] and 
+            self.payouts["digital"][par][0])
+            and 
+            (self.payouts["binary"][tipo_binaria][par][1] < 
+            self.payouts["digital"][par][1])):
+            tipo = "digital"
+            payout = self.payouts["digital"][par][1]
+        elif self.payouts["binary"][tipo_binaria][par][0]:
+            tipo = "binary"
+            payout = self.payouts["binary"][tipo_binaria][par][1]
+        elif self.payouts["digital"][par][0]:
+            tipo = "digital"
+            payout = self.payouts["digital"][par][1]
+        else:
+            return False
+        return tipo, payout
+
+    def verificar_stop(self):
+        with self.cadeado:
+            if (-self.config['stoploss'] >= self.perda_total or 
+                self.ganho_total >= self.config['goal']):
+                self.mostrar_mensagem(f'''{"- " * 20}
+    Stopwin: {self.config['goal']}
+    Total ganho: {round(self.ganho_total, 2)}
+    Stoploss: {-self.config['stoploss']}
+    Total perdido: {round(self.perda_total, 2)}''')
+                return True
+        return False
+
     def esperar_anteriores(self, atual = 0):
         esperar_anteriores = True
 
