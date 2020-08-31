@@ -15,7 +15,7 @@ from matplotlib.backend_bases import key_press_handler
 
 # Tendências
 from talib import BBANDS
-import numpy
+import numpy, pandas
 
 class Tendencia(Frame):
     def __init__(self, janela, email, senha):

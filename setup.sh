@@ -20,12 +20,12 @@ pip install --upgrade pip
 pip install amanobot pymongo requests==2.10.0 websocket-client==0.56 dnspython
 
 # Instalar o ta-lib
-tar -xzf iqbot/dependencies/ta-lib-0.4.0-src.tar.gz
-cd ta-lib/
-./configure --prefix=/usr
-make
-sudo make install
-pip install TA-Lib
-cd ..
+# tar -xzf iqbot/dependencies/ta-lib-0.4.0-src.tar.gz
+# cd ta-lib/
+# ./configure --prefix=/usr
+# make
+# sudo make install
+# pip install TA-Lib
+# cd ..
 
 # Instalações finalizadas

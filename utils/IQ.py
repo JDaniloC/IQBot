@@ -189,8 +189,10 @@ Todas as carteiras:\n"""
                 payouts["digital"][par] = [False]
         
         for par in paridades:
-            if par not in payouts['binary']:
-                payouts['binary'][par] = [False]
+            if par not in payouts['binary']['binary']:
+                payouts['binary']['binary'][par] = [False]
+            if par not in payouts['binary']['turbo']:
+                payouts['binary']['turbo'][par] = [False]
             if par not in payouts['digital']:
                 payouts['digital'][par] = [False]
 
@@ -231,6 +233,12 @@ Todas as carteiras:\n"""
         '''
         hora_atual = datetime.fromtimestamp(
             datetime.utcnow().timestamp() - 10800)
+        if tipo == "binary" and tempo == 5:
+            atual = datetime.utcnow()
+            if ((atual.minute % 5 == 4 and atual.second < 30) 
+                or atual.minute % 5 < 4): 
+                tempo = 5 - (atual.minute % 5)
+        
         if bloqueador != None:
             with bloqueador:
                 if tipo == "binary":
@@ -244,6 +252,7 @@ Todas as carteiras:\n"""
                 status, identificador = self.API.buy_digital_spot(par, valor, direcao, tempo)
             
         if not status:
+            print(identificador)
             print(f"  ❌ {par}-{tipo} {direcao} fechada ou máximo de operações ❌")
             return "error", 0
 
@@ -292,71 +301,23 @@ Todas as carteiras:\n"""
         periodo = 21, desvio = 0.1):
         '''
         Devolve se a decisão está de acordo com a estratégia M.M_007
-        tipo: velas|bollinger
+        tipo: velas|SMA|bollinger
         '''
+        # from talib import BBANDS
         import numpy
-        from talib import BBANDS
-        # pega a última vela  e calcula a banda de bollinger
+        
+        # pega a última vela
         dados = [
             x['close'] for x in self.API.get_candles(
-            par, timeframe * 60, periodo + 5, time.time())
+            par, timeframe * 60, periodo * 2, time.time())
         ]
-        superior, meio, inferior = BBANDS(
-            numpy.array(dados), timeperiod = periodo, 
-            nbdevup = desvio, nbdevdn = desvio)
-        if tipo == "bollinger":
-            
-            dado = dados[-1]
+        # Calcula a SMA
+        pesos = numpy.repeat(1.0, periodo) / periodo
+        smas = numpy.convolve(
+            dados, pesos, 'valid').tolist()
+        diferenca = smas[-1] - smas[-periodo]
 
-            '''
-            Pega as linhas de suporte e resistência e devolve
-            um dicionário no estilo:
-            {
-                "s1": 0.8772134,
-                "p": 0.86213412
-                ...
-            }
-            '''
-            indicadores = self.API.get_technical_indicators(par)
-            if type(indicadores) == list:
-                suporte_resistencia = {
-                    indicator['name'].replace("Classic ", ""): indicator['value']
-                    for indicator in indicadores 
-                    if indicator['candle_size'] == timeframe * 60 and 
-                    "Classic" in indicator['name']
-                }
-            else:
-                print(f" [ ❗️] {par} não tem linhas de suporte/resistência [ ❗️]")
-                return ((
-                    (desvio < 2 and superior[-1] < dado) or
-                    (desvio >= 2 and superior[-1] >= dado))
-                    if direcao.lower() == "call" else 
-                    ((desvio < 2 and inferior[-1] > dado) or
-                    (desvio >= 2 and inferior[-1] <= dado))
-                )
-            '''
-            Pega o suporte e resistência imediato de determinado valor
-            '''
-            resistencia = suporte_resistencia['r1']
-            suporte = suporte_resistencia['s1']
-            for nome, linha in suporte_resistencia.items():
-                if resistencia > linha > dado:
-                    resistencia = linha
-                elif suporte < linha < dado:
-                    suporte = linha
-            proximidade = (dado - suporte) / (resistencia - suporte) * 100
-
-            if direcao.lower() == "call":
-                return proximidade < 80 if (
-                    (desvio < 2 and superior[-1] < dado) or
-                    (desvio >= 2 and superior[-1] >= dado)
-                ) else False
-            else:
-                return proximidade > 20 if (
-                    (desvio < 2 and inferior[-1] > dado) or
-                    (desvio >= 2 and inferior[-1] <= dado)
-                ) else False
-        else:
+        if tipo == "velas":
             velas = self.API.get_candles(
                 par, timeframe * 60, 3, time.time())
 
@@ -368,13 +329,66 @@ Todas as carteiras:\n"""
 
             if velas[0] == velas[1] == velas[2]:
                 direcao = 1 if direcao.lower() == "call" else -1
-                return velas[0] == direcao
-            else:
-                diferenca = meio[-1] - meio[-periodo]
-                return True if (
-                    direcao.lower() == "call" and diferenca > 0
-                    ) or (
-                    direcao.lower() == "put" and diferenca < 0)else False
+                return velas[0] == direcao.lower()
+        return True if (
+            direcao.lower() == "call" 
+            and diferenca > 0) or (
+            direcao.lower() == "put" 
+            and diferenca < 0) else False
+        # else:
+        #     superior, meio, inferior = BBANDS(
+        #     numpy.array(dados), timeperiod = periodo, 
+        #     nbdevup = desvio, nbdevdn = desvio)
+        #     dado = dados[-1]
+
+        #     '''
+        #     Pega as linhas de suporte e resistência e devolve
+        #     um dicionário no estilo:
+        #     {
+        #         "s1": 0.8772134,
+        #         "p": 0.86213412
+        #         ...
+        #     }
+        #     '''
+        #     indicadores = self.API.get_technical_indicators(par)
+        #     if type(indicadores) == list:
+        #         suporte_resistencia = {
+        #             indicator['name'].replace("Classic ", ""): indicator['value']
+        #             for indicator in indicadores 
+        #             if indicator['candle_size'] == timeframe * 60 and 
+        #             "Classic" in indicator['name']
+        #         }
+        #     else:
+        #         print(f" [ ❗️] {par} não tem linhas de suporte/resistência [ ❗️]")
+        #         return ((
+        #             (desvio < 2 and superior[-1] < dado) or
+        #             (desvio >= 2 and superior[-1] >= dado))
+        #             if direcao.lower() == "call" else 
+        #             ((desvio < 2 and inferior[-1] > dado) or
+        #             (desvio >= 2 and inferior[-1] <= dado))
+        #         )
+        #     '''
+        #     Pega o suporte e resistência imediato de determinado valor
+        #     '''
+        #     resistencia = suporte_resistencia['r1']
+        #     suporte = suporte_resistencia['s1']
+        #     for nome, linha in suporte_resistencia.items():
+        #         if resistencia > linha > dado:
+        #             resistencia = linha
+        #         elif suporte < linha < dado:
+        #             suporte = linha
+        #     proximidade = (dado - suporte) / (resistencia - suporte) * 100
+
+        #     if direcao.lower() == "call":
+        #         return proximidade < 80 if (
+        #             (desvio < 2 and superior[-1] < dado) or
+        #             (desvio >= 2 and superior[-1] >= dado)
+        #         ) else False
+        #     else:
+        #         return proximidade > 20 if (
+        #             (desvio < 2 and inferior[-1] > dado) or
+        #             (desvio >= 2 and inferior[-1] <= dado)
+        #         ) else False
 
     def historico(self, quantidade, tipo = "binary-option"):
         '''

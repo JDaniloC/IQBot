@@ -230,6 +230,8 @@ f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
                         self.cadeado, self.config['delay'])
                 
                     num_gales += 1
+                if resultado == "win":
+                    self.perda_total += perda
                     
             elif self.config['tipo_gale'] == 'soros':
                 print(f"\n [SOROSGALE] na operação {par}|{ordem} {valor} -> ", end = "")

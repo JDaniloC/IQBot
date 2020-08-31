@@ -36,11 +36,17 @@ def pegar_comando(texto):
         hora = [int(x) for x in re.split(r'\W', hora)]
         par = re.search(
         r'[A-Za-z]{6}(-OTC)?', texto.upper().replace("/", ""))[0]
-        ordem = re.search(r'CALL|PUT|call|put', texto)[0].lower()
-        timeframe = re.search(r'M[1-6]?[0-5]', texto.upper())
-        if timeframe: timeframe = int(timeframe[0].strip("M"))
+        ordem = re.search(r'CALL|PUT', texto.upper())[0].lower()
+        timeframe = re.search(
+            r'[MH][1-6]?[0-5]', texto.upper())
+        if timeframe: 
+            if "M" in timeframe[0]: 
+                timeframe = int(timeframe[0].strip("M"))
+            else: 
+                timeframe = int(timeframe[0].strip("H")) * 60
         else: timeframe = 0
     except Exception as e:
+        print(type(e), e)
         print(f"Revise o comando {texto}")
         return {}
 
@@ -100,6 +106,8 @@ def configuracoes(nome = LOCALCONFIG):
             arquivo.get("WIN", "goal").replace(",", ".")),
         "soros": arquivo.get(
             "WIN", "soros").capitalize() == "True",
+        "max_soros": arquivo.get(
+            "WIN", "max_soros").capitalize() == "True",
         "percent_soros": float(arquivo.get(
             "WIN", "percent_soros").replace(",", ".")),
         "stoploss": float(

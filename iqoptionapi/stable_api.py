@@ -933,7 +933,8 @@ class IQ_Option:
         req_id = str(randint(0, 10000))
         try:
             self.api.buy_multi_option[req_id]["id"] = None
-        except:
+        except Exception as e:
+            print(type(e), e)
             pass
         self.api.buyv3(
             float(price), OP_code.ACTIVES[ACTIVES], str(ACTION), int(expirations), req_id)
@@ -944,11 +945,13 @@ class IQ_Option:
             try:
                 if "message" in self.api.buy_multi_option[req_id].keys():
                     return False, self.api.buy_multi_option[req_id]["message"]
-            except:
+            except Exception as e:
+                print(type(e), e)
                 pass
             try:
                 id = self.api.buy_multi_option[req_id]["id"]
-            except:
+            except Exception as e:
+                print(type(e), e)
                 pass
             if 31 >= time.time() - start_t >= 30:
                 logging.error('**aviso** a compra demorou mais de 30 segundos!')
