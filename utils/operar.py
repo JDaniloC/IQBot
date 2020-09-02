@@ -144,8 +144,10 @@ class Operacao(IQ_API):
                 self.ganho_total/self.config['goal'] * 100, 2)
             perto_loss = round(
                 -self.perda_total/self.config['stoploss'] * 100, 2)
-            self.mostrar_mensagem(
-f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n")
+            threading.Thread(
+                target = self.mostrar_mensagem,
+                args = (f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n", )
+            ).start()
 
         def desconta_perda(resultado, lucro):
             with self.cadeado:
