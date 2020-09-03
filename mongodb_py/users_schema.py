@@ -9,6 +9,7 @@ user = {
     "goal": 100,
     "soros": False,
     "percent_soros": 0,
+    "max_soros": 1,
     "stoploss": 20,
     "percent_martin": 0,
     "max_gale": 2,
@@ -24,5 +25,8 @@ user = {
     "tempo": 5,
     "tipo_lista":"propria",
     "lista": [],
-    "plano": "comum"
+    "plano": "comum",
+    "noticias": False,
+    "noticias_hora": 0,
+    "noticias_minuto": 0
 }

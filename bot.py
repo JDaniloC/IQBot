@@ -134,7 +134,13 @@ def configuracoes(nome = LOCALCONFIG):
         "periodo_tendencia": int(arquivo.get(
             "TENDENCIA", "periodo_tendencia")),
         "desvio_tendencia": float(arquivo.get(
-            "TENDENCIA", "desvio_tendencia").replace(",", "."))
+            "TENDENCIA", "desvio_tendencia").replace(",", ".")),
+        "noticias": arquivo.get(
+            "NOTICIAS", "noticias").capitalize() == "True",
+        "noticias_hora": int(arquivo.get(
+            "NOTICIAS", "noticias_hora")),
+        "noticias_minuto": int(arquivo.get(
+            "NOTICIAS", "noticias_minuto"))
     }
 
     # Caso colocar um float pra multiplicar

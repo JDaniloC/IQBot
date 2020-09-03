@@ -9,7 +9,7 @@ from amanobot.delegate import (
 from database import *
 from controlador import Control
 
-TOKEN = "1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao"
+TOKEN = "737574969:AAHgaEmqn2jkzSW5shewX-U1jS8R8-VpK1s"
 bot_name = "robô MM_007"
 
 # Funções
@@ -100,6 +100,7 @@ class Assistente(amanobot.helper.ChatHandler):
             "StopWin": ["goal", False, float],
             "StopLoss": ["stoploss", False, float],
             "Máximo de gales": ["max_gale", False, tuple],
+            "Máximo de soros": ["max_soros", False, int],
             
             "Tipo de martingale": ["tipo_martin", False, tuple],
             "Percentual do martin": ["percent_martin", False, float],
@@ -110,6 +111,9 @@ class Assistente(amanobot.helper.ChatHandler):
             "Tipo de tendência": ["tipo_tendencia", False, tuple],
             "Período da tendência": ["periodo_tendencia", False, tuple],
             "Desvio da tendência": ["desvio_tendencia", False, float],
+            "Ativar notícias": ["noticias", False, bool],
+            "Filtro horas": ['noticias_hora', False, int],
+            "Filtro minutos": ['noticias_minuto', False, int],
             
             "Paridade": ["tipo_par", False, tuple],
             "Timeframe": ["tempo", False, tuple],
@@ -129,12 +133,16 @@ class Assistente(amanobot.helper.ChatHandler):
             "stoploss": 20,
             "percent_martin": 0,
             "max_gale": 2,
+            "max_soros": 1,
             "tipo_gale": "martin",
             "tipo_martin": "seguro",
             "tendencia": False,
             "tipo_tendencia": "velas",
             "periodo_tendencia": 21,
             "desvio_tendencia": 0.1,
+            "noticias": False,
+            "noticias_hora": 0,
+            "noticias_minuto": 0,
             "tipo_lista": "propria",
             "lista": [],
             "plano": "comum",
@@ -431,6 +439,9 @@ class Assistente(amanobot.helper.ChatHandler):
         return False
 
     def ver_relatorio(self, msg):
+        '''
+        Devolve as últimas 50 linhas do arquivo de operação
+        '''
         self.sender.sendMessage("Pegando relatórios...")
         try:
             resultado = controlador.pegar_log(self.email)
@@ -548,18 +559,22 @@ class Assistente(amanobot.helper.ChatHandler):
             verificador = True
         elif msg['text'] == 'Tendência':
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Seguir tendência" )],
-                [KeyboardButton( text = "Tipo de tendência" )],
-                [KeyboardButton( text = "Período" ),
+                [KeyboardButton( text = "Seguir tendência" ),
+                KeyboardButton( text = "Ativar notícias" )],
+                [KeyboardButton( text = "Filtro horas" ),
+                KeyboardButton( text = "Filtro minutos" )],
+                [KeyboardButton( text = "Tipo de tendência" ),
+                KeyboardButton( text = "Período" ),
                 KeyboardButton( text = "Desvio" )],
                 [KeyboardButton( text = "Editar configurações" )]
                 ])
             verificador = True
         elif msg['text'] == 'Limites':
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "StopWin" )],
-                [KeyboardButton( text = "StopLoss" )],
-                [KeyboardButton( text = "Máximo de gales" )],
+                [KeyboardButton( text = "StopWin" ),
+                KeyboardButton( text = "StopLoss" )],
+                [KeyboardButton( text = "Máximo de gales" ),
+                KeyboardButton( text = "Máximo de soros" )],
                 [KeyboardButton( text = "Editar configurações" )]
                 ])
             verificador = True
@@ -605,14 +620,14 @@ class Assistente(amanobot.helper.ChatHandler):
                 elif value[2] == tuple:
                     opcoes = {
                         "tipo_conta": ["treino", "real"],
-                        "max_gale": [1, 2],
+                        "max_gale": [0, 1, 2],
                         "tempo": [1, 5, 15],
                         "tipo_par": ["binary", "digital", "auto"],
                         "tipo_lista": ["casa", "propria"],
                         "tipo_gale": [
                             "martin", "soros", "nenhum"],
                         "tipo_tendencia": [
-                            "bollinger", "velas"],
+                            "medias móveis", "velas"],
                         "tipo_martin": [
                             "seguro", "leve", "agressivo",
                             "porcento", "individual"]

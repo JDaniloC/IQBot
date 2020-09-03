@@ -1,34 +1,40 @@
 [CONTA]
 email = exemplo@email.com
-senha = exemplo
+senha = senha
 tipo = Treino
 
 [ENTRADAS]
 arquivo = entradas.txt
 tipo_par = Auto
 otc = False
-valor = 2.0
+valor = 100
 tempo = 1
 profit_minimo = 0
 
 [WIN]
-goal = 10
-soros = False
+goal = 300
+soros = True
 percent_soros = 0
+max_soros = 2
 
 [LOSS]
-stoploss = 20
+stoploss = 1000
 percent_martin = 0
-max_gale = 5
+max_gale = 2
 tipo_gale = martin
-tipo_martin = agressivo
+tipo_martin = seguro
 
 [AJUSTES]
 correcao_entrada = 2
-delay = 2
+delay = False
 
 [TENDENCIA]
 tendencia = False
 tipo_tendencia = bollinger
 periodo_tendencia = 21
 desvio_tendencia = 0.1
+
+[NOTICIAS]
+noticias = True
+noticias_hora = 10
+noticias_minuto = 0

@@ -1,6 +1,7 @@
+from utils.investing import extrair_noticias
+import threading, traceback, time, re, sys
 from datetime import datetime, timedelta
 from utils.IQ import IQ_API
-import threading, traceback, time, re, sys
 from pprint import pprint
 
 LOCALERROR = "errors.log"
@@ -95,6 +96,8 @@ class Operacao(IQ_API):
                 self.max_gale = config["max_gale"]
                 if config['tendencia']:
                     self.config['correcao'] += 3
+                if config['noticias']:
+                    self.atualizar_noticias()
 
                 self.computar()
             except KeyboardInterrupt:
@@ -119,12 +122,15 @@ class Operacao(IQ_API):
             self.mostrar_mensagem("Ultrapassou o máximo de tentativas.")
 
     def mostrar_mensagem(self, mensagem):
+        '''
+        Mostra a mensagem em tela
+        Se self.verboso tenta enviar para o telegram
+        '''
         print(mensagem)
         if self.verboso:
             try:
                 self.telegram.sendMessage(self.verboso, mensagem)
             except Exception as e:
-                print("Tentando se reconectar ao telegram...")
                 try:
                     import amanobot
                     self.telegram = amanobot.Bot(
@@ -133,6 +139,36 @@ class Operacao(IQ_API):
                 except Exception as e:
                     print(type(e), e)
 
+    def atualizar_noticias(self):
+        '''
+        Atualiza a última atualização de notícias realizada
+        E substitui as notícias antigas.
+        '''
+        self.ultima_atualizacao_noticia = datetime.now()
+        self.noticias = extrair_noticias()
+
+    def verificar_noticias(self, paridade):
+        '''
+        Verifica se há alguma notícia no período especificado pelo:
+            config['noticia_hora'], config['noticia_minuto']
+        '''
+        if (self.ultima_atualizacao_noticia.day != 
+            datetime.now().day):
+            self.atualizar_noticias()
+        for info in self.noticias:
+            if datetime.now() > info['horario']: 
+                diferenca = datetime.now() - info['horario']
+            else: diferenca = info['horario'] - datetime.now()
+            if diferenca < timedelta(
+                hours = self.config['noticias_hora'], 
+                minutes = self.config['noticias_minuto']):
+                if info['par'] in paridade.upper():
+                    self.mostrar_mensagem(
+                        f"Cancelando entrada devido notícia: {info['par']} {'⭐' * int(info['impacto'])}".center(70))
+                    self.mostrar_mensagem(
+                        f"{info['text']}".center(70))
+                    return False
+        return True
 
     def operar(self, valor, par, ordem, tempo, payout, tipo):
         '''
@@ -172,7 +208,7 @@ class Operacao(IQ_API):
                 "Não estou conseguindo fazer as operações, reinicie o bot.")
         
         if resultado == "win" and (self.config['soros'] or self.perda_atual > 0):
-            if self.soros_atual < self.max_gale:
+            if self.soros_atual < self.config['max_soros']:
                 with self.cadeado:
                     # Caso estiver em sorosgale
                     verificador = True
@@ -311,7 +347,10 @@ class Operacao(IQ_API):
                     self.config['periodo_tendencia'], self.config['desvio_tendencia']):
                     self.mostrar_mensagem(f"[ ❗️] {par}|{ordem} às {horas}:{minutos} entrou contra a tendência. [ ❗️]")
                     continue
-                
+
+                if (self.config['noticias'] and
+                    not self.verificar_noticias(par)):
+                        continue
                 # self.esperar_anteriores()
 
                 if self.verificar_stop():
@@ -350,6 +389,10 @@ class Operacao(IQ_API):
             pass
     
     def maior_payout(self, par, tempo):
+        '''
+        Caso estiver em automático, verifica qual o maior
+        payout, primeiro vendo se estão abertas.
+        '''
         tipo_binaria = "turbo" if tempo <= 5 else "binary"
         if ((self.payouts["binary"][tipo_binaria][par][0] and 
             self.payouts["digital"][par][0])
@@ -369,6 +412,10 @@ class Operacao(IQ_API):
         return tipo, payout
 
     def verificar_stop(self):
+        '''
+        Verifica se bateu no stopwin/loss
+        Devolve um booleano
+        '''
         with self.cadeado:
             if (-self.config['stoploss'] >= self.perda_total or 
                 self.ganho_total >= self.config['goal']):
@@ -381,6 +428,9 @@ class Operacao(IQ_API):
         return False
 
     def esperar_anteriores(self, atual = 0):
+        '''
+        Espera as operações anteriores acabar para poder liberar a próxima
+        '''
         esperar_anteriores = True
 
         while esperar_anteriores:
@@ -401,6 +451,9 @@ class Operacao(IQ_API):
                     break
 
     def istime(self, string):
+        '''
+        Verifica se é numérico (timestamp)
+        '''
         try:
             float(string)
             return True

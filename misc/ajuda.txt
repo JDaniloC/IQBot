@@ -1,4 +1,4 @@
-Versão 3.8 - Bollinger indicator
+Versão 4.2 - News filter
 
             [RUN]
 Para rodar

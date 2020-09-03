@@ -252,7 +252,9 @@ Todas as carteiras:\n"""
                 status, identificador = self.API.buy_digital_spot(par, valor, direcao, tempo)
             
         if not status:
-            print(identificador)
+            if tipo == "digital":
+                identificador = identificador['message']
+            print(str(identificador).center(70))
             print(f"  ❌ {par}-{tipo} {direcao} fechada ou máximo de operações ❌")
             return "error", 0
 
@@ -329,7 +331,7 @@ Todas as carteiras:\n"""
 
             if velas[0] == velas[1] == velas[2]:
                 direcao = 1 if direcao.lower() == "call" else -1
-                return velas[0] == direcao.lower()
+                return velas[0] == direcao
         return True if (
             direcao.lower() == "call" 
             and diferenca > 0) or (
