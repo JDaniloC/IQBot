@@ -9,7 +9,7 @@ from amanobot.delegate import (
 from database import *
 from controlador import Control
 
-TOKEN = "737574969:AAHgaEmqn2jkzSW5shewX-U1jS8R8-VpK1s"
+TOKEN = "1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao"
 bot_name = "robô MM_007"
 
 # Funções
