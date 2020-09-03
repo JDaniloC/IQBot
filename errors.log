@@ -1,2 +1,0 @@
-<class 'configparser.NoOptionError'> - No option 'max_soros' in section: 'WIN':
-line 246 -> line 240 -> line 109 -> line 792
