@@ -2,7 +2,7 @@
 Script that simplify the IQ Option API to braziliams
 
 ## Download
-Click the green "Clone or download" button
+Click the "download" button.
 
 ## Getting started
 Install Python 3.7 or higher
