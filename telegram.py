@@ -9,8 +9,8 @@ from amanobot.delegate import (
 from database import *
 from controlador import Control
 
-TOKEN = "1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao"
-bot_name = "robô MM_007"
+TOKEN = "1353794387:AAFR4nwFLn4JJYaHx-Qza7Hc_C8VtGjW53I"
+bot_name = "botflix"
 
 # Funções
 def strDateHour(number):
@@ -386,6 +386,8 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         texto = msg['text']
         if texto == "Operação":
+            self.sender.sendMessage("Estamos trabalhando nisso ainda.")
+            return True
             return self.operar(msg)
         elif texto == "Ver configurações":
             return self.ver_configuracoes()
@@ -409,12 +411,14 @@ class Assistente(amanobot.helper.ChatHandler):
                     reply_markup = ReplyKeyboardRemove())   
                 self.iniciar_operacao = False
                 self.informacoes["operando"] = True
-                MongoDB.modifica_usuario(self.informacoes, self.email)
+                MongoDB.modifica_usuario(
+                    self.informacoes, self.email)
                 
                 if os.name == "nt": # No windows 
                     os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}, {self.id}")
                 else:
-                    controlador.adicionar_pessoa(self.email, msg['text'], self.id)
+                    controlador.adicionar_pessoa(
+                        self.email, msg['text'], self.id)
                 self.sender.sendMessage("Operação iniciada. Se em 5min eu não avisar que está conectado, reincie a operação.")
                 self.comandos()
             else:
@@ -429,8 +433,10 @@ class Assistente(amanobot.helper.ChatHandler):
                     self.sender.sendMessage("Você quer parar a operação ou ver o relatório?",
                         reply_markup = ReplyKeyboardMarkup(
                             keyboard = [
-                                [KeyboardButton( text = "Ver relatório" )],
-                                [KeyboardButton( text = "Parar operação" )]
+                                [KeyboardButton( 
+                                    text = "Ver relatório" )],
+                                [KeyboardButton( 
+                                    text = "Parar operação" )]
                             ]
                         ))
             return True

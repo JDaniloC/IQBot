@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from utils.IQ import IQ_API
 from pprint import pprint
 
+BOTTOKEN = "1353794387:AAFR4nwFLn4JJYaHx-Qza7Hc_C8VtGjW53I"
 LOCALERROR = "errors.log"
 LOCALLOG = ""
 
@@ -17,42 +18,6 @@ def escreve_log(email, mensagem):
         file.write(mensagem + "\n")
 
 class Operacao(IQ_API): 
-    logo = ('''
-       ******                                               
-    ***********                                             
-   ************                                             
-     ***********                                            
-             *****       .,,,,,,,,,,,,,,,,,                 
-                *****,,,,,/(((((((#(((((,,,,,,              
-                  ,*****/(((,,,,,,,,,((((#(,*,,             
-                 ,,,,*****,,,.*//,,,,,,,((((.,,,*           
-               ,,*((((,*****,///(/((/,,,,((((,,,,*          
-              ,,,(((,,,,//,,*,,,,/(((,,,,#(((,,,,*/         
-             ,,,((((,,,////,,.,..////,,,/(((*,,,***         
-   @@@@@##   .,,//@@@@@//////(//(//..*@@@@@/,,,,,*. ((@@@@  
-   @&@@@@##  ,,,/@@@@@@/,,(///(/,,,,,*@@@@@@/,,,,, ((@@@@@  
-   @&*@@@@## ,,,@@*&@@@/,,,,,,,,,,/(//@@,@@@@/,,  ((@&*@@@  
-   @&**@@@@##,,@@*.@@@@/((//(((((((((*@@,,&@@@/  ((@@**@@@  
-   @&/* @@@@##@@*.,&@@@/(((((((*,,*,,*@@..,&@@@@/(@  **@@@  
-   @&/*  @@@@@@*   &@@@/,,,,,,,,,,,..*@@.  ,%@@@@@   **@@@  
-   @&/*   @@@@*    %@@@/......&(.....,@@    .#@@@    **@@@  
-   @&/,    @@*     %@@@      @*@      @@      /@      *@@@  
-                                                           
-''')
-
-    welcome = ('''                                                          
-  ___       _        _                      _         _         
- / __| ___ (_)__ _  | |__  ___ _ __ _____ _(_)_ _  __| |___     
- \__ \/ -_)| / _` | | '_ \/ -_) '  \___\ V / | ' \/ _` / _ \    
- |___/\___|/ \__,_| |_.__/\___|_|_|_|   \_/|_|_||_\__,_\___/    
-         |__/                                                   
-             ___     _           __  __   __  __   __   __ ____ 
-  __ _ ___  | _ \___| |__  ___  |  \/  | |  \/  | /  \ /  \__  |
- / _` / _ \ |   / _ \ '_ \/ _ \ | |\/| |_| |\/| || () | () |/ / 
- \__,_\___/ |_|_\___/_.__/\___/ |_|  |_(_)_|  |_|_\__/ \__//_/  
-                                               |___|           
-''')
-
     def __init__(self, config, comandos, 
         maximo = 0, verboso = False):
         self.maximo = maximo
@@ -67,12 +32,9 @@ class Operacao(IQ_API):
 
         if self.maximo < 3:
             try:
-                print(self.logo, flush = True)
-                print(self.welcome, flush = True)
-
                 if self.verboso:
                     import amanobot
-                    self.telegram = amanobot.Bot("1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao")
+                    self.telegram = amanobot.Bot(BOTTOKEN)
 
                 print(f"Entrando na {config['email']}")
                 super().__init__(config['email'], config['senha'])
@@ -133,8 +95,7 @@ class Operacao(IQ_API):
             except Exception as e:
                 try:
                     import amanobot
-                    self.telegram = amanobot.Bot(
-                        "1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao")
+                    self.telegram = amanobot.Bot(BOTTOKEN)
                     self.telegram.sendMessage(self.verboso, mensagem)
                 except Exception as e:
                     print(type(e), e)

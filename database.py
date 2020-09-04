@@ -4,7 +4,7 @@ from mongodb_py import waiting_schema
 from mongodb_py import adms_schema
 import time, pprint
 
-autenticacao = "mongodb+srv://Danilo:Donilo123@cluster0-6cyzb.mongodb.net/iqbot?retryWrites=true&w=majority"
+autenticacao = "mongodb+srv://Daniel:1231231414@cluster0.o6fxw.gcp.mongodb.net/iqbot?retryWrites=true&w=majority"
 
 class Mongo:
     def __init__(self, database, users_collection, users_em_aprovacao, default_infos, adms, entrada1, entrada2):
