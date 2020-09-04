@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from utils.IQ import IQ_API
 from pprint import pprint
 
-BOTTOKEN = "1353794387:AAFR4nwFLn4JJYaHx-Qza7Hc_C8VtGjW53I"
+BOTTOKEN = "1399058449:AAFEbt3BUVbKzGapvrxwyksrydp0mF5zIN4"
 LOCALERROR = "errors.log"
 LOCALLOG = ""
 
