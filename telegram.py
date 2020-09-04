@@ -315,7 +315,7 @@ class Assistente(amanobot.helper.ChatHandler):
         lista = []
         for linha in entradas:
             nova = pegar_comando(linha)
-            if nova["data"] != [1, 1, 2000]:
+            if nova["data"] != {}:
                 lista.append(nova)
         return lista
 
@@ -490,9 +490,13 @@ class Assistente(amanobot.helper.ChatHandler):
                 self.comandos()
                 return True
             else:
-                self.sender.sendMessage("\n".join(
-                    carregar_entradas(
-                        self.informacoes['lista'])))
+                if self.informacoes['lista'] != []:
+                    self.sender.sendMessage("\n".join(
+                        carregar_entradas(
+                            self.informacoes['lista'])))
+                else:
+                    self.sender.sendMessage(
+                        "Nenhuma lista registrada. Adicione uma nova Conta > Adicionar lista.")
         else:
             self.sender.sendMessage("Usuário não autenticado")
         return False
