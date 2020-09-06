@@ -111,6 +111,7 @@ class Assistente(amanobot.helper.ChatHandler):
             "Soros": ["soros", False, bool], 
             "Máximo de gales": ["max_gale", False, int],
             "Máximo de soros": ["max_soros", False, int],
+            "Martingale na próxima": ["entrada_martin", False, tuple],
             
             "Seguir tendência": ["tendencia", False, bool],
             "Tipo de tendência": ["tipo_tendencia", False, tuple],
@@ -303,26 +304,32 @@ Para acessar sua conta digite: Entrar",
             self.sender.sendMessage("Usuário não tem permissão")
             return False
        
-        teclado = ReplyKeyboardMarkup(keyboard = [
-            [KeyboardButton( text = "1 gale" )],
-            [KeyboardButton( text = "2 gales" )],
-            [KeyboardButton( text = "ambos" )]
-        ])
+        self.add_entrada = "1"       
 
-        self.sender.sendMessage("Qual arquivo de entradas:",
-            reply_markup = teclado)
+        self.sender.sendMessage("""Envie a nova lista:
+        Não importa a ordem das informações, e sim o formato delas.
+        Exemplo de formato: 01/01/2000 13:00 EURUSD-OTC PUT M1""",
+        reply_markup = ReplyKeyboardRemove())
+        # teclado = ReplyKeyboardMarkup(keyboard = [
+        #     [KeyboardButton( text = "1 gale" )],
+        #     [KeyboardButton( text = "2 gales" )],
+        #     [KeyboardButton( text = "ambos" )]
+        # ])
 
-    def habilitar_entradas(self, msg):
-        '''
-        Método que habilita a espera por uma nova lista
-        '''
-        if self.id not in adms:
-            return False
-        if msg['text'] in ["1 gale", "2 gales", "ambos"]:
-            self.add_entrada = "ambos" if msg['text'] == "ambos" else msg['text'].split()[0]
-            self.sender.sendMessage('''Mande a lista.
-            Lembrando que na opção ambos é necessário colocar 1 gale/2 gales antes da lista especificando qual lista irá entrar.''',
-                reply_markup = ReplyKeyboardRemove())            
+        # self.sender.sendMessage("Qual arquivo de entradas:",
+        #     reply_markup = teclado)
+
+    # def habilitar_entradas(self, msg):
+    #     '''
+    #     Método que habilita a espera por uma nova lista
+    #     '''
+    #     if self.id not in adms:
+    #         return False
+    #     if msg['text'] in ["1 gale", "2 gales", "ambos"]:
+    #         self.add_entrada = "ambos" if msg['text'] == "ambos" else msg['text'].split()[0]
+    #         self.sender.sendMessage('''Mande a lista.
+    #         Lembrando que na opção ambos é necessário colocar 1 gale/2 gales antes da lista especificando qual lista irá entrar.''',
+    #             reply_markup = ReplyKeyboardRemove())            
 
     def pegar_entrada(self, entradas):
         '''
@@ -403,8 +410,6 @@ Para acessar sua conta digite: Entrar",
         '''
         texto = msg['text']
         if texto == "Operação":
-            self.sender.sendMessage("Estamos trabalhando nisso ainda.")
-            return True
             return self.operar(msg)
         elif texto == "Ver configurações":
             return self.ver_configuracoes()
@@ -601,6 +606,7 @@ Para acessar sua conta digite: Entrar",
                 KeyboardButton( text = "Soros" )],
                 [KeyboardButton( text = "Máximo de gales" ),
                 KeyboardButton( text = "Máximo de soros" )],
+                [KeyboardButton( text = "Martingale na próxima" )],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == "Ajustes":
@@ -645,7 +651,9 @@ Para acessar sua conta digite: Entrar",
                         "tipo_tendencia": [
                             "medias móveis simples", "velas"],
                         "tipo_martin": [
-                            "seguro", "leve", "agressivo", "individual"]
+                            "seguro", "leve", "agressivo", "individual"],
+                        "entrada_martin": [
+                            "vela", "sinal"]
                     }
                     if value[0] in ["tipo_martin", "tipo_par"]:
                         # Um abaixo do outro
@@ -909,8 +917,8 @@ Para acessar sua conta digite: Entrar",
             pass # [2] Avançadas
         elif self.confirmar_entradas(msg):
             pass # [3] Entradas
-        elif self.habilitar_entradas(msg):
-            pass # [2] Entradas
+        # elif self.habilitar_entradas(msg):
+        #     pass # [2] Entradas
         elif self.parar_bot:
             if msg['text'] == "Sim":
                 self.desligar_bot()

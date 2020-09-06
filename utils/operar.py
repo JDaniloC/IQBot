@@ -37,7 +37,8 @@ class Operacao(IQ_API):
                     self.telegram = amanobot.Bot(BOTTOKEN)
 
                 print(f"Entrando na {config['email']}")
-                super().__init__(config['email'], config['senha'])
+                super().__init__(
+                    config['email'], config['senha'], self.mostrar_mensagem)
 
                 if config['tipo_conta'] == "treino":
                     self.mudar_treino()
@@ -52,6 +53,7 @@ class Operacao(IQ_API):
                 # Para soros
                 self.valor_inicial = config['valor']
                 self.soros_atual = 0
+                self.gale_atual = 0
 
                 self.valor = config['valor']
                 self.tempo = config['tempo']
@@ -143,7 +145,7 @@ class Operacao(IQ_API):
                 -self.perda_total/self.config['stoploss'] * 100, 2)
             threading.Thread(
                 target = self.mostrar_mensagem,
-                args = (f"\n | {perto_win}% perto do objetivo | {perto_loss}% perto do stoploss |\n", )
+                args = (f"\n | {perto_win}% perto do objetivo |\n| {perto_loss}% perto do stoploss |\n", )
             ).start()
 
         def desconta_perda(resultado, lucro):
@@ -168,8 +170,10 @@ class Operacao(IQ_API):
             raise ConnectionAbortedError(
                 "Não estou conseguindo fazer as operações, reinicie o bot.")
         
-        if resultado == "win" and (self.config['soros'] or self.perda_atual > 0):
-            if self.soros_atual < self.config['max_soros']:
+        if resultado == "win" and (
+            self.config['soros'] or self.perda_atual > 0):
+            if (not self.config['tipo_gale'] == "martin" and 
+                self.soros_atual < self.config['max_soros']):
                 with self.cadeado:
                     # Caso estiver em sorosgale
                     verificador = True
@@ -186,6 +190,13 @@ class Operacao(IQ_API):
                         print(f"\n [SOROS] : {round(valor, 2)} -> {round(novo, 2)}")
                         self.valor = novo
                         self.soros_atual += 1
+            elif self.config['tipo_gale'] == "martin":
+                self.gale_atual = 0
+                self.perda_atual -= lucro
+                self.perda_total += lucro
+                if self.perda_total > 0:
+                    self.perda_total = 0
+                self.valor = self.valor_inicial
             else:
                 self.soros_atual = 0
                 print(f" [SOROS] Preservando capital: R$ {valor} -> R$ {self.valor_inicial}")
@@ -197,7 +208,8 @@ class Operacao(IQ_API):
                 print(f" [SOROS] Preservando capital: R$ {valor} -> R$ {self.valor_inicial}")
                 self.valor = self.valor_inicial
             
-            if self.config['tipo_gale'] == "martin":
+            if (self.config['tipo_gale'] == "martin" and 
+                self.config['entrada_martin'] == "vela"):
                 perda = 0
                 num_gales = 0
                 while (self.config['goal'] > self.ganho_total and (
@@ -231,7 +243,19 @@ class Operacao(IQ_API):
                     num_gales += 1
                 if resultado == "win":
                     self.perda_total += perda
-                    
+            
+            elif self.config['tipo_gale'] == "martin":
+                print(f"\n [MARTINGALE] do tipo {self.config['tipo_martin']} na operação {par}|{ordem}")
+                self.perda_atual += abs(valor)
+                self.gale_atual += 1
+                lucro = (valor * payout if 
+                        self.config["tipo_martin"] != "porcento" else 
+                        self.config["percent_martin"] / 100)
+                with self.cadeado:
+                    self.valor = self.martingale(self.config['tipo_martin'], 
+                        payout, self.perda_atual, valor, lucro)
+                self.valor = 1 if self.valor < 1 else self.valor 
+
             elif self.config['tipo_gale'] == 'soros':
                 print(f"\n [SOROSGALE] na operação {par}|{ordem} {valor} -> ", end = "")
                 self.perda_atual += abs(valor)
@@ -243,9 +267,6 @@ class Operacao(IQ_API):
         if resultado not in ["error", "equal"]:
             desconta_perda(resultado, lucro)                
             mostra_resultado()
-
-        elif resultado == "error":
-            print(f"\nErro na operação às {str(datetime.utcnow())[:-7]}")
 
     def computar(self):
         '''
