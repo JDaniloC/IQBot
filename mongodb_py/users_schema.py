@@ -12,6 +12,7 @@ user = {
     "max_soros": 1,
     "stoploss": 20,
     "percent_martin": 0,
+    "entrada_martin": "vela",
     "max_gale": 2,
     "tipo_martin": "seguro",
     "tipo_gale": "martin",

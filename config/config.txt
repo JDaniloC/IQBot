@@ -23,6 +23,7 @@ percent_martin = 0
 max_gale = 2
 tipo_gale = martin
 tipo_martin = seguro
+entrada_martin = sinal
 
 [AJUSTES]
 correcao_entrada = 2
@@ -35,6 +36,6 @@ periodo_tendencia = 21
 desvio_tendencia = 0.1
 
 [NOTICIAS]
-noticias = True
+noticias = False
 noticias_hora = 10
 noticias_minuto = 0

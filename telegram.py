@@ -104,6 +104,7 @@ class Assistente(amanobot.helper.ChatHandler):
             
             "Tipo de martingale": ["tipo_martin", False, tuple],
             "Percentual do martin": ["percent_martin", False, float],
+            "Martingale na próxima": ["entrada_martin", False, tuple],
             "Soros": ["soros", False, bool], 
             "Percentual da soros": ["percent_soros", False, float],
             
@@ -584,6 +585,7 @@ class Assistente(amanobot.helper.ChatHandler):
             verificador = True
         elif msg['text'] == 'Martingale e Soros':
             teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "Martingale na próxima" )],
                 [KeyboardButton( text = "Tipo de martingale" ),
                 KeyboardButton( text = "Percentual do martin" )],
                 [KeyboardButton( text = "Soros" ),
@@ -634,7 +636,8 @@ class Assistente(amanobot.helper.ChatHandler):
                             "medias móveis", "velas"],
                         "tipo_martin": [
                             "seguro", "leve", "agressivo",
-                            "porcento", "individual"]
+                            "porcento", "individual"],
+                        "entrada_martin": ["vela", "sinal"]
                     }
                     if value[0] in ["tipo_martin", "tipo_par"]:
                         # Um abaixo do outro
