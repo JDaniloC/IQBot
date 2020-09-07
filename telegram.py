@@ -60,7 +60,7 @@ adms = get_adms()
 entrada_01 = carregar_entradas(1)
 entrada_02 = carregar_entradas(2)
 entrada_03 = carregar_entradas(3)
-print(entrada_03)
+
 if os.name != "nt":
     controlador = Control()
 rodando = True
