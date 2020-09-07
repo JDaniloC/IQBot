@@ -233,8 +233,8 @@ class Operacao(IQ_API):
 				self.gale_atual = 0
 				self.perda_atual -= lucro
 				self.perda_total += lucro
-				if self.perda_total > 0:
-					self.perda_total = 0
+				if self.perda_atual < 0: self.perda_atual = 0
+				if self.perda_total > 0: self.perda_total = 0
 				self.valor = self.valor_inicial
 			else:
 				self.soros_atual = 0

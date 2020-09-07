@@ -224,9 +224,10 @@ def recebe_comandos(comandos):
             if config['tipo_lista'] == "casa":
                 # Une com as informações gerais
                 config.update(MongoDB.get_avancadas())
-                entradas = MongoDB.get_entradas(int(config['max_gale']))
+                entradas = MongoDB.get_entradas(int(config['num_lista']))
             else:
                 entradas = config['lista']
+            print(entradas)
             Operacao(config, entradas, 0, comandos[3])
         else:
             print('''
