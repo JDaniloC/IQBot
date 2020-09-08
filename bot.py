@@ -227,7 +227,6 @@ def recebe_comandos(comandos):
                 entradas = MongoDB.get_entradas(int(config['num_lista']))
             else:
                 entradas = config['lista']
-            print(entradas)
             Operacao(config, entradas, 0, comandos[3])
         else:
             print('''

@@ -358,7 +358,7 @@ class Operacao(IQ_API):
 				if self.tipo == "auto":
 					maior = self.maior_payout(par, tempo)
 					if maior: tipo, payout = maior
-					else: tipo, payout = "binary", 0.5
+					else: tipo, payout = "binary", 0.7
 				else:
 					payout = (self.payout_binaria(par) / 100 if 
 							  self.tipo == "binary" else 
