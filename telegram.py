@@ -345,8 +345,7 @@ Onde x seria 1, 2, 3 a depender da lista''',
                 
             self.sender.sendMessage("Processando...")
             # Procura o início das velas
-            print(self.add_entrada)
-            if self.add_entrada == "todos":
+            if self.add_entrada == "todas":
                 para_verificar = {1:[], 2:[], 3:[]}
                 key = 1
                 for linha in msg['text'].split("\n"):
