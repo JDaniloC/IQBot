@@ -115,7 +115,7 @@ class Assistente(amanobot.helper.ChatHandler):
             
             "Seguir tendência": ["tendencia", False, bool],
             "Tipo de tendência": ["tipo_tendencia", False, tuple],
-            "Período da tendência": ["periodo_tendencia", False, tuple],
+            "Período da tendência": ["periodo_tendencia", False, int],
             "Ativar notícias": ["noticias", False, bool],
             "Filtro horas": ['noticias_hora', False, int],
             "Filtro minutos": ['noticias_minuto', False, int],
@@ -339,7 +339,7 @@ Para acessar sua conta digite: Entrar",
         lista = []
         for linha in entradas:
             nova = pegar_comando(linha)
-            if nova["data"] != {}:
+            if nova != {}:
                 lista.append(nova)
         return lista
 
