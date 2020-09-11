@@ -166,9 +166,9 @@ class Operacao(IQ_API):
 				minutes = self.config['noticias_minuto']):
 				if info['par'] in paridade.upper():
 					self.mostrar_mensagem(
-						f"Cancelando entrada devido notícia: {info['par']} {'⭐' * int(info['impacto'])}".center(70))
+						f"Cancelando entrada devido notícia: {info['par']} {'⭐' * int(info['impacto'])}".center(60))
 					self.mostrar_mensagem(
-						f"{info['text']}".center(70))
+						f"{info['text']}".center(60))
 					return False
 		return True
 
@@ -378,8 +378,9 @@ class Operacao(IQ_API):
 
 				if self.verificar_stop():
 					break
-
-				if self.config["minimo"] / 100 <= payout:
+				
+				payout_desejado = self.config["minimo"] / 100
+				if payout_desejado <= payout:
 					thread = threading.Thread(
 						target = self.operar, 
 						name = f"{time.time()}", 
@@ -387,6 +388,8 @@ class Operacao(IQ_API):
 						valor, par, ordem, tempo, payout, tipo))
 					self.espera.append(thread)
 					thread.start()
+				else:
+					self.mostrar_mensagem(f"[ ❗️] {par}|{ordem} às {horas}:{minutos} payout: {payout}% < {payout_desejado}%. [ ❗️]")
 
 				if self.tipo == "auto":
 					if time.time() - ultima_vez > 900:

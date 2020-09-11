@@ -254,7 +254,7 @@ Todas as carteiras:\n"""
         if not status:
             if tipo == "digital":
                 identificador = identificador['message']
-            print(str(identificador).center(70))
+            print(str(identificador).center(60))
             print(f"  ❌ {par}-{tipo} {direcao} fechada ou máximo de operações ❌")
             return "error", 0
 
