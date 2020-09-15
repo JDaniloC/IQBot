@@ -95,6 +95,7 @@ class Operacao(IQ_API):
 				self.valor = config['valor']
 				self.tempo = config['tempo']
 				self.max_gale = config["max_gale"]
+				self.ganhos_perdas = [0, 0]
 				if config['tendencia']:
 					self.config['correcao'] += 3
 				if config['noticias']:
@@ -154,13 +155,14 @@ class Operacao(IQ_API):
 		Verifica se há alguma notícia no período especificado pelo:
 			config['noticia_hora'], config['noticia_minuto']
 		'''
+		agora = datetime.utcfromtimestamp(datetime.utcnow().timestamp() - 10800) # -3Horas
 		if (self.ultima_atualizacao_noticia.day != 
-			datetime.now().day):
+			agora.day):
 			self.atualizar_noticias()
 		for info in self.noticias:
-			if datetime.now() > info['horario']: 
-				diferenca = datetime.now() - info['horario']
-			else: diferenca = info['horario'] - datetime.now()
+			if agora > info['horario']: 
+				diferenca = agora - info['horario']
+			else: diferenca = info['horario'] - agora
 			if diferenca < timedelta(
 				hours = self.config['noticias_hora'], 
 				minutes = self.config['noticias_minuto']):
@@ -184,14 +186,20 @@ class Operacao(IQ_API):
 				-self.perda_total/self.config['stoploss'] * 100, 2)
 			threading.Thread(
 				target = self.mostrar_mensagem,
-				args = (f"\n| {perto_win}% perto do objetivo |\n| {perto_loss}% perto do stoploss |\n", )
-				).start()
+				args = (f"""
+{par} {ordem.upper()} R$ {round(self.ganho_total, 2)}
+	✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[0]} ❌
+| {perto_win}% perto do objetivo |
+| {perto_loss}% perto do stoploss |""", )).start()
 
 		def desconta_perda(resultado, lucro):
 			with self.cadeado:
 				if resultado == "win":
 					self.ganho_total += round(lucro, 2)
+					self.ganhos_perdas[0] += 1
 				else:
+					if lucro < 0:
+						self.ganhos_perdas[1] += 1
 					self.ganho_total -= round(abs(lucro), 2)
 					self.perda_total -= round(abs(lucro), 2)
 
