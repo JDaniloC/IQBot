@@ -39,7 +39,7 @@ class Operacao(IQ_API):
 				print(f"Entrando na {config['email']}")
 				super().__init__(
 					config['email'], config['senha'], self.mostrar_mensagem)
-
+				
 				if config['tipo_conta'] == "treino":
 					self.mudar_treino()
 				else:
@@ -58,6 +58,9 @@ class Operacao(IQ_API):
 				self.valor = config['valor']
 				self.tempo = config['tempo']
 				self.max_gale = config["max_gale"]
+				self.ganhos_perdas = [0, 0]
+				
+				self.saldo_inicial = self.pegar_balanco(config['tipo_conta'])
 				if config['tendencia']:
 					self.config['correcao'] += 3
 				if config['noticias']:
@@ -78,12 +81,20 @@ class Operacao(IQ_API):
 				try:
 					print("Continuando as operações...")
 					self.maximo += 1
-					self.__init__(self.config, self.comandos, self.maximo)
+					self.__init__(
+						self.config, self.comandos, self.maximo)
 				except:
 					print("Deu erro novamente! Finalizando o programa.")
 					escreve_erros(e)
 		else:
 			self.mostrar_mensagem("Ultrapassou o máximo de tentativas.")
+
+	def pegar_balanco(self, tipo = "real"):
+		balancos = self.API.get_profile_ansyc()['balances']
+		tipo = 4 if tipo == "treino" else 1
+		for i in balancos:
+			if i['type'] == tipo:
+				return i['amount']
 
 	def mostrar_mensagem(self, mensagem):
 		'''
@@ -115,13 +126,14 @@ class Operacao(IQ_API):
 		Verifica se há alguma notícia no período especificado pelo:
 			config['noticia_hora'], config['noticia_minuto']
 		'''
+		agora = datetime.utcfromtimestamp(datetime.utcnow().timestamp() - 10800) # -3Horas
 		if (self.ultima_atualizacao_noticia.day != 
-			datetime.now().day):
+			agora.day):
 			self.atualizar_noticias()
 		for info in self.noticias:
-			if datetime.now() > info['horario']: 
-				diferenca = datetime.now() - info['horario']
-			else: diferenca = info['horario'] - datetime.now()
+			if agora > info['horario']: 
+				diferenca = agora - info['horario']
+			else: diferenca = info['horario'] - agora
 			if diferenca < timedelta(
 				hours = self.config['noticias_hora'], 
 				minutes = self.config['noticias_minuto']):
@@ -145,17 +157,32 @@ class Operacao(IQ_API):
 				-self.perda_total/self.config['stoploss'] * 100, 2)
 			threading.Thread(
 				target = self.mostrar_mensagem,
-				args = (f"\n | {perto_win}% perto do objetivo |\n| {perto_loss}% perto do stoploss |\n", )
-			).start()
+				args = (f"""
+  ✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[0]} ❌
+| {perto_win}% perto do objetivo |
+| {perto_loss}% perto do stoploss |""", )).start()
 
 		def desconta_perda(resultado, lucro):
 			with self.cadeado:
+				mensagem = "Doji"
 				if resultado == "win":
 					self.ganho_total += round(lucro, 2)
+					self.ganhos_perdas[0] += 1
+					mensagem = "✅"
 				else:
+					if lucro < 0:
+						self.ganhos_perdas[1] += 1
+						resultado = "❌"
 					self.ganho_total -= round(abs(lucro), 2)
 					self.perda_total -= round(abs(lucro), 2)
-
+				threading.Thread(
+				target = self.mostrar_mensagem,
+				args = (f"""
+{par.upper()} {ordem.upper()} M{tempo} 
+Saldo inicial: R$ {self.saldo_inicial}
+Saldo atual: R$ {self.pegar_balanco(self.config['tipo_conta'])}
+Resultado: {mensagem}
+Lucro: R$ {round(lucro, 2)}""", )).start()
 		resultado = None
 		for i in range(2):
 			try:
@@ -194,8 +221,8 @@ class Operacao(IQ_API):
 				self.gale_atual = 0
 				self.perda_atual -= lucro
 				self.perda_total += lucro
-				if self.perda_total > 0:
-					self.perda_total = 0
+				if self.perda_atual < 0: self.perda_atual = 0
+				if self.perda_total > 0: self.perda_total = 0
 				self.valor = self.valor_inicial
 			else:
 				self.soros_atual = 0
@@ -306,7 +333,7 @@ class Operacao(IQ_API):
 			horas, minutos = comando["hora"]
 			tempo = comando['timeframe'] if comando['timeframe'] != 0 else self.tempo
 			segundos = 0
-			
+
 			if self.esperarAte(
 				horas, minutos, segundos, data, 
 				self.config['correcao'] + 1, True):
@@ -314,28 +341,28 @@ class Operacao(IQ_API):
 				par = comando['par']
 				ordem = comando['ordem']
 				valor = self.valor
-				
+
 				if self.tipo == "auto":
 					maior = self.maior_payout(par, tempo)
 					if maior: tipo, payout = maior
-					else: tipo, payout = "binary", 0.5
+					else: tipo, payout = "binary", 0.7
 				else:
 					payout = (self.payout_binaria(par) / 100 if 
 							  self.tipo == "binary" else 
 							  self.payout_digital(par) / 100)
 					tipo = self.tipo
-				
+
 				if self.config['tendencia'] and not self.calcular_tendencia(
 					self.config['tipo_tendencia'], par, ordem, tempo, 
 					self.config['periodo_tendencia'], self.config['desvio_tendencia']):
 					self.mostrar_mensagem(f"[ ❗️] {par}|{ordem} às {horas}:{minutos} entrou contra a tendência. [ ❗️]")
 					continue
-				
+
 				if (self.config['noticias'] and
 					not self.verificar_noticias(par)):
 						continue
 				# self.esperar_anteriores()
-				
+
 				if self.verificar_stop():
 					break
 				
@@ -349,7 +376,7 @@ class Operacao(IQ_API):
 					self.espera.append(thread)
 					thread.start()
 				else:
-					self.mostrar_mensagem(f"[ ❗️] {par}|{ordem} às {horas}:{minutos} payout: {round(payout * 100, 2)}% < {round(payout_desejado * 100, 2)}% [ ❗️]")
+					self.mostrar_mensagem(f"[ ❗️] {par}|{ordem} às {horas}:{minutos} payout: {payout}% < {payout_desejado}%. [ ❗️]")
 
 				if self.tipo == "auto":
 					if time.time() - ultima_vez > 900:
@@ -405,7 +432,12 @@ class Operacao(IQ_API):
 		with self.cadeado:
 			if (-self.config['stoploss'] >= self.perda_total or 
 				self.ganho_total >= self.config['goal']):
-				self.mostrar_mensagem(f'''{"- " * 20}
+				mensagem = "Fim da operação: Stop"
+				if self.ganho_total >= self.config['goal']:
+					mensagem += "Win atingido"
+				else:
+					mensagem += "Loss atingido"
+				self.mostrar_mensagem(f'''{mensagem}
 	Stopwin: {self.config['goal']}
 	Total ganho: {round(self.ganho_total, 2)}
 	Stoploss: {-self.config['stoploss']}

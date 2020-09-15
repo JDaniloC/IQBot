@@ -392,10 +392,11 @@ Para acessar sua conta digite: Entrar",
         '''
         if self.autenticacao:
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Operação" )],
-                [KeyboardButton( text = "Ver configurações" )],
-                [KeyboardButton( text = "Editar configurações" )],
-                [KeyboardButton( text = "Ver lista de sinais" )]
+                [KeyboardButton( text = "Operação" ),
+                KeyboardButton( text = "Ver lista de sinais" )],
+                [KeyboardButton( text = "Ver configurações" ),
+                KeyboardButton( text = "Editar configurações" )],
+                [KeyboardButton( text = "Sair da conta" )]
             ])
 
             self.sender.sendMessage("O que deseja?", 
@@ -417,6 +418,9 @@ Para acessar sua conta digite: Entrar",
             return self.editar_configuracoes()
         elif texto == "Ver lista de sinais":
             return self.ver_lista()
+        elif texto == "Sair da conta":
+            self.close()
+            return True
         return False
     
     def operar(self, msg):
