@@ -114,6 +114,8 @@ def configuracoes(nome = LOCALCONFIG):
             arquivo.get("LOSS", "stoploss").replace(",", ".")),
         "tipo_gale": arquivo.get("LOSS", "tipo_gale").lower(),
         "tipo_martin": arquivo.get("LOSS", "tipo_martin").lower(),
+        "entrada_martin": arquivo.get(
+            "LOSS", "entrada_martin").lower(),
         "max_gale": int(arquivo.get("LOSS", "max_gale")),
         "percent_martin": float(arquivo.get(
             "LOSS", "percent_martin").replace(",", ".")),
@@ -222,7 +224,7 @@ def recebe_comandos(comandos):
             if config['tipo_lista'] == "casa":
                 # Une com as informações gerais
                 config.update(MongoDB.get_avancadas())
-                entradas = MongoDB.get_entradas(int(config['max_gale']))
+                entradas = MongoDB.get_entradas(int(config['num_lista']))
             else:
                 entradas = config['lista']
             Operacao(config, entradas, 0, comandos[3])

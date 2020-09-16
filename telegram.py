@@ -9,7 +9,7 @@ from amanobot.delegate import (
 from database import *
 from controlador import Control
 
-TOKEN = "737574969:AAHgaEmqn2jkzSW5shewX-U1jS8R8-VpK1s"
+TOKEN = "1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao"
 bot_name = "robô MM_007"
 
 # Funções
@@ -39,12 +39,15 @@ def carregar_entradas(opcao):
     else:
         lista = opcao
     for linha in lista:
+        timeframe = linha['timeframe']
+        if timeframe == 0:
+            timeframe = "padrão"
         lista_entradas.append(f'''
 📊 Ativo: {linha["par"]}
 📅 Dia: {"/".join(list(map(strDateHour, linha["data"])))}
 ⏱Hora: {":".join(list(map(strDateHour, linha["hora"])))}   
-➡Direção: {linha["ordem"].upper()}   
-        
+➡ Direção: {linha["ordem"].upper()}   
+🕒 Timeframe: M{timeframe}
         ''')
     return lista_entradas
 
@@ -54,8 +57,10 @@ def get_adms():
 # São atributos gerais para todas as contas
 # Pois o objeto Assistente é instanciado por usuário 
 adms = get_adms()
-entrada_1gale = carregar_entradas(1)
-entrada_2gale = carregar_entradas(2)
+entrada_01 = carregar_entradas(1)
+entrada_02 = carregar_entradas(2)
+entrada_03 = carregar_entradas(3)
+
 if os.name != "nt":
     controlador = Control()
 rodando = True
@@ -77,7 +82,7 @@ class Assistente(amanobot.helper.ChatHandler):
 
         self.entrada = False
 
-        self.add_entrada = "0"        
+        self.add_entrada = "-"        
         self.iniciar_operacao = False
         self.parar_bot = False
         self.alteracoes_avancadas = {
@@ -92,6 +97,7 @@ class Assistente(amanobot.helper.ChatHandler):
         self.mapeamento = {
             "Tipo de conta": ["tipo_conta", False, tuple], 
             "Tipo de lista": ["tipo_lista", False, tuple],
+            "Lista escolhida": ["num_lista", False, tuple],
             
             "Valor de entrada": ["valor", False, float],
             "Gerenciamento": ["tipo_gale", False, tuple], 
@@ -104,6 +110,7 @@ class Assistente(amanobot.helper.ChatHandler):
             
             "Tipo de martingale": ["tipo_martin", False, tuple],
             "Percentual do martin": ["percent_martin", False, float],
+            "Martingale na próxima": ["entrada_martin", False, tuple],
             "Soros": ["soros", False, bool], 
             "Percentual da soros": ["percent_soros", False, float],
             
@@ -282,18 +289,18 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Mudar caminho do arquivo de entradas
         '''
-        if self.id not in adms:
-            self.sender.sendMessage("Usuário não tem permissão")
-            return False
-       
-        teclado = ReplyKeyboardMarkup(keyboard = [
-            [KeyboardButton( text = "1 gale" )],
-            [KeyboardButton( text = "2 gales" )],
-            [KeyboardButton( text = "ambos" )]
-        ])
+        if self.id in adms and msg['text'] == "Adicionar entradas":
+            teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "entrada 01" )],
+                [KeyboardButton( text = "entrada 02" )],
+                [KeyboardButton( text = "entrada 03" )],
+                [KeyboardButton( text = "todas" )]
+            ])
 
-        self.sender.sendMessage("Qual arquivo de entradas:",
-            reply_markup = teclado)
+            self.sender.sendMessage("Qual arquivo de entradas:",
+                reply_markup = teclado)
+            return True
+        return False
 
     def habilitar_entradas(self, msg):
         '''
@@ -301,11 +308,14 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         if self.id not in adms:
             return False
-        if msg['text'] in ["1 gale", "2 gales", "ambos"]:
-            self.add_entrada = "ambos" if msg['text'] == "ambos" else msg['text'].split()[0]
+        if msg['text'] in ["entrada 01", "entrada 02", "entrada 03", "todas"]:
+            self.add_entrada = ("todas" if msg['text'] == "todas" else 
+                                int(msg['text'].split()[1].strip("0")))
             self.sender.sendMessage('''Mande a lista.
-            Lembrando que na opção ambos é necessário colocar 1 gale/2 gales antes da lista especificando qual lista irá entrar.''',
-                reply_markup = ReplyKeyboardRemove())            
+Caso a opção for todas, então não esqueça de especificar acima de cada lista: [0x]
+Onde x seria 1, 2, 3 a depender da lista''',
+                reply_markup = ReplyKeyboardRemove())     
+            return True
 
     def pegar_entrada(self, entradas):
         '''
@@ -315,7 +325,7 @@ class Assistente(amanobot.helper.ChatHandler):
         lista = []
         for linha in entradas:
             nova = pegar_comando(linha)
-            if nova["data"] != [1, 1, 2000]:
+            if nova != {}:
                 lista.append(nova)
         return lista
 
@@ -323,42 +333,38 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Método que recebe a mensagem de entradas, trata e salva.
         '''
-        global entrada_1gale, entrada_2gale
+        global entrada_01, entrada_02, entrada_03
         if self.id not in adms:
             return
-        if self.add_entrada != "0":
+                 
+        if self.add_entrada != "-":
+            
+            def processa_entradas(escolha, texto):
+                MongoDB.set_entradas(escolha, 
+                    self.pegar_entrada(texto))
+                
             self.sender.sendMessage("Processando...")
             # Procura o início das velas
-            if self.add_entrada == "ambos":
-                para_verificar = {1:[], 2:[]}
-                primeiro, segundo = False, False
+            if self.add_entrada == "todas":
+                para_verificar = {1:[], 2:[], 3:[]}
+                key = 1
                 for linha in msg['text'].split("\n"):
-                    if "1 gal" in linha:
-                        primeiro, segundo = True, False
-                    elif "2 gal" in linha:
-                        primeiro, segundo = False, True
-                    elif primeiro and linha not in ["", "\n"]:
-                        para_verificar[1].append(linha)
-                    elif segundo and linha not in ["", "\n"]:
-                        para_verificar[2].append(linha)
-                primeiro = self.pegar_entrada(para_verificar[1])
-                segundo = self.pegar_entrada(para_verificar[2])
-            elif self.add_entrada == "1":
-                primeiro = self.pegar_entrada(
-                    msg['text'].split("\n"))
-            elif self.add_entrada == "2":
-                segundo = self.pegar_entrada(
-                    msg['text'].split("\n"))
+                    if   "[01]" in linha: key = 1
+                    elif "[02]" in linha: key = 2
+                    elif "[03]" in linha: key = 3
+                    elif key and linha not in ["", "\n"]:
+                        para_verificar[key].append(linha)
+                processa_entradas(1, para_verificar[1])
+                processa_entradas(2, para_verificar[2])
+                processa_entradas(3, para_verificar[3])
+            else:
+                processa_entradas(self.add_entrada, msg['text'].split("\n"))
             
-            if self.add_entrada in ["ambos", "1"]:
-                MongoDB.set_entradas(1, primeiro)
-            if self.add_entrada in ["ambos", "2"]:
-                MongoDB.set_entradas(2, segundo)
+            entrada_01 = carregar_entradas(1)
+            entrada_02 = carregar_entradas(2)
+            entrada_03 = carregar_entradas(3)
             
-            entrada_1gale = carregar_entradas(1)
-            entrada_2gale = carregar_entradas(2)
-            
-            self.add_entrada = "0"
+            self.add_entrada = "-"
             self.sender.sendMessage("Salvo")
             self.gerenciar()
 
@@ -474,19 +480,27 @@ class Assistente(amanobot.helper.ChatHandler):
                 self.sender.sendMessage("Entradas:", 
                     reply_markup = ReplyKeyboardRemove())
                 
-                self.sender.sendMessage("1 Gale:")
+                self.sender.sendMessage("Lista 01:")
                 self.sender.sendMessage(
-                    "\n".join(entrada_1gale))
+                    "\n".join(entrada_01))
                 
-                self.sender.sendMessage("2 Gales:")
+                self.sender.sendMessage("Lista 02:")
                 self.sender.sendMessage(
-                    "\n".join(entrada_2gale))
+                    "\n".join(entrada_02))
+                
+                self.sender.sendMessage("Lista 03:")
+                self.sender.sendMessage(
+                    "\n".join(entrada_03))
                 self.comandos()
                 return True
             else:
-                self.sender.sendMessage("\n".join(
-                    carregar_entradas(
-                        self.informacoes['lista'])))
+                if self.informacoes != []:
+                    self.sender.sendMessage("\n".join(
+                        carregar_entradas(
+                            self.informacoes['lista'])))
+                else:
+                    self.sender.sendMessage(
+                        "Nenhuma lista registrada. Adicione em Conta > Adicionar lista")
         else:
             self.sender.sendMessage("Usuário não autenticado")
         return False
@@ -544,9 +558,10 @@ class Assistente(amanobot.helper.ChatHandler):
         verificador = False
         if msg['text'] == 'Conta e listas':
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Tipo de conta" )],
-                [KeyboardButton( text = "Tipo de lista" )],
-                [KeyboardButton( text = "Adicionar lista" )],
+                [KeyboardButton( text = "Tipo de conta" ),
+                KeyboardButton( text = "Adicionar lista" )],
+                [KeyboardButton( text = "Tipo de lista" ),
+                KeyboardButton( text = "Lista escolhida" )],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == 'Entrada':
@@ -580,6 +595,7 @@ class Assistente(amanobot.helper.ChatHandler):
             verificador = True
         elif msg['text'] == 'Martingale e Soros':
             teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "Martingale na próxima" )],
                 [KeyboardButton( text = "Tipo de martingale" ),
                 KeyboardButton( text = "Percentual do martin" )],
                 [KeyboardButton( text = "Soros" ),
@@ -622,6 +638,7 @@ class Assistente(amanobot.helper.ChatHandler):
                         "tipo_conta": ["treino", "real"],
                         "max_gale": [0, 1, 2],
                         "tempo": [1, 5, 15],
+                        "num_lista": [1, 2, 3],
                         "tipo_par": ["binary", "digital", "auto"],
                         "tipo_lista": ["casa", "propria"],
                         "tipo_gale": [
@@ -630,7 +647,8 @@ class Assistente(amanobot.helper.ChatHandler):
                             "medias móveis", "velas"],
                         "tipo_martin": [
                             "seguro", "leve", "agressivo",
-                            "porcento", "individual"]
+                            "porcento", "individual"],
+                        "entrada_martin": ["vela", "sinal"]
                     }
                     if value[0] in ["tipo_martin", "tipo_par"]:
                         # Um abaixo do outro
@@ -659,7 +677,7 @@ class Assistente(amanobot.helper.ChatHandler):
         Verifica se a mensagem está nas configurações avançadas
         Se estiver, devolve True caso contrário False
         '''
-        global adms, entrada_1gale, entrada_2gale, rodando
+        global adms, entrada_01, entrada_02, entrada_03, rodando
         
         if self.id not in adms:
             return False
@@ -670,8 +688,9 @@ class Assistente(amanobot.helper.ChatHandler):
         elif msg['text'] == "Atualizar informações":
             self.sender.sendMessage("Atualizando...")
             adms = get_adms()
-            entrada_1gale = carregar_entradas(1)
-            entrada_2gale = carregar_entradas(2)
+            entrada_01 = carregar_entradas(1)
+            entrada_02 = carregar_entradas(2)
+            entrada_03 = carregar_entradas(3)
             self.sender.sendMessage("Informações atualizadas.")
         elif msg['text'] in [
             "Aprovar usuários", "Renovar licença", 
@@ -878,10 +897,10 @@ class Assistente(amanobot.helper.ChatHandler):
             pass                    # [2] Opções
         elif self.submenu_configuracoes(msg):
             pass                    # [1] Alterações
-        elif msg['text'] == "Adicionar entradas":
-            self.adicionar_entrada(msg) # [1] Entradas
+        elif self.adicionar_entrada(msg):
+            pass                    # [1] Entradas
         elif self.salvar_alteracoes_avancadas(msg):
-            self.gerenciar() # [4] Avançadas (ADM)
+            self.gerenciar()        # [4] Avançadas (ADM)
         elif self.confirmar_alteracao(msg):
             pass # [3] Alterações
         elif self.habilitar_alteracao(msg):
