@@ -94,6 +94,7 @@ class Control:
         status = -1
         while status != 0:
             status = system(f"gcloud compute ssh {name} --zone us-central1-a --command='chmod 777 iqbot/setup.sh;./iqbot/setup.sh'")
+            print("Status:", status)
         
         self.instancias.append(Instancia(name))
 

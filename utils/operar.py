@@ -158,7 +158,7 @@ class Operacao(IQ_API):
 			threading.Thread(
 				target = self.mostrar_mensagem,
 				args = (f"""
-  ✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[0]} ❌
+  ✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌
 | {perto_win}% perto do objetivo |
 | {perto_loss}% perto do stoploss |""", )).start()
 
