@@ -188,7 +188,7 @@ class Operacao(IQ_API):
 				target = self.mostrar_mensagem,
 				args = (f"""
 {par} {ordem.upper()} R$ {round(self.ganho_total, 2)}
-	✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[0]} ❌
+	✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌
 | {perto_win}% perto do objetivo |
 | {perto_loss}% perto do stoploss |""", )).start()
 
