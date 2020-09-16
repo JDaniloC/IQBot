@@ -263,7 +263,7 @@ Todas as carteiras:\n"""
             return "error", 0
 
         self.output(
-            f"{par} {tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
+            f"Entrou em {par} {tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
 
         if delay == False:
             # Versão que pega no histórico

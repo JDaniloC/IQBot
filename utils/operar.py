@@ -60,7 +60,7 @@ class Operacao(IQ_API):
 				self.max_gale = config["max_gale"]
 				self.ganhos_perdas = [0, 0]
 				
-				self.saldo_inicial = self.pegar_balanco(config['tipo_conta'])
+				self.saldo_inicial = self.API.get_balance()
 				if config['tendencia']:
 					self.config['correcao'] += 3
 				if config['noticias']:
@@ -88,13 +88,6 @@ class Operacao(IQ_API):
 					escreve_erros(e)
 		else:
 			self.mostrar_mensagem("Ultrapassou o máximo de tentativas.")
-
-	def pegar_balanco(self, tipo = "real"):
-		balancos = self.API.get_profile_ansyc()['balances']
-		tipo = 4 if tipo == "treino" else 1
-		for i in balancos:
-			if i['type'] == tipo:
-				return i['amount']
 
 	def mostrar_mensagem(self, mensagem):
 		'''
@@ -180,7 +173,7 @@ class Operacao(IQ_API):
 				args = (f"""
 {par.upper()} {ordem.upper()} M{tempo} 
 Saldo inicial: R$ {self.saldo_inicial}
-Saldo atual: R$ {self.pegar_balanco(self.config['tipo_conta'])}
+Saldo atual: R$ {self.API.get_balance()}
 Resultado: {mensagem}
 Lucro: R$ {round(lucro, 2)}""", )).start()
 		resultado = None
@@ -192,6 +185,9 @@ Lucro: R$ {round(lucro, 2)}""", )).start()
 				break
 			except Exception as e:
 				print(f"Ocorreu um erro na operação:\n {type(e)}: {e}")
+				if "closed" in str(e):
+					raise ConnectionAbortedError(
+				"Não estou conseguindo fazer as operações, reinicie o bot.")
 				self.conectar()
 		if resultado == None:
 			raise ConnectionAbortedError(
