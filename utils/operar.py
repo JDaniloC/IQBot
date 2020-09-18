@@ -163,7 +163,7 @@ class Operacao(IQ_API):
 					self.ganhos_perdas[0] += 1
 					mensagem = "✅"
 				else:
-					if lucro < 0:
+					if resultado == 'loose':
 						self.ganhos_perdas[1] += 1
 						resultado = "❌"
 					self.ganho_total -= round(abs(lucro), 2)
@@ -372,7 +372,7 @@ Lucro: R$ {round(lucro, 2)}""", )).start()
 					self.espera.append(thread)
 					thread.start()
 				else:
-					self.mostrar_mensagem(f"[ ❗️] {par}|{ordem} às {horas}:{minutos} payout: {payout}% < {payout_desejado}%. [ ❗️]")
+					self.mostrar_mensagem(f"[ ❗️] {par}|{ordem.upper()} payout: {payout * 100}% < {payout_desejado * 100}%. [ ❗️]")
 
 				if self.tipo == "auto":
 					if time.time() - ultima_vez > 900:
