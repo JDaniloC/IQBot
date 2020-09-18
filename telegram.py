@@ -9,7 +9,7 @@ from amanobot.delegate import (
 from database import *
 from controlador import Control
 
-TOKEN = "1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao"
+TOKEN = "737574969:AAHgaEmqn2jkzSW5shewX-U1jS8R8-VpK1s"
 bot_name = "robô MM_007"
 
 # Funções
@@ -61,7 +61,9 @@ entrada_01 = carregar_entradas(1)
 entrada_02 = carregar_entradas(2)
 entrada_03 = carregar_entradas(3)
 
+os.name = "nt"
 if os.name != "nt":
+    print("Entrou")
     controlador = Control()
 rodando = True
 
@@ -172,17 +174,29 @@ class Assistente(amanobot.helper.ChatHandler):
             self.nome_usuario = msg['chat']['username']
         print(f"Usuário {self.nome_usuario} começou conversa.\n")
 
-        self.sender.sendMessage(f"Olá, eu sou seu assistente do {bot_name}.", 
+        self.enviar_mensagem(f"Olá, eu sou seu assistente do {bot_name}.", delete = False,
             reply_markup = ReplyKeyboardMarkup(
                 keyboard = [[KeyboardButton(text = "Entrar")]]))
 
+    def enviar_mensagem(self, message, reply_markup = None, edit = False, delete = True, save = False):
+        if edit:
+            self.bot.editMessageText(self.message_id, message)
+        else:
+            if delete and not save:
+                self.bot.deleteMessage(self.message_id)
+     
+            mensagem = self.sender.sendMessage(message,
+                reply_markup = reply_markup)
+            if not save:
+                self.message_id = (self.chat_id, mensagem['message_id'])
+
     def entrar(self):
         if not self.autenticacao:
-            self.sender.sendMessage("Digite o seu e-mail para continuar:", 
+            self.enviar_mensagem("Digite o seu e-mail para continuar:", 
                 reply_markup = ReplyKeyboardRemove())
             self.entrada = True
         else:
-            self.sender.sendMessage("Você já está logado")
+            self.enviar_mensagem("Você já está logado")
 
     def login(self, msg):
         '''
@@ -190,10 +204,10 @@ class Assistente(amanobot.helper.ChatHandler):
         Está em análise ou já aprovado.
         '''
         if self.autenticacao:
-            self.sender.sendMessage("Você já está logado.")
+            self.enviar_mensagem("Você já está logado.")
             return False
 
-        self.sender.sendMessage("Carregado...")
+        self.enviar_mensagem("Carregado...")
         email = msg['text'].lower()
 
         if MongoDB.Users_collection.find_one({"email": email}): 
@@ -204,19 +218,23 @@ class Assistente(amanobot.helper.ChatHandler):
             if restante > 0:
                 self.entrada = False
                 self.autenticacao = True
-                self.sender.sendMessage(
-                    f"E-mail autenticado, seja bem-vindo Sr(a) {self.nome_usuario} sua licença expira em: {str(timedelta(seconds = restante)).replace('days', 'dias')}")
+                self.enviar_mensagem(
+                    f"E-mail autenticado, seja bem-vindo Sr(a) {self.nome_usuario} sua licença expira em: {str(timedelta(seconds = restante)).replace('days', 'dias')}", 
+                    save = True)
                 self.comandos()
             else:
-                self.sender.sendMessage("Sua licença expirou, peça para o administrador renovar.")
+                self.enviar_mensagem("Sua licença expirou, peça para o administrador renovar.", save = True)
                 self.close()
         elif (MongoDB.verifica_cadastro(email)):
-            self.sender.sendMessage("Seu e-mail ainda está em análise...")
+            self.enviar_mensagem("Seu e-mail ainda está em análise...",
+                save = True)
             self.close()
         else:
             # Caso o usuário não estiver na lista de espera ele adiciona
             MongoDB.adicionar_cadastro(email)
-            self.sender.sendMessage(f"Seu e-mail foi colocado para analise. Espere a confirmação do administrador e mande seu e-mail novamente para logar.")
+            self.enviar_mensagem(
+                f"Seu e-mail foi colocado para analise. Espere a confirmação do administrador e mande seu e-mail novamente para logar.",
+                save = True)
             self.close()
 
     def gerenciar(self):
@@ -224,7 +242,7 @@ class Assistente(amanobot.helper.ChatHandler):
         Comandos para administradores
         '''
         if self.id not in adms:
-            self.sender.sendMessage("Usuário não tem permissão")
+            self.enviar_mensagem("Usuário não tem permissão")
             return False
 
         teclado = ReplyKeyboardMarkup(keyboard = [
@@ -234,7 +252,7 @@ class Assistente(amanobot.helper.ChatHandler):
             [KeyboardButton( text = "Voltar ao menu" )]
         ])
 
-        self.sender.sendMessage("Configurações avançadas para admnistradores:",
+        self.enviar_mensagem("Configurações avançadas para admnistradores:",
             reply_markup = teclado)
 
 
@@ -265,7 +283,7 @@ class Assistente(amanobot.helper.ChatHandler):
             ])
             verificador = True
         if verificador:
-            self.sender.sendMessage("Escolha a opção:",
+            self.enviar_mensagem("Escolha a opção:",
                 reply_markup = teclado)        
             return True
         return False
@@ -275,14 +293,14 @@ class Assistente(amanobot.helper.ChatHandler):
         Método que mostra do jeito cru as configurações avançadas
         '''
         if self.id not in adms:
-            self.sender.sendMessage("Usuário não tem permissão")
+            self.enviar_mensagem("Usuário não tem permissão")
             return False
         default = MongoDB.get_avancadas()
         resultado = ""
         for key, value in default.items():
             if key not in ["_id"]:
                 resultado += f"{key}: {value}\n"
-        self.sender.sendMessage(resultado,
+        self.enviar_mensagem(resultado, save = True,
             reply_markup = ReplyKeyboardRemove())
 
     def adicionar_entrada(self, msg):
@@ -297,7 +315,7 @@ class Assistente(amanobot.helper.ChatHandler):
                 [KeyboardButton( text = "todas" )]
             ])
 
-            self.sender.sendMessage("Qual arquivo de entradas:",
+            self.enviar_mensagem("Qual arquivo de entradas:",
                 reply_markup = teclado)
             return True
         return False
@@ -311,7 +329,7 @@ class Assistente(amanobot.helper.ChatHandler):
         if msg['text'] in ["entrada 01", "entrada 02", "entrada 03", "todas"]:
             self.add_entrada = ("todas" if msg['text'] == "todas" else 
                                 int(msg['text'].split()[1].strip("0")))
-            self.sender.sendMessage('''Mande a lista.
+            self.enviar_mensagem('''Mande a lista.
 Caso a opção for todas, então não esqueça de especificar acima de cada lista: [0x]
 Onde x seria 1, 2, 3 a depender da lista''',
                 reply_markup = ReplyKeyboardRemove())     
@@ -343,7 +361,7 @@ Onde x seria 1, 2, 3 a depender da lista''',
                 MongoDB.set_entradas(escolha, 
                     self.pegar_entrada(texto))
                 
-            self.sender.sendMessage("Processando...")
+            self.enviar_mensagem("Processando...")
             # Procura o início das velas
             if self.add_entrada == "todas":
                 para_verificar = {1:[], 2:[], 3:[]}
@@ -365,7 +383,7 @@ Onde x seria 1, 2, 3 a depender da lista''',
             entrada_03 = carregar_entradas(3)
             
             self.add_entrada = "-"
-            self.sender.sendMessage("Salvo")
+            self.enviar_mensagem("Salvo")
             self.gerenciar()
 
     def comandos(self):
@@ -380,10 +398,10 @@ Onde x seria 1, 2, 3 a depender da lista''',
                 [KeyboardButton( text = "Ver lista de sinais" )]
             ])
 
-            self.sender.sendMessage("O que deseja?", 
+            self.enviar_mensagem("O que deseja?", 
                 reply_markup = teclado)
         else:
-            self.sender.sendMessage("Usuário não autenticado")
+            self.enviar_mensagem("Usuário não autenticado")
     
     def submenu_comandos(self, msg):
         '''
@@ -408,11 +426,11 @@ Onde x seria 1, 2, 3 a depender da lista''',
         Devolve um boolean se autenticado
         '''
         if self.autenticacao:
-            self.sender.sendMessage("Carregando...")
+            self.enviar_mensagem("Carregando...")
 
             if self.iniciar_operacao:
-                self.sender.sendMessage("Iniciando operação, tenha paciência, isso pode demorar.",
-                    reply_markup = ReplyKeyboardRemove())   
+                self.enviar_mensagem("Iniciando operação, tenha paciência, isso pode demorar.",
+                    edit = True, reply_markup = ReplyKeyboardRemove())   
                 self.iniciar_operacao = False
                 self.informacoes["operando"] = True
                 MongoDB.modifica_usuario(self.informacoes, self.email)
@@ -421,19 +439,20 @@ Onde x seria 1, 2, 3 a depender da lista''',
                     os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}, {self.id}")
                 else:
                     controlador.adicionar_pessoa(self.email, msg['text'], self.id)
-                self.sender.sendMessage("Operação iniciada. Se em 5min eu não avisar que está conectado, reincie a operação.")
+                self.enviar_mensagem("Operação iniciada. Se em 5min eu não avisar que está conectado, reincie a operação.",
+                    edit = True)
                 self.comandos()
             else:
                 temporario = MongoDB.get_user(self.email)
 
                 if not temporario['operando']:
-                    self.sender.sendMessage("Digite sua senha (não guardamos a sua senha, você terá que fazer isso todas as vezes): ", 
-                    reply_markup = ReplyKeyboardRemove())
+                    self.enviar_mensagem("Digite sua senha (não guardamos a sua senha, você terá que fazer isso todas as vezes): ", 
+                        edit = True, reply_markup = ReplyKeyboardRemove())
                     self.iniciar_operacao = True
                 
                 else:
-                    self.sender.sendMessage("Você quer parar a operação ou ver o relatório?",
-                        reply_markup = ReplyKeyboardMarkup(
+                    self.enviar_mensagem("Você quer parar a operação ou ver o relatório?",
+                        edit = True, reply_markup = ReplyKeyboardMarkup(
                             keyboard = [
                                 [KeyboardButton( text = "Ver relatório" )],
                                 [KeyboardButton( text = "Parar operação" )]
@@ -441,33 +460,33 @@ Onde x seria 1, 2, 3 a depender da lista''',
                         ))
             return True
         else:
-            self.sender.sendMessage("Usuário não autenticado")
+            self.enviar_mensagem("Usuário não autenticado")
         return False
 
     def ver_relatorio(self, msg):
         '''
         Devolve as últimas 50 linhas do arquivo de operação
         '''
-        self.sender.sendMessage("Pegando relatórios...")
+        self.enviar_mensagem("Pegando relatórios...")
         try:
             resultado = controlador.pegar_log(self.email)
             resultado = "\n".join(resultado.split("\n")[-50:])
-            self.sender.sendMessage(resultado)
+            self.enviar_mensagem(resultado, edit = True)
         except Exception as e:
-            self.sender.sendMessage("Recebi esse erro:\n", e)
+            self.enviar_mensagem("Recebi esse erro:\n" + str(e), edit = True)
         self.comandos()
 
     def parar_operar(self, msg):
         '''
         Apenas para linux, dá kill na operação através do e-mail
         '''
-        self.sender.sendMessage("Parando operação...")
+        self.enviar_mensagem("Parando operação...")
         MongoDB.Users_collection.find_one_and_update({'email': self.email}, {'$set' : {'operando': False}})
         if os.name == "nt":
             pass
         else:
             controlador.parar_operacao(self.email)
-        self.sender.sendMessage("Operação cancelada.")
+        self.enviar_mensagem("Operação cancelada.", edit = True)
         self.comandos()
 
     def ver_lista(self):
@@ -477,32 +496,29 @@ Onde x seria 1, 2, 3 a depender da lista''',
         '''
         if self.autenticacao:
             if self.informacoes['tipo_lista'] == "casa":
-                self.sender.sendMessage("Entradas:", 
+                self.enviar_mensagem("Entradas:", 
                     reply_markup = ReplyKeyboardRemove())
                 
-                self.sender.sendMessage("Lista 01:")
-                self.sender.sendMessage(
-                    "\n".join(entrada_01))
+                self.enviar_mensagem("Lista 01:" +
+                    "\n".join(entrada_01), save = True)
                 
-                self.sender.sendMessage("Lista 02:")
-                self.sender.sendMessage(
-                    "\n".join(entrada_02))
+                self.enviar_mensagem("Lista 02:" +
+                    "\n".join(entrada_02), save = True)
                 
-                self.sender.sendMessage("Lista 03:")
-                self.sender.sendMessage(
-                    "\n".join(entrada_03))
+                self.enviar_mensagem("Lista 03:" +
+                    "\n".join(entrada_03), save = True)
                 self.comandos()
                 return True
             else:
                 if self.informacoes != []:
-                    self.sender.sendMessage("\n".join(
+                    self.enviar_mensagem("\n".join(
                         carregar_entradas(
                             self.informacoes['lista'])))
                 else:
-                    self.sender.sendMessage(
+                    self.enviar_mensagem(
                         "Nenhuma lista registrada. Adicione em Conta > Adicionar lista")
         else:
-            self.sender.sendMessage("Usuário não autenticado")
+            self.enviar_mensagem("Usuário não autenticado")
         return False
 
     def ver_configuracoes(self):
@@ -526,10 +542,10 @@ Onde x seria 1, 2, 3 a depender da lista''',
                     if key in headers:
                         mensagem += f"\n⚙️ {headers[key]} ⚙️\n"
                     mensagem += f"{key}: {str(self.informacoes[value[0]]).replace('True', 'Sim').replace('False', 'Não')}\n"
-            self.sender.sendMessage(mensagem)
+            self.enviar_mensagem(mensagem)
             return True
         else:
-            self.sender.sendMessage("Usuário não autenticado")
+            self.enviar_mensagem("Usuário não autenticado")
         return False
 
     def editar_configuracoes(self):
@@ -538,7 +554,7 @@ Onde x seria 1, 2, 3 a depender da lista''',
         Devolve um boolean se está autenticado
         '''
         if self.autenticacao:
-            self.sender.sendMessage(
+            self.enviar_mensagem(
                 "O que você deseja alterar?", 
                 reply_markup = ReplyKeyboardMarkup( keyboard = [
                     [KeyboardButton( text = "Conta e listas" ),
@@ -551,7 +567,7 @@ Onde x seria 1, 2, 3 a depender da lista''',
             ], resize_keyboard = True))
             return True
         else:
-            self.sender.sendMessage("Usuário não autenticado")
+            self.enviar_mensagem("Usuário não autenticado")
         return False
 
     def submenu_configuracoes(self, msg):
@@ -611,7 +627,7 @@ Onde x seria 1, 2, 3 a depender da lista''',
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         if verificador:
-            self.sender.sendMessage(
+            self.enviar_mensagem(
                 "Qual das opções?", 
                 reply_markup = teclado)
             return True
@@ -631,7 +647,7 @@ Onde x seria 1, 2, 3 a depender da lista''',
                         KeyboardButton( text = "Não" )]])
                 elif (self.informacoes['plano'] == "comum" and 
                       value[0] == "tipo_lista"):
-                    self.sender.sendMessage("Você não tem acesso a lista da casa, peça um upgrade na sua conta.")
+                    self.enviar_mensagem("Você não tem acesso a lista da casa, peça um upgrade na sua conta.")
                     return False
                 elif value[2] == tuple:
                     opcoes = {
@@ -667,7 +683,7 @@ Onde x seria 1, 2, 3 a depender da lista''',
                     teclado = ReplyKeyboardRemove()
                 
                 dicionario[text][1] = True
-                self.sender.sendMessage(mensagem, 
+                self.enviar_mensagem(mensagem, 
                     reply_markup = teclado)
                 return True
         return False
@@ -682,16 +698,16 @@ Onde x seria 1, 2, 3 a depender da lista''',
         if self.id not in adms:
             return False
         if msg['text'] == 'Adicionar administrador':
-            self.sender.sendMessage("Coloque o ID do telegram:",
+            self.enviar_mensagem("Coloque o ID do telegram:",
                 reply_markup = ReplyKeyboardRemove())
             self.alteracoes_avancadas['adm'] = True
         elif msg['text'] == "Atualizar informações":
-            self.sender.sendMessage("Atualizando...")
+            self.enviar_mensagem("Atualizando...")
             adms = get_adms()
             entrada_01 = carregar_entradas(1)
             entrada_02 = carregar_entradas(2)
             entrada_03 = carregar_entradas(3)
-            self.sender.sendMessage("Informações atualizadas.")
+            self.enviar_mensagem("Informações atualizadas.")
         elif msg['text'] in [
             "Aprovar usuários", "Renovar licença", 
             "Tirar de cadastro", "Remover usuários"]:
@@ -706,7 +722,7 @@ Onde x seria 1, 2, 3 a depender da lista''',
                 email = user['email']
                 lista_usuarios.append([KeyboardButton(text = email)])
             if len(lista_usuarios) > 0:
-                self.sender.sendMessage("Escolha:",
+                self.enviar_mensagem("Escolha:",
                     reply_markup = ReplyKeyboardMarkup(keyboard = lista_usuarios))
                 if msg['text'] == "Aprovar usuários":
                     self.alteracoes_avancadas['aprovar'] = True
@@ -719,10 +735,10 @@ Onde x seria 1, 2, 3 a depender da lista''',
                     self.alteracoes_avancadas['licenca'] = True
                     self.alteracoes_avancadas['plano'] = True
             else:
-                self.sender.sendMessage("Nenhum usuário no banco")
+                self.enviar_mensagem("Nenhum usuário no banco")
         elif msg['text'] == "Parar bot":
             self.parar_bot = True
-            self.sender.sendMessage("Tem certeza?",
+            self.enviar_mensagem("Tem certeza?",
                 reply_markup = ReplyKeyboardMarkup(keyboard = [
                     [KeyboardButton( text = "Sim" ),
                     KeyboardButton( text = "Não" )]]))
@@ -752,11 +768,11 @@ Onde x seria 1, 2, 3 a depender da lista''',
         if self.alteracoes_avancadas['adm']:
             MongoDB.adiciona_adm(int(msg))
             adms = get_adms()
-            self.sender.sendMessage("Adminstrador adicionado.")
+            self.enviar_mensagem("Adminstrador adicionado.")
             self.alteracoes_avancadas["adm"] = False
             return True
         elif self.alteracoes_avancadas['plano'] == True:
-            self.sender.sendMessage("Escolha o tipo de plano",
+            self.enviar_mensagem("Escolha o tipo de plano",
                 reply_markup = ReplyKeyboardMarkup(keyboard = [
                     [KeyboardButton( text = "comum" ),
                     KeyboardButton( text = "premium" )]]))
@@ -765,23 +781,23 @@ Onde x seria 1, 2, 3 a depender da lista''',
         elif self.alteracoes_avancadas['aprovar']:
             MongoDB.aprovar(
                 self.alteracoes_avancadas['plano'], msg)
-            self.sender.sendMessage("Usuário aprovado.")
+            self.enviar_mensagem("Usuário aprovado.")
             self.alteracoes_avancadas["aprovar"] = False
             return True
         elif self.alteracoes_avancadas['licenca']:
             MongoDB.renovar_licenca(
                 self.alteracoes_avancadas['plano'], msg)
-            self.sender.sendMessage("Licença renovada")
+            self.enviar_mensagem("Licença renovada")
             self.alteracoes_avancadas["licenca"] = False
             return True
         elif self.alteracoes_avancadas['remover']:
             MongoDB.remover_usuario(msg)
-            self.sender.sendMessage("Usuário removido")
+            self.enviar_mensagem("Usuário removido")
             self.alteracoes_avancadas["remover"] = False
             return True
         elif self.alteracoes_avancadas['apagar']:
             MongoDB.apagar_cadastro(msg)
-            self.sender.sendMessage("Cadastro apagado")
+            self.enviar_mensagem("Cadastro apagado")
             self.alteracoes_avancadas["apagar"] = False
             return True
         return False
@@ -803,7 +819,7 @@ Onde x seria 1, 2, 3 a depender da lista''',
                             novo = False
                         else:
                             print(e)
-                            self.sender.sendMessage("Deve ser um número! Tente novamente")
+                            self.enviar_mensagem("Deve ser um número! Tente novamente")
                             return False
                 elif value[2] == list:
                     novo = self.pegar_entrada(novo.split("\n"))
@@ -814,10 +830,10 @@ Onde x seria 1, 2, 3 a depender da lista''',
                         novo = int(novo)
                     except Exception as e:
                         dicionario[key][1] = False
-                        self.sender.sendMessage("Deve ser um número.")
+                        self.enviar_mensagem("Deve ser um número.")
                         return False
                 elif novo == "individual":
-                    self.sender.sendMessage(
+                    self.enviar_mensagem(
                         "Digite o fator do martingale:\nEx: 2.5", 
                         reply_markup = ReplyKeyboardRemove())
                     return False
@@ -838,7 +854,7 @@ Onde x seria 1, 2, 3 a depender da lista''',
         if result:
             info, valor = result
             MongoDB.modifica_avancadas(info, valor)
-            self.sender.sendMessage(f"Valor salvo.")
+            self.enviar_mensagem(f"Valor salvo.")
             self.ver_avancadas()
             self.gerenciar()
             return True
@@ -854,22 +870,22 @@ Onde x seria 1, 2, 3 a depender da lista''',
             if result:
                 info, valor = result
                 self.informacoes[info] = valor
-                self.sender.sendMessage("Alteração salva!")
-                self.ver_configuracoes()
+                self.enviar_mensagem("Alteração salva!")
                 self.editar_configuracoes()
+                self.ver_configuracoes()
                 return True
         return False
 
     def desligar_bot(self):
         global rodando
         if os.name != "nt":
-            self.sender.sendMessage("Deletando todas as instâncias...")
+            self.enviar_mensagem("Deletando todas as instâncias...")
             usuarios = controlador.deletar_instancias()
-            self.sender.sendMessage("Resetando o banco de dados...")
+            self.enviar_mensagem("Resetando o banco de dados...")
             for email in usuarios:
                 MongoDB.Users_collection.find_one_and_update(
                     {'email': email}, {'$set' : {'operando': False}})
-        self.sender.sendMessage("Desligando o bot...")
+        self.enviar_mensagem("Desligando o bot...")
         rodando = False
         self.close()
         sys.exit(0)
@@ -939,7 +955,9 @@ Onde x seria 1, 2, 3 a depender da lista''',
                 mapeamento_avancado[key][1] = False
 
         print(f"Usuário {self.nome_usuario} saiu.\n")
-        self.sender.sendMessage("Obrigado pela preferência, irei atender outras pessoas, qualquer coisa é só chamar.", reply_markup = ReplyKeyboardRemove())
+        self.enviar_mensagem(
+            "Obrigado pela preferência, irei atender outras pessoas, qualquer coisa é só chamar.", 
+            reply_markup = ReplyKeyboardRemove())
 
 def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
     """
