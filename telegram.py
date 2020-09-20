@@ -63,7 +63,7 @@ def get_adms():
 # Pois o objeto Assistente é instanciado por usuário 
 adms = get_adms()
 entrada_1gale = carregar_entradas(1)
-entrada_2gale = carregar_entradas(2)
+
 if os.name != "nt":
     controlador = Control()
 rodando = True
@@ -271,7 +271,8 @@ Para acessar sua conta digite: Entrar",
                 KeyboardButton( text = "Renovar licença" )],
                 [KeyboardButton( text = "Tirar de cadastro" ),
                 KeyboardButton( text = "Remover usuários" )],
-                [KeyboardButton( text = "Adicionar administrador" )],
+                [KeyboardButton( text = "Adicionar administrador" ),
+                KeyboardButton( text = "Atualizar informações" )],
                 [KeyboardButton( text = "Gerenciar" )]
             ])
             verificador = True
@@ -309,27 +310,7 @@ Para acessar sua conta digite: Entrar",
         self.sender.sendMessage("""Envie a nova lista:
         Não importa a ordem das informações, e sim o formato delas.
         Exemplo de formato: 01/01/2000 13:00 EURUSD-OTC PUT M1""",
-        reply_markup = ReplyKeyboardRemove())
-        # teclado = ReplyKeyboardMarkup(keyboard = [
-        #     [KeyboardButton( text = "1 gale" )],
-        #     [KeyboardButton( text = "2 gales" )],
-        #     [KeyboardButton( text = "ambos" )]
-        # ])
-
-        # self.sender.sendMessage("Qual arquivo de entradas:",
-        #     reply_markup = teclado)
-
-    # def habilitar_entradas(self, msg):
-    #     '''
-    #     Método que habilita a espera por uma nova lista
-    #     '''
-    #     if self.id not in adms:
-    #         return False
-    #     if msg['text'] in ["1 gale", "2 gales", "ambos"]:
-    #         self.add_entrada = "ambos" if msg['text'] == "ambos" else msg['text'].split()[0]
-    #         self.sender.sendMessage('''Mande a lista.
-    #         Lembrando que na opção ambos é necessário colocar 1 gale/2 gales antes da lista especificando qual lista irá entrar.''',
-    #             reply_markup = ReplyKeyboardRemove())            
+        reply_markup = ReplyKeyboardRemove())         
 
     def pegar_entrada(self, entradas):
         '''
@@ -347,40 +328,18 @@ Para acessar sua conta digite: Entrar",
         '''
         Método que recebe a mensagem de entradas, trata e salva.
         '''
-        global entrada_1gale, entrada_2gale
+        global entrada_1gale
         if self.id not in adms:
             return
         if self.add_entrada != "0":
             self.sender.sendMessage("Processando...")
             # Procura o início das velas
-            if self.add_entrada == "ambos":
-                para_verificar = {1:[], 2:[]}
-                primeiro, segundo = False, False
-                for linha in msg['text'].split("\n"):
-                    if "1 gal" in linha:
-                        primeiro, segundo = True, False
-                    elif "2 gal" in linha:
-                        primeiro, segundo = False, True
-                    elif primeiro and linha not in ["", "\n"]:
-                        para_verificar[1].append(linha)
-                    elif segundo and linha not in ["", "\n"]:
-                        para_verificar[2].append(linha)
-                primeiro = self.pegar_entrada(para_verificar[1])
-                segundo = self.pegar_entrada(para_verificar[2])
-            elif self.add_entrada == "1":
+            if self.add_entrada == "1":
                 primeiro = self.pegar_entrada(
                     msg['text'].split("\n"))
-            elif self.add_entrada == "2":
-                segundo = self.pegar_entrada(
-                    msg['text'].split("\n"))
-            
-            if self.add_entrada in ["ambos", "1"]:
                 MongoDB.set_entradas(1, primeiro)
-            if self.add_entrada in ["ambos", "2"]:
-                MongoDB.set_entradas(2, segundo)
             
             entrada_1gale = carregar_entradas(1)
-            entrada_2gale = carregar_entradas(2)
             
             self.add_entrada = "0"
             self.sender.sendMessage("Salvo")
@@ -506,13 +465,9 @@ Para acessar sua conta digite: Entrar",
                 self.sender.sendMessage("Entradas:", 
                     reply_markup = ReplyKeyboardRemove())
                 
-                self.sender.sendMessage("1 Gale:")
                 self.sender.sendMessage(
                     "\n".join(entrada_1gale))
                 
-                self.sender.sendMessage("2 Gales:")
-                self.sender.sendMessage(
-                    "\n".join(entrada_2gale))
                 self.comandos()
                 return True
             else:
@@ -686,7 +641,7 @@ Para acessar sua conta digite: Entrar",
         Verifica se a mensagem está nas configurações avançadas
         Se estiver, devolve True caso contrário False
         '''
-        global adms, entrada_1gale, entrada_2gale, rodando
+        global adms, entrada_1gale, rodando
         
         if self.id not in adms:
             return False
@@ -698,7 +653,6 @@ Para acessar sua conta digite: Entrar",
             self.sender.sendMessage("Atualizando...")
             adms = get_adms()
             entrada_1gale = carregar_entradas(1)
-            entrada_2gale = carregar_entradas(2)
             self.sender.sendMessage("Informações atualizadas.")
         elif msg['text'] in [
             "Aprovar usuários", "Renovar licença", 
