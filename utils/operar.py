@@ -35,7 +35,6 @@ class Operacao(IQ_API):
                 if self.verboso:
                     import amanobot
                     self.telegram = amanobot.Bot(BOTTOKEN)
-                    self.mensagem_geral = ""
 
                 print(f"Entrando na {config['email']}")
                 super().__init__(
@@ -90,7 +89,7 @@ class Operacao(IQ_API):
         else:
             self.mostrar_mensagem("Ultrapassou o máximo de tentativas.")
 
-    def mostrar_mensagem(self, mensagem, final = False):
+    def mostrar_mensagem(self, mensagem):
         '''
         Mostra a mensagem em tela
         Se self.verboso tenta enviar para o telegram
@@ -98,23 +97,14 @@ class Operacao(IQ_API):
         print(mensagem)
         if self.verboso:
             try:
-                self.telegram.editMessageText(
-                    (self.verboso, self.message_id), 
-                    self.mensagem_geral + mensagem)
-            except AttributeError:
-                self.telegram = amanobot.Bot(BOTTOKEN)
                 self.telegram.sendMessage(self.verboso, mensagem)
             except Exception as e:
                 try:
                     import amanobot
                     self.telegram = amanobot.Bot(BOTTOKEN)
-                    self.telegram.editMessageText(
-                        (self.verboso, self.message_id), 
-                        self.mensagem_geral + mensagem)
+                    self.telegram.sendMessage(self.verboso, mensagem)
                 except Exception as e:
                     print(type(e), e)
-            if not final:
-                self.mensagem_geral += mensagem + "\n"
 
     def atualizar_noticias(self):
         '''
@@ -153,6 +143,7 @@ class Operacao(IQ_API):
         Faz a operação e a depender da configuração faz:
         Martingale/Sorosgale e calcula o ganhoTotal/perdaTotal
         '''
+        num_gales = 0
         def mostra_resultado():
             perto_win = f"R$ {round(self.ganho_total, 2)} / {self.config['goal']}"
             perto_loss = f"R$ {round(-self.perda_total, 2)} / {self.config['stoploss']}"
@@ -164,7 +155,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
     {f'✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌'.center(20)}
 {f'| Lucro: {perto_win} |'.center(10)}
 {f'| Perda: {perto_loss} |'.center(10)}
-    """, True)).start()
+    """, )).start()
 
         def desconta_perda(resultado, lucro):
             with self.cadeado:
@@ -172,7 +163,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
                 if resultado == "win":
                     self.ganho_total += round(lucro, 2)
                     self.ganhos_perdas[0] += 1
-                    mensagem = "✅"
+                    mensagem = (num_gales * "🐔 ") + "✅"
                 else:
                     if resultado == 'loose':
                         self.ganhos_perdas[1] += 1
@@ -243,7 +234,6 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
             if (self.config['tipo_gale'] == "martin" and 
                 self.config['entrada_martin'] == "vela"):
                 perda = 0
-                num_gales = 0
                 while (self.config['goal'] > self.ganho_total and (
                     self.max_gale > num_gales and resultado == 'loose')):
                     desconta_perda(resultado, lucro)
@@ -254,7 +244,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 
                     if self.perda_total <= -(self.config['stoploss']):
                         self.mostrar_mensagem(
-                            f"BATEU NO STOPLOSS: R$ {round(self.perda_total, 2)}!")
+                            f"🥵 Stop Loss 🥵\nR$ {round(self.perda_total, 2)}!\n:warning: Botflix parado :warning:")
                         sys.exit(0)
 
                     perda += abs(lucro)
@@ -398,9 +388,6 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
                 print(f" - {datetime.fromtimestamp(momento).strftime('dia %d - %H:%M')} | {comando['par']} - {horas}:{minutos} passou da hora - ")
         for thread in self.espera:
             thread.join()
-
-        self.mostrar_mensagem(
-            f"\nFim da operação resultado final: R$ {round(self.ganho_total, 2)}\n")
         
         try:
             if self.tipo == "auto":
@@ -409,6 +396,10 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
                     self.API.unsubscribe_strike_list(par, self.config["tempo"])
         except:
             pass
+        
+        time.sleep(1)
+        self.mostrar_mensagem(
+            f"\nFim da operação resultado final: R$ {round(self.ganho_total, 2)}\n")
 
     def maior_payout(self, par, tempo):
         '''
