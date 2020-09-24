@@ -9,7 +9,7 @@ from amanobot.delegate import (
 from database import *
 from controlador import Control
 
-TOKEN = "737574969:AAHgaEmqn2jkzSW5shewX-U1jS8R8-VpK1s"
+TOKEN = "1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao"
 bot_name = "robô MM_007"
 
 # Funções
@@ -61,9 +61,7 @@ entrada_01 = carregar_entradas(1)
 entrada_02 = carregar_entradas(2)
 entrada_03 = carregar_entradas(3)
 
-os.name = "nt"
 if os.name != "nt":
-    print("Entrou")
     controlador = Control()
 rodando = True
 
@@ -262,7 +260,7 @@ class Assistente(amanobot.helper.ChatHandler):
 
         verificador = False
         if msg['text'] == "Configurações avançadas":
-            self.ver_avancadas()
+            mensagem = self.ver_avancadas()
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Adicionar entradas" ),
                 KeyboardButton( text = "Tipo de paridade" )],
@@ -273,6 +271,7 @@ class Assistente(amanobot.helper.ChatHandler):
             ])
             verificador = True
         elif msg['text'] == "Administração":
+            mensagem = "Escolha a opção:"
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Aprovar usuários" ),
                 KeyboardButton( text = "Renovar licença" )],
@@ -283,7 +282,7 @@ class Assistente(amanobot.helper.ChatHandler):
             ])
             verificador = True
         if verificador:
-            self.enviar_mensagem("Escolha a opção:",
+            self.enviar_mensagem(mensagem,
                 reply_markup = teclado)        
             return True
         return False
@@ -300,8 +299,8 @@ class Assistente(amanobot.helper.ChatHandler):
         for key, value in default.items():
             if key not in ["_id"]:
                 resultado += f"{key}: {value}\n"
-        self.enviar_mensagem(resultado, save = True,
-            reply_markup = ReplyKeyboardRemove())
+        
+        return resultado
 
     def adicionar_entrada(self, msg):
         '''
@@ -412,7 +411,7 @@ Onde x seria 1, 2, 3 a depender da lista''',
         if texto == "Operação":
             return self.operar(msg)
         elif texto == "Ver configurações":
-            return self.ver_configuracoes()
+            return self.enviar_mensagem(self.ver_configuracoes(), save = True)
         elif texto == "Editar configurações":
             return self.editar_configuracoes()
         elif texto == "Ver lista de sinais":
@@ -452,7 +451,7 @@ Onde x seria 1, 2, 3 a depender da lista''',
                 
                 else:
                     self.enviar_mensagem("Você quer parar a operação ou ver o relatório?",
-                        edit = True, reply_markup = ReplyKeyboardMarkup(
+                        reply_markup = ReplyKeyboardMarkup(
                             keyboard = [
                                 [KeyboardButton( text = "Ver relatório" )],
                                 [KeyboardButton( text = "Parar operação" )]
@@ -471,9 +470,9 @@ Onde x seria 1, 2, 3 a depender da lista''',
         try:
             resultado = controlador.pegar_log(self.email)
             resultado = "\n".join(resultado.split("\n")[-50:])
-            self.enviar_mensagem(resultado, edit = True)
+            self.enviar_mensagem(resultado, save = True)
         except Exception as e:
-            self.enviar_mensagem("Recebi esse erro:\n" + str(e), edit = True)
+            self.enviar_mensagem("Recebi esse erro:\n" + str(e), save = True)
         self.comandos()
 
     def parar_operar(self, msg):
@@ -499,13 +498,13 @@ Onde x seria 1, 2, 3 a depender da lista''',
                 self.enviar_mensagem("Entradas:", 
                     reply_markup = ReplyKeyboardRemove())
                 
-                self.enviar_mensagem("Lista 01:" +
+                self.enviar_mensagem("Lista 01:\n" +
                     "\n".join(entrada_01), save = True)
                 
-                self.enviar_mensagem("Lista 02:" +
+                self.enviar_mensagem("Lista 02:\n" +
                     "\n".join(entrada_02), save = True)
                 
-                self.enviar_mensagem("Lista 03:" +
+                self.enviar_mensagem("Lista 03:\n" +
                     "\n".join(entrada_03), save = True)
                 self.comandos()
                 return True
@@ -542,8 +541,7 @@ Onde x seria 1, 2, 3 a depender da lista''',
                     if key in headers:
                         mensagem += f"\n⚙️ {headers[key]} ⚙️\n"
                     mensagem += f"{key}: {str(self.informacoes[value[0]]).replace('True', 'Sim').replace('False', 'Não')}\n"
-            self.enviar_mensagem(mensagem)
-            return True
+            return mensagem
         else:
             self.enviar_mensagem("Usuário não autenticado")
         return False
@@ -555,7 +553,7 @@ Onde x seria 1, 2, 3 a depender da lista''',
         '''
         if self.autenticacao:
             self.enviar_mensagem(
-                "O que você deseja alterar?", 
+                self.ver_configuracoes(), 
                 reply_markup = ReplyKeyboardMarkup( keyboard = [
                     [KeyboardButton( text = "Conta e listas" ),
                     KeyboardButton( text = "Entrada" )],
@@ -855,7 +853,6 @@ Onde x seria 1, 2, 3 a depender da lista''',
             info, valor = result
             MongoDB.modifica_avancadas(info, valor)
             self.enviar_mensagem(f"Valor salvo.")
-            self.ver_avancadas()
             self.gerenciar()
             return True
         return False
@@ -872,7 +869,6 @@ Onde x seria 1, 2, 3 a depender da lista''',
                 self.informacoes[info] = valor
                 self.enviar_mensagem("Alteração salva!")
                 self.editar_configuracoes()
-                self.ver_configuracoes()
                 return True
         return False
 

@@ -192,13 +192,13 @@ class Operacao(IQ_API):
 | {perto_win}% perto do objetivo |
 | {perto_loss}% perto do stoploss |""", )).start()
 
-		def desconta_perda(resultado, lucro):
+		def desconta_perda(resultado, lucro, gale = False):
 			with self.cadeado:
 				if resultado == "win":
 					self.ganho_total += round(lucro, 2)
 					self.ganhos_perdas[0] += 1
 				else:
-					if resultado == "loose":
+					if resultado == "loose" and not gale:
 						self.ganhos_perdas[1] += 1
 					self.ganho_total -= round(abs(lucro), 2)
 					self.perda_total -= round(abs(lucro), 2)
@@ -261,7 +261,7 @@ class Operacao(IQ_API):
 				num_gales = 0
 				while (self.config['goal'] > self.ganho_total and (
 					self.max_gale > num_gales and resultado == 'loose')):
-					desconta_perda(resultado, lucro)
+					desconta_perda(resultado, lucro, True)
 					mostra_resultado()
 		
 					# self.esperar_anteriores(threading.currentThread().name)
