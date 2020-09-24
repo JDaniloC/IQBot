@@ -157,7 +157,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 {f'| Perda: {perto_loss} |'.center(10)}
     """, )).start()
 
-        def desconta_perda(resultado, lucro):
+        def desconta_perda(resultado, lucro, gale = False):
             with self.cadeado:
                 mensagem = "Doji"
                 if resultado == "win":
@@ -166,7 +166,8 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
                     mensagem = (num_gales * "🐔 ") + "✅"
                 else:
                     if resultado == 'loose':
-                        self.ganhos_perdas[1] += 1
+                        if not gale:
+                            self.ganhos_perdas[1] += 1
                         mensagem = "❌"
                     self.ganho_total -= round(abs(lucro), 2)
                     self.perda_total -= round(abs(lucro), 2)
@@ -184,10 +185,12 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
                     self.cadeado, self.config['delay'])
                 break
             except Exception as e:
-                print(f"Ocorreu um erro na operação:\n {type(e)}: {e}")
-                if "closed" in str(e):
+                if "Connection is already closed." in str(e):
+                    self.mostrar_mensagem("Sinal perdido, a IQ fechou a conexão, o bot irá reconectar.")
                     raise ConnectionAbortedError(
-                "Não estou conseguindo fazer as operações, reinicie o bot.")
+                        "Não estou conseguindo fazer as operações, reinicie o bot.")
+                else:
+                    print(f"Ocorreu um erro na operação:\n {type(e)}: {e}")
                 self.conectar()
         if resultado == None:
             raise ConnectionAbortedError(
@@ -236,7 +239,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
                 perda = 0
                 while (self.config['goal'] > self.ganho_total and (
                     self.max_gale > num_gales and resultado == 'loose')):
-                    desconta_perda(resultado, lucro)
+                    desconta_perda(resultado, lucro, True)
                     mostra_resultado()
         
                     # self.esperar_anteriores(threading.currentThread().name)
@@ -244,7 +247,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 
                     if self.perda_total <= -(self.config['stoploss']):
                         self.mostrar_mensagem(
-                            f"🥵 Stop Loss 🥵\nR$ {round(self.perda_total, 2)}!\n:warning: Botflix parado :warning:")
+                            f"🥵 Stop Loss 🥵\nR$ {round(self.perda_total, 2)}!\n⚠️ Botflix parado ⚠️")
                         sys.exit(0)
 
                     perda += abs(lucro)
@@ -286,8 +289,8 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
                 self.valor = 1 if self.valor < 1 else self.valor
                 print(self.valor)
 
-        if resultado not in ["error", "equal"]:
-            desconta_perda(resultado, lucro)      
+        if resultado != "error":
+            if resultado != "equal": desconta_perda(resultado, lucro)      
             time.sleep(3)          
             mostra_resultado()
 
@@ -443,7 +446,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
     Total ganho: {round(self.ganho_total, 2)}
     Stoploss: {-self.config['stoploss']}
     Total perdido: {round(self.perda_total, 2)}
-    :warning: Botflix parado :warning:''')
+    ⚠️ Botflix parado ⚠️''')
                 return True
         return False
 

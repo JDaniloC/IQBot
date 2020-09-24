@@ -258,8 +258,11 @@ Todas as carteiras:\n"""
         if not status:
             if tipo == "digital":
                 identificador = identificador['message']
-            self.output(str(identificador).center(60))
-            print(f"  ❌ {par}-{tipo} {direcao} fechada ou máximo de operações ❌")
+            if "active is suspended" in str(identificador):
+                self.output(f"  ❌ {par} fechada na {tipo} ❌".center(60))
+            else:
+                self.output(str(identificador).center(60))
+                print(f"  ❌ {par}-{tipo} {direcao} máximo de operações ❌")
             return "error", 0
 
         self.output(
