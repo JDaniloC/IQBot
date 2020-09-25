@@ -234,7 +234,7 @@ class Assistente(amanobot.helper.ChatHandler):
                     save = True)
                 self.comandos()
             else:
-                self.enviar_mensagem("Sua licença expirou, peça para o administrador renovar.")
+                self.enviar_mensagem("Sua licença expirou, peça para o administrador renovar.", save = True)
                 self.close()
         elif (MongoDB.verifica_cadastro(email)):
             self.enviar_mensagem("Seu e-mail ainda está em análise...", save = True)
@@ -348,7 +348,7 @@ class Assistente(amanobot.helper.ChatHandler):
         if self.id not in adms:
             return
         if self.add_entrada != "0":
-            self.enviar_mensagem("Processando...", edit = True)
+            self.enviar_mensagem("Processando...")
             # Procura o início das velas
             if self.add_entrada == "1":
                 primeiro = self.pegar_entrada(
@@ -405,7 +405,7 @@ class Assistente(amanobot.helper.ChatHandler):
         Devolve um boolean se autenticado
         '''
         if self.autenticacao:
-            self.enviar_mensagem("Carregando...", edit = True)
+            self.enviar_mensagem("Carregando...")
 
             if self.iniciar_operacao:
                 self.enviar_mensagem("Iniciando operação, tenha paciência, isso pode demorar.",
