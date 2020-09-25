@@ -272,7 +272,7 @@ class Assistente(amanobot.helper.ChatHandler):
 
         verificador = False
         if msg['text'] == "Configurações avançadas":
-            self.ver_avancadas()
+            mensagem = self.ver_avancadas()
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Adicionar entradas" ),
                 KeyboardButton( text = "Tipo de paridade" )],
@@ -283,18 +283,18 @@ class Assistente(amanobot.helper.ChatHandler):
             ])
             verificador = True
         elif msg['text'] == "Administração":
+            mensagem = "Escolha a opção:"
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Aprovar usuários" ),
                 KeyboardButton( text = "Renovar licença" )],
                 [KeyboardButton( text = "Tirar de cadastro" ),
                 KeyboardButton( text = "Remover usuários" )],
-                [KeyboardButton( text = "Adicionar administrador" ),
-                KeyboardButton( text = "Atualizar informações" )],
+                [KeyboardButton( text = "Adicionar administrador" )],
                 [KeyboardButton( text = "Gerenciar" )]
             ])
             verificador = True
         if verificador:
-            self.enviar_mensagem("Escolha a opção:",
+            self.enviar_mensagem(mensagem,
                 reply_markup = teclado)        
             return True
         return False
@@ -311,8 +311,7 @@ class Assistente(amanobot.helper.ChatHandler):
         for key, value in default.items():
             if key not in ["_id"]:
                 resultado += f"{key}: {value}\n"
-        self.enviar_mensagem(resultado, save = True,
-            reply_markup = ReplyKeyboardRemove())
+        return resultado
 
     def adicionar_entrada(self, msg):
         '''
@@ -389,7 +388,7 @@ class Assistente(amanobot.helper.ChatHandler):
         if texto == "Operação":
             return self.operar(msg)
         elif texto == "Ver configurações":
-            return self.ver_configuracoes()
+            return self.enviar_mensagem(self.ver_configuracoes(), save = True)
         elif texto == "Editar configurações":
             return self.editar_configuracoes()
         elif texto == "Ver lista de sinais":
@@ -454,9 +453,9 @@ class Assistente(amanobot.helper.ChatHandler):
         try:
             resultado = controlador.pegar_log(self.email)
             resultado = "\n".join(resultado.split("\n")[-50:])
-            self.enviar_mensagem(resultado)
+            self.enviar_mensagem(resultado, save = True)
         except Exception as e:
-            self.enviar_mensagem("Recebi esse erro:\n", e)
+            self.enviar_mensagem(f"Recebi esse erro:\n{e}", save = True)
         self.comandos()
 
     def parar_operar(self, msg):
@@ -519,8 +518,7 @@ class Assistente(amanobot.helper.ChatHandler):
                     if key in headers:
                         mensagem += f"\n⚙️ {headers[key]} ⚙️\n"
                     mensagem += f"{key}: {str(self.informacoes[value[0]]).replace('True', 'Sim').replace('False', 'Não')}\n"
-            self.enviar_mensagem(mensagem)
-            return True
+            return mensagem
         else:
             self.enviar_mensagem("Usuário não autenticado")
         return False
@@ -818,7 +816,6 @@ class Assistente(amanobot.helper.ChatHandler):
             info, valor = result
             MongoDB.modifica_avancadas(info, valor)
             self.enviar_mensagem(f"Valor salvo.")
-            self.ver_avancadas()
             self.gerenciar()
             return True
         return False
@@ -834,7 +831,6 @@ class Assistente(amanobot.helper.ChatHandler):
                 info, valor = result
                 self.informacoes[info] = valor
                 self.enviar_mensagem("Alteração salva!")
-                self.ver_configuracoes()
                 self.editar_configuracoes()
                 return True
         return False
