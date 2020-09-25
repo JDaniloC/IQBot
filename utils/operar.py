@@ -211,12 +211,12 @@ class Operacao(IQ_API):
 					self.cadeado, self.config['delay'])
 				break
 			except Exception as e:
-                if "Connection is already closed." in str(e):
-                    self.mostrar_mensagem("Sinal perdido, a IQ fechou a conexão, o bot irá reconectar.")
-                    raise ConnectionAbortedError(
-                        "Não estou conseguindo fazer as operações, reinicie o bot.")
-                else:
-                    print(f"Ocorreu um erro na operação:\n {type(e)}: {e}")
+				if "Connection is already closed." in str(e):
+					self.mostrar_mensagem("Sinal perdido, a IQ fechou a conexão, o bot irá reconectar.")
+					raise ConnectionAbortedError(
+						"Não estou conseguindo fazer as operações, reinicie o bot.")
+				else:
+					print(f"Ocorreu um erro na operação:\n {type(e)}: {e}")
 				self.conectar()
 		if resultado == None:
 			raise ConnectionAbortedError(
