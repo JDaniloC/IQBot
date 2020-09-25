@@ -530,7 +530,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         if self.autenticacao:
             self.enviar_mensagem(
-                "O que você deseja alterar?", 
+                self.ver_configuracoes(), 
                 reply_markup = ReplyKeyboardMarkup( keyboard = [
                     [KeyboardButton( text = "Conta e listas" )],
                     [KeyboardButton( text = "Entrada" ),
