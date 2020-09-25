@@ -429,7 +429,7 @@ Onde x seria 1, 2, 3 a depender da lista''',
 
             if self.iniciar_operacao:
                 self.enviar_mensagem("Iniciando operação, tenha paciência, isso pode demorar.",
-                    edit = True, reply_markup = ReplyKeyboardRemove())   
+                    reply_markup = ReplyKeyboardRemove())   
                 self.iniciar_operacao = False
                 self.informacoes["operando"] = True
                 MongoDB.modifica_usuario(self.informacoes, self.email)
@@ -438,15 +438,15 @@ Onde x seria 1, 2, 3 a depender da lista''',
                     os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}, {self.id}")
                 else:
                     controlador.adicionar_pessoa(self.email, msg['text'], self.id)
-                self.enviar_mensagem("Operação iniciada. Se em 5min eu não avisar que está conectado, reincie a operação.",
-                    edit = True)
+                self.enviar_mensagem(
+                    "Operação iniciada. Se em 5min eu não avisar que está conectado, reincie a operação.")
                 self.comandos()
             else:
                 temporario = MongoDB.get_user(self.email)
 
                 if not temporario['operando']:
                     self.enviar_mensagem("Digite sua senha (não guardamos a sua senha, você terá que fazer isso todas as vezes): ", 
-                        edit = True, reply_markup = ReplyKeyboardRemove())
+                       reply_markup = ReplyKeyboardRemove())
                     self.iniciar_operacao = True
                 
                 else:
