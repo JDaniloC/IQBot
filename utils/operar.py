@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from utils.IQ import IQ_API
 from pprint import pprint
 
+BOTNAME = "Flix Bot"
 BOTTOKEN = "1399058449:AAFEbt3BUVbKzGapvrxwyksrydp0mF5zIN4"
 LOCALERROR = "errors.log"
 LOCALLOG = ""
@@ -169,6 +170,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
                         if not gale:
                             self.ganhos_perdas[1] += 1
                         mensagem = "❌"
+                        lucro = abs(lucro) * -1
                     self.ganho_total -= round(abs(lucro), 2)
                     self.perda_total -= round(abs(lucro), 2)
                 threading.Thread(
@@ -247,7 +249,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 
                     if self.perda_total <= -(self.config['stoploss']):
                         self.mostrar_mensagem(
-                            f"🥵 Stop Loss 🥵\nR$ {round(self.perda_total, 2)}!\n⚠️ Botflix parado ⚠️")
+                            f"🥵 Stop Loss 🥵\nR$ {round(self.perda_total, 2)}!\n⚠️ {BOTNAME} parado ⚠️")
                         sys.exit(0)
 
                     perda += abs(lucro)
@@ -446,7 +448,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
     Total ganho: {round(self.ganho_total, 2)}
     Stoploss: {-self.config['stoploss']}
     Total perdido: {round(self.perda_total, 2)}
-    ⚠️ Botflix parado ⚠️''')
+    ⚠️ {BOTNAME} parado ⚠️''')
                 return True
         return False
 

@@ -258,7 +258,7 @@ Todas as carteiras:\n"""
         if not status:
             if tipo == "digital":
                 identificador = identificador['message']
-            if "active is suspended" in str(identificador):
+            if "active is suspended" in str(identificador) or "is not available" in str(identificador):
                 self.output(f"  ❌ {par} fechada na {tipo} ❌".center(60))
             else:
                 self.output(str(identificador).center(60))

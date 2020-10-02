@@ -12,7 +12,7 @@ from database import *
 from controlador import Control
 
 TOKEN = "1399058449:AAFEbt3BUVbKzGapvrxwyksrydp0mF5zIN4"
-bot_name = "botflix"
+bot_name = "Flix Bot"
 
 # Funções
 def strDateHour(number):
@@ -173,11 +173,11 @@ class Assistente(amanobot.helper.ChatHandler):
         teclado = InlineKeyboardMarkup(inline_keyboard = [
             [InlineKeyboardButton(
                 text = "Comprar licença",
-                url = "www.google.com.br"
+                url = "https://t.me/srflix"
             ),
             InlineKeyboardButton(
                 text = "Tutorial",
-                url = "www.google.com.br"
+                url = "https://t.me/srflix"
             )]
         ])
         
