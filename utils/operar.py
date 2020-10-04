@@ -230,7 +230,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
                 print(f" [SOROS] Preservando capital: R$ {valor} -> R$ {self.valor_inicial}")
                 self.valor = self.valor_inicial
         
-        if resultado == "loose":
+        if resultado == "loose" or resultado == "equal":
             if self.config['soros'] and self.soros_atual > 0:
                 self.soros_atual = 0
                 print(f" [SOROS] Preservando capital: R$ {valor} -> R$ {self.valor_inicial}")
@@ -240,26 +240,31 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
                 self.config['entrada_martin'] == "vela"):
                 perda = 0
                 while (self.config['goal'] > self.ganho_total and (
-                    self.max_gale > num_gales and resultado == 'loose')):
-                    desconta_perda(resultado, lucro, True)
-                    mostra_resultado()
+                    self.max_gale > num_gales and resultado != 'win')):
+                    if resultado not in ["error", "equal"]:
+                        desconta_perda(resultado, lucro, True)
+                        mostra_resultado()
         
                     # self.esperar_anteriores(threading.currentThread().name)
                     # threading.currentThread().setName(str(time.time()))
 
                     if self.perda_total <= -(self.config['stoploss']):
+                        self.ganhos_perdas[1] += 1
                         self.mostrar_mensagem(
                             f"🥵 Stop Loss 🥵\nR$ {round(self.perda_total, 2)}!\n⚠️ {BOTNAME} parado ⚠️")
                         sys.exit(0)
 
-                    perda += abs(lucro)
 
                     print(f"\n [MARTINGALE] do tipo {self.config['tipo_martin']} na operação {par}|{ordem}")
                         
-                    lucro = (valor * payout if self.config["tipo_martin"] != "porcento" 
-                            else self.config["percent_martin"] / 100)
-                    valor = self.martingale(self.config['tipo_martin'], 
-                        payout, perda, valor, lucro)
+                    if resultado not in ["error", "equal"]:
+                        perda += abs(lucro)
+                        num_gales += 1
+
+                        lucro = (valor * payout if self.config["tipo_martin"] != "porcento" 
+                                else self.config["percent_martin"] / 100)
+                        valor = self.martingale(self.config['tipo_martin'], 
+                            payout, perda, valor, lucro)
                     
                     valor = 1 if valor < 1 else valor # Caso der doji
 
@@ -267,7 +272,6 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
                         par, ordem, tempo, valor, tipo, 
                         self.cadeado, self.config['delay'])
                 
-                    num_gales += 1
                 if resultado == "win":
                     self.perda_total += perda
             

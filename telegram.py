@@ -173,11 +173,11 @@ class Assistente(amanobot.helper.ChatHandler):
         teclado = InlineKeyboardMarkup(inline_keyboard = [
             [InlineKeyboardButton(
                 text = "Comprar licença",
-                url = "https://t.me/srflix"
+                url = "http://srflixsignal.online/Botflix.html"
             ),
             InlineKeyboardButton(
                 text = "Tutorial",
-                url = "https://t.me/srflix"
+                url = "https://www.youtube.com/playlist?list=PLAitUVKXNCgfVkYW4lXqMrtcVpmUWHcsi"
             )]
         ])
         
