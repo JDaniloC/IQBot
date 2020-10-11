@@ -43,7 +43,6 @@ from iqoptionapi.ws.chanels.buy_place_order_temp import Buy_place_order_temp
 from iqoptionapi.ws.chanels.get_order import Get_order
 from iqoptionapi.ws.chanels.get_deferred_orders import GetDeferredOrders
 from iqoptionapi.ws.chanels.get_positions import *
-
 from iqoptionapi.ws.chanels.get_available_leverages import Get_available_leverages
 from iqoptionapi.ws.chanels.cancel_order import Cancel_order
 from iqoptionapi.ws.chanels.close_position import Close_position
@@ -259,7 +258,6 @@ class IQOptionAPI(object):  # pylint: disable=too-many-instance-attributes
         :param str name: The websocket request name.
         :param dict msg: The websocket request msg.
         """
-
         logger = logging.getLogger(__name__)
 
         data = json.dumps(dict(name=name,
@@ -604,7 +602,6 @@ class IQOptionAPI(object):  # pylint: disable=too-many-instance-attributes
     @property
     def get_options(self):
         return Get_options(self)
-
     @property
     def get_options_v2(self):
         return Get_options_v2(self)

@@ -12,6 +12,7 @@ user = {
     "percent_soros": 0,
     "max_soros": 1,
     "percent_martin": 0,
+    "entrada_martin": "vela",
     "max_gale": 2,
     "tipo_martin": "seguro",
     "entrada_martin": "vela",

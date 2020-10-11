@@ -7,7 +7,8 @@ import time, pprint
 autenticacao = "mongodb+srv://Daniel:1231231414@cluster0.bfyqb.gcp.mongodb.net/<dbname>?retryWrites=true&w=majority"
 
 class Mongo:
-    def __init__(self, database, users_collection, users_em_aprovacao, default_infos, adms, entrada1, entrada2):
+    def __init__(self, database, users_collection, users_em_aprovacao, 
+    default_infos, adms, entrada1, entrada2, entrada3):
         self.database = database
         self.Users_collection = users_collection
         self.Users_em_aprovacao = users_em_aprovacao
@@ -15,6 +16,7 @@ class Mongo:
         self.ADMS = adms
         self.Entrada1 = entrada1
         self.Entrada2 = entrada2
+        self.Entrada3 = entrada3
 
     def adicionar_cadastro(self, email):
         '''
@@ -114,10 +116,14 @@ class Mongo:
         Devolve as lista de entradas (modo 1/2)
         A depender da quantidade de gales
         '''
+        resultado = []
         if modo == 1:
-            return list(self.Entrada1.find())
-        else:
-            return list(self.Entrada2.find())
+            resultado =  list(self.Entrada1.find())
+        elif modo == 2:
+            resultado = list(self.Entrada2.find())
+        elif modo == 3:
+            resultado = list(self.Entrada3.find())
+        return resultado
 
     def set_entradas(self, modo, entradas):
         '''
@@ -132,6 +138,10 @@ class Mongo:
             self.Entrada2.delete_many({"ordem": 'call'})
             self.Entrada2.delete_many({"ordem": 'put'})
             self.Entrada2.insert_many(entradas)
+        elif modo == 3:
+            self.Entrada3.delete_many({"ordem": 'call'})
+            self.Entrada3.delete_many({"ordem": 'put'})
+            self.Entrada3.insert_many(entradas)
 
     def modificar_banco_users(self, opcao):
         if opcao == "clear":
@@ -153,7 +163,9 @@ ADMS = IQ_DataBase.ADMS
 aprovacao = waiting_schema.queue
 entrada1 = IQ_DataBase.entradas1
 entrada2 = IQ_DataBase.entradas2
+entrada3 = IQ_DataBase.entradas3
 
 MongoDB = Mongo(
-    IQ_DataBase, Users_collection, Users_em_aprovacao, default_infos, ADMS, entrada1, entrada2
+    IQ_DataBase, Users_collection, Users_em_aprovacao, 
+    default_infos, ADMS, entrada1, entrada2, entrada3
 )

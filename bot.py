@@ -114,6 +114,8 @@ def configuracoes(nome = LOCALCONFIG):
             arquivo.get("LOSS", "stoploss").replace(",", ".")),
         "tipo_gale": arquivo.get("LOSS", "tipo_gale").lower(),
         "tipo_martin": arquivo.get("LOSS", "tipo_martin").lower(),
+        "entrada_martin": arquivo.get(
+            "LOSS", "entrada_martin").lower(),
         "max_gale": int(arquivo.get("LOSS", "max_gale")),
         "percent_martin": float(arquivo.get(
             "LOSS", "percent_martin").replace(",", ".")),

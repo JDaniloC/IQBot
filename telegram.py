@@ -85,7 +85,7 @@ class Assistente(amanobot.helper.ChatHandler):
 
         self.entrada = False
 
-        self.add_entrada = "0"        
+        self.add_entrada = "-"        
         self.iniciar_operacao = False
         self.parar_bot = False
         self.alteracoes_avancadas = {
@@ -100,6 +100,7 @@ class Assistente(amanobot.helper.ChatHandler):
         self.mapeamento = {
             "Tipo de conta": ["tipo_conta", False, tuple], 
             "Tipo de lista": ["tipo_lista", False, tuple],
+            "Lista escolhida": ["num_lista", False, tuple],
             
             "Valor de entrada": ["valor", False, float],
             "StopWin": ["goal", False, float],
@@ -548,9 +549,10 @@ class Assistente(amanobot.helper.ChatHandler):
         verificador = False
         if msg['text'] == 'Conta e listas':
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Tipo de conta" )],
-                [KeyboardButton( text = "Tipo de lista" )],
-                [KeyboardButton( text = "Adicionar lista" )],
+                [KeyboardButton( text = "Tipo de conta" ),
+                KeyboardButton( text = "Adicionar lista" )],
+                [KeyboardButton( text = "Tipo de lista" ),
+                KeyboardButton( text = "Lista escolhida" )],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == 'Entrada':
@@ -576,6 +578,7 @@ class Assistente(amanobot.helper.ChatHandler):
             verificador = True
         elif msg['text'] == 'Martingale e Soros':
             teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "Martingale na próxima" )],
                 [KeyboardButton( text = "Tipo de martingale" ),
                 KeyboardButton( text = "Soros" )],
                 [KeyboardButton( text = "Máximo de gales" ),
@@ -872,10 +875,10 @@ class Assistente(amanobot.helper.ChatHandler):
             pass                    # [2] Opções
         elif self.submenu_configuracoes(msg):
             pass                    # [1] Alterações
-        elif msg['text'] == "Adicionar entradas":
-            self.adicionar_entrada(msg) # [1] Entradas
+        elif self.adicionar_entrada(msg):
+            pass                    # [1] Entradas
         elif self.salvar_alteracoes_avancadas(msg):
-            self.gerenciar() # [4] Avançadas (ADM)
+            self.gerenciar()        # [4] Avançadas (ADM)
         elif self.confirmar_alteracao(msg):
             pass # [3] Alterações
         elif self.habilitar_alteracao(msg):
