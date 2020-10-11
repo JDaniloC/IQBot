@@ -40,7 +40,7 @@ def pegar_comando(texto):
         timeframe = re.search(
             r'[MH][1-6]?[0-5]', texto.upper())
         if timeframe: 
-            if "M" in timeframe[0]: 
+            if "M" in timeframe[0].upper(): 
                 timeframe = int(timeframe[0].strip("M"))
             else: 
                 timeframe = int(timeframe[0].strip("H")) * 60
@@ -224,10 +224,15 @@ def recebe_comandos(comandos):
             if config['tipo_lista'] == "casa":
                 # Une com as informações gerais
                 config.update(MongoDB.get_avancadas())
-                entradas = MongoDB.get_entradas(int(config['num_lista']))
+                # maximo = int(config['max_gale'])
+                # if maximo < 1:
+                #     maximo = 1
+                # elif maximo > 2:
+                #     maximo = 2
+                entradas = MongoDB.get_entradas(1)
             else:
                 entradas = config['lista']
-            Operacao(config, entradas, 0, comandos[3])
+            Operacao(config, entradas, verboso = int(comandos[3]))
         else:
             print('''
             [COMANDOS]

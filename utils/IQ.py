@@ -3,11 +3,15 @@ from datetime import datetime
 import time
 
 class IQ_API:
-    def __init__(self, login, senha):
+    def __init__(self, login, senha, output = None):
         '''
         Recebe o login, e tenta se conectar
         '''
         self.API = IQ_Option(login, senha)
+        if output != None:
+            self.output = output
+        else:
+            output = print
         if not self.conectar():
             raise ConnectionError(" ❌ Não conseguiu se conectar, reveja a senha ❌ ")
 
@@ -254,13 +258,15 @@ Todas as carteiras:\n"""
         if not status:
             if tipo == "digital":
                 identificador = identificador['message']
-            print(str(identificador).center(60))
-            print(f"  ❌ {par}-{tipo} {direcao} fechada ou máximo de operações ❌")
+            if "active is suspended" in str(identificador) or "is not available" in str(identificador):
+                self.output(f"  ❌ {par} fechada na {tipo} ❌".center(60))
+            else:
+                self.output(str(identificador).center(60))
+                print(f"  ❌ {par}-{tipo} {direcao} máximo de operações ❌")
             return "error", 0
 
-        print(f'''
-            {par}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}
-        ''')
+        self.output(
+            f"Entrou em {par} {tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
 
         if delay == False:
             # Versão que pega no histórico

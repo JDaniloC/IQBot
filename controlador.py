@@ -1,8 +1,8 @@
 from os import system 
 from subprocess import check_output
 
-project_name = "durable-matter-281714"
-account = "46980103503-compute@developer.gserviceaccount.com"
+project_name = "robotic-incline-285016"
+account = "976842081628-compute@developer.gserviceaccount.com"
 
 class Instancia:
     def __init__(self, name):
@@ -94,7 +94,7 @@ class Control:
         status = -1
         while status != 0:
             status = system(f"gcloud compute ssh {name} --zone us-central1-a --command='chmod 777 iqbot/setup.sh;./iqbot/setup.sh'")
-            print("Status: ", status)
+            print("Status:", status)
         
         self.instancias.append(Instancia(name))
 
