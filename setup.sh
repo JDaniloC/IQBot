@@ -1,4 +1,5 @@
 #!/bin/bash
+sudo apt-get update && sudo apt install git screen
 
 # Instalar o asdf
 git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.7.8
@@ -17,7 +18,7 @@ asdf global python 3.8.0
 pip install --upgrade pip
 
 # Instalar dependências do python
-pip install amanobot pymongo requests==2.10.0 websocket-client==0.56 dnspython bs4
+pip install amanobot pymongo requests==2.10.0 websocket-client==0.56 dnspython bs4 numpy
 
 # Instalar o ta-lib
 # tar -xzf iqbot/dependencies/ta-lib-0.4.0-src.tar.gz
