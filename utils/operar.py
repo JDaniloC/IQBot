@@ -1,9 +1,14 @@
 from utils.investing import extrair_noticias
 import threading, traceback, time, re, sys
 from datetime import datetime, timedelta
+from configparser import RawConfigParser
 from utils.IQ import IQ_API
-from pprint import pprint
 
+config = RawConfigParser()
+config.read(".env")
+
+BOTNAME = config.get("TELEGRAM", "name")
+BOTTOKEN = config.get("TELEGRAM", "token")
 LOCALERROR = "errors.log"
 LOCALLOG = ""
 
@@ -17,42 +22,6 @@ def escreve_log(email, mensagem):
 		file.write(mensagem + "\n")
 
 class Operacao(IQ_API): 
-	logo = ('''
-	   ******                                               
-	***********                                             
-   ************                                             
-	 ***********                                            
-			 *****       .,,,,,,,,,,,,,,,,,                 
-				*****,,,,,/(((((((#(((((,,,,,,              
-				  ,*****/(((,,,,,,,,,((((#(,*,,             
-				 ,,,,*****,,,.*//,,,,,,,((((.,,,*           
-			   ,,*((((,*****,///(/((/,,,,((((,,,,*          
-			  ,,,(((,,,,//,,*,,,,/(((,,,,#(((,,,,*/         
-			 ,,,((((,,,////,,.,..////,,,/(((*,,,***         
-   @@@@@##   .,,//@@@@@//////(//(//..*@@@@@/,,,,,*. ((@@@@  
-   @&@@@@##  ,,,/@@@@@@/,,(///(/,,,,,*@@@@@@/,,,,, ((@@@@@  
-   @&*@@@@## ,,,@@*&@@@/,,,,,,,,,,/(//@@,@@@@/,,  ((@&*@@@  
-   @&**@@@@##,,@@*.@@@@/((//(((((((((*@@,,&@@@/  ((@@**@@@  
-   @&/* @@@@##@@*.,&@@@/(((((((*,,*,,*@@..,&@@@@/(@  **@@@  
-   @&/*  @@@@@@*   &@@@/,,,,,,,,,,,..*@@.  ,%@@@@@   **@@@  
-   @&/*   @@@@*    %@@@/......&(.....,@@    .#@@@    **@@@  
-   @&/,    @@*     %@@@      @*@      @@      /@      *@@@  
-														   
-''')
-
-	welcome = ('''                                                          
-  ___       _        _                      _         _         
- / __| ___ (_)__ _  | |__  ___ _ __ _____ _(_)_ _  __| |___     
- \__ \/ -_)| / _` | | '_ \/ -_) '  \___\ V / | ' \/ _` / _ \    
- |___/\___|/ \__,_| |_.__/\___|_|_|_|   \_/|_|_||_\__,_\___/    
-		 |__/                                                   
-			 ___     _           __  __   __  __   __   __ ____ 
-  __ _ ___  | _ \___| |__  ___  |  \/  | |  \/  | /  \ /  \__  |
- / _` / _ \ |   / _ \ '_ \/ _ \ | |\/| |_| |\/| || () | () |/ / 
- \__,_\___/ |_|_\___/_.__/\___/ |_|  |_(_)_|  |_|_\__/ \__//_/  
-											   |___|           
-''')
-
 	def __init__(self, config, comandos, 
 		maximo = 0, verboso = False):
 		self.maximo = maximo
@@ -67,16 +36,14 @@ class Operacao(IQ_API):
 
 		if self.maximo < 3:
 			try:
-				print(self.logo, flush = True)
-				print(self.welcome, flush = True)
-
 				if self.verboso:
 					import amanobot
-					self.telegram = amanobot.Bot("1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao")
+					self.telegram = amanobot.Bot(BOTTOKEN)
 
 				print(f"Entrando na {config['email']}")
-				super().__init__(config['email'], config['senha'])
-
+				super().__init__(
+					config['email'], config['senha'], self.mostrar_mensagem)
+				
 				if config['tipo_conta'] == "treino":
 					self.mudar_treino()
 				else:
@@ -96,6 +63,8 @@ class Operacao(IQ_API):
 				self.tempo = config['tempo']
 				self.max_gale = config["max_gale"]
 				self.ganhos_perdas = [0, 0]
+				
+				self.saldo_inicial = self.API.get_balance()
 				if config['tendencia']:
 					self.config['correcao'] += 3
 				if config['noticias']:
@@ -117,7 +86,7 @@ class Operacao(IQ_API):
 					print("Continuando as operações...")
 					self.maximo += 1
 					self.__init__(
-						self.config, self.comandos, self.maximo)
+						self.config, self.comandos, self.maximo, self.verboso)
 				except:
 					print("Deu erro novamente! Finalizando o programa.")
 					escreve_erros(e)
@@ -136,8 +105,7 @@ class Operacao(IQ_API):
 			except Exception as e:
 				try:
 					import amanobot
-					self.telegram = amanobot.Bot(
-						"1354635217:AAG1EbTt772cwPh008Ud3uBqyxyS28LXZao")
+					self.telegram = amanobot.Bot(BOTTOKEN)
 					self.telegram.sendMessage(self.verboso, mensagem)
 				except Exception as e:
 					print(type(e), e)
@@ -179,30 +147,41 @@ class Operacao(IQ_API):
 		Faz a operação e a depender da configuração faz:
 		Martingale/Sorosgale e calcula o ganhoTotal/perdaTotal
 		'''
+		num_gales = 0
 		def mostra_resultado():
-			perto_win = round(
-				self.ganho_total/self.config['goal'] * 100, 2)
-			perto_loss = round(
-				-self.perda_total/self.config['stoploss'] * 100, 2)
+			perto_win = f"R$ {round(self.ganho_total, 2)} / {self.config['goal']}"
+			perto_loss = f"R$ {round(-self.perda_total, 2)} / {self.config['stoploss']}"
 			threading.Thread(
 				target = self.mostrar_mensagem,
 				args = (f"""
-{par} {ordem.upper()} R$ {round(self.ganho_total, 2)}
-	✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌
-| {perto_win}% perto do objetivo |
-| {perto_loss}% perto do stoploss |""", )).start()
+	Saldo inicial: R$ {self.saldo_inicial}
+	Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
+	{f'✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌'.center(20)}
+	{f'| Lucro: {perto_win} |'.center(10)}
+	{f'| Perda: {perto_loss} |'.center(10)}
+	""", )).start()
 
 		def desconta_perda(resultado, lucro, gale = False):
 			with self.cadeado:
+				mensagem = "Doji"
 				if resultado == "win":
 					self.ganho_total += round(lucro, 2)
 					self.ganhos_perdas[0] += 1
+					mensagem = (num_gales * "🐔 ") + "✅"
 				else:
-					if resultado == "loose" and not gale:
-						self.ganhos_perdas[1] += 1
+					if resultado == 'loose':
+						if not gale:
+							self.ganhos_perdas[1] += 1
+						mensagem = "❌"
+						lucro = abs(lucro) * -1
 					self.ganho_total -= round(abs(lucro), 2)
 					self.perda_total -= round(abs(lucro), 2)
-
+				threading.Thread(
+				target = self.mostrar_mensagem,
+				args = (f"""
+	{par.upper()} {ordem.upper()} M{tempo} 
+	Resultado: {mensagem}
+	Lucro: R$ {round(lucro, 2)}""", )).start()
 		resultado = None
 		for i in range(2):
 			try:
@@ -254,7 +233,7 @@ class Operacao(IQ_API):
 				print(f" [SOROS] Preservando capital: R$ {valor} -> R$ {self.valor_inicial}")
 				self.valor = self.valor_inicial
 		
-		if resultado == "loose":
+		if resultado == "loose" or resultado == "equal":
 			if self.config['soros'] and self.soros_atual > 0:
 				self.soros_atual = 0
 				print(f" [SOROS] Preservando capital: R$ {valor} -> R$ {self.valor_inicial}")
@@ -263,28 +242,30 @@ class Operacao(IQ_API):
 			if (self.config['tipo_gale'] == "martin" and 
 				self.config['entrada_martin'] == "vela"):
 				perda = 0
-				num_gales = 0
 				while (self.config['goal'] > self.ganho_total and (
-					self.max_gale > num_gales and resultado == 'loose')):
-					desconta_perda(resultado, lucro, True)
-					mostra_resultado()
+					self.max_gale > num_gales and resultado != 'win')):
+					if resultado not in ["error", "equal"]:
+						desconta_perda(resultado, lucro, True)
+						mostra_resultado()
 		
 					# self.esperar_anteriores(threading.currentThread().name)
 					# threading.currentThread().setName(str(time.time()))
 
 					if self.perda_total <= -(self.config['stoploss']):
+						self.ganhos_perdas[1] += 1
 						self.mostrar_mensagem(
-							f"BATEU NO STOPLOSS: R$ {round(self.perda_total, 2)}!")
+							f"🥵 Stop Loss 🥵\nR$ {round(self.perda_total, 2)}!\n⚠️ {BOTNAME} parado ⚠️")
 						sys.exit(0)
-
-					perda += abs(lucro)
 
 					print(f"\n [MARTINGALE] do tipo {self.config['tipo_martin']} na operação {par}|{ordem}")
 						
-					lucro = (valor * payout if self.config["tipo_martin"] != "porcento" 
-							else self.config["percent_martin"] / 100)
-					valor = self.martingale(self.config['tipo_martin'], 
-						payout, perda, valor, lucro)
+					if resultado not in ["error", "equal"]:
+						perda += abs(lucro)
+						num_gales += 1
+
+						lucro = valor * payout
+						valor = self.martingale(self.config['tipo_martin'], 
+							payout, perda, valor, lucro)
 					
 					valor = 1 if valor < 1 else valor # Caso der doji
 
@@ -292,9 +273,9 @@ class Operacao(IQ_API):
 						par, ordem, tempo, valor, tipo, 
 						self.cadeado, self.config['delay'])
 				
-					num_gales += 1
 				if resultado == "win":
 					self.perda_total += perda
+			
 			elif self.config['tipo_gale'] == "martin":
 				print(f"\n [MARTINGALE] do tipo {self.config['tipo_martin']} na operação {par}|{ordem}")
 				self.perda_atual += abs(valor)
@@ -315,12 +296,10 @@ class Operacao(IQ_API):
 				self.valor = 1 if self.valor < 1 else self.valor
 				print(self.valor)
 
-		if resultado not in ["error", "equal"]:
-			desconta_perda(resultado, lucro)                
+		if resultado != "error":
+			if resultado != "equal": desconta_perda(resultado, lucro)      
+			time.sleep(3)          
 			mostra_resultado()
-
-		elif resultado == "error":
-			print(f"\nErro na operação às {str(datetime.utcnow())[:-7]}")
 
 	def computar(self):
 		'''
@@ -352,14 +331,18 @@ class Operacao(IQ_API):
 					raise ConnectionAbortedError(
 				"Não estou conseguindo pegar as paridades. Reinicie o bot")
 				self.payouts.update(novo)
+		
+		if self.verboso:
+			mensagem = self.telegram.sendMessage(self.verboso, "Conectado com sucesso.")
+			self.message_id = mensagem['message_id']
 
-		self.mostrar_mensagem("Conectado com sucesso.")
 		for comando in self.comandos:
 			
 			data = comando["data"]
 			horas, minutos = comando["hora"]
 			tempo = comando['timeframe'] if comando['timeframe'] != 0 else self.tempo
 			segundos = 0
+
 			if self.esperarAte(
 				horas, minutos, segundos, data, 
 				self.config['correcao'] + 1, True):
@@ -374,14 +357,15 @@ class Operacao(IQ_API):
 					else: tipo, payout = "binary", 0.7
 				else:
 					payout = (self.payout_binaria(par) / 100 if 
-							  self.tipo == "binary" else 
-							  self.payout_digital(par) / 100)
+								self.tipo == "binary" else 
+								self.payout_digital(par) / 100)
 					tipo = self.tipo
 
 				if self.config['tendencia'] and not self.calcular_tendencia(
 					self.config['tipo_tendencia'], par, ordem, tempo, 
 					self.config['periodo_tendencia'], self.config['desvio_tendencia']):
-					self.mostrar_mensagem(f"[ ❗️] {par}|{ordem} às {horas}:{minutos} entrou contra a tendência. [ ❗️]")
+					self.mostrar_mensagem(
+						f"[❗️] {par}|{ordem} às {horas}:{minutos} entrou contra a tendência. [❗️]")
 					continue
 
 				if (self.config['noticias'] and
@@ -402,7 +386,7 @@ class Operacao(IQ_API):
 					self.espera.append(thread)
 					thread.start()
 				else:
-					self.mostrar_mensagem(f"[ ❗️] {par}|{ordem.upper()} payout: {payout * 100}% < {payout_desejado * 100}%. [ ❗️]")
+					self.mostrar_mensagem(f"[❗️] {par}|{ordem.upper()} payout: {payout * 100}% < {payout_desejado * 100}%. [❗️]")
 
 				if self.tipo == "auto":
 					if time.time() - ultima_vez > 900:
@@ -415,9 +399,6 @@ class Operacao(IQ_API):
 				print(f" - {datetime.fromtimestamp(momento).strftime('dia %d - %H:%M')} | {comando['par']} - {horas}:{minutos} passou da hora - ")
 		for thread in self.espera:
 			thread.join()
-
-		self.mostrar_mensagem(
-			f"\nFim da operação resultado final: R$ {round(self.ganho_total, 2)}\n")
 		
 		try:
 			if self.tipo == "auto":
@@ -426,7 +407,11 @@ class Operacao(IQ_API):
 					self.API.unsubscribe_strike_list(par, self.config["tempo"])
 		except:
 			pass
-	
+		
+		time.sleep(1)
+		self.mostrar_mensagem(
+			f"\nFim da operação resultado final: R$ {round(self.ganho_total, 2)}\n")
+
 	def maior_payout(self, par, tempo):
 		'''
 		Caso estiver em automático, verifica qual o maior
@@ -458,11 +443,18 @@ class Operacao(IQ_API):
 		with self.cadeado:
 			if (-self.config['stoploss'] >= self.perda_total or 
 				self.ganho_total >= self.config['goal']):
-				self.mostrar_mensagem(f'''{"- " * 20}
+				mensagem = "Fim da operação: "
+				if self.ganho_total >= self.config['goal']:
+					mensagem += "🤑 Stop Gain 🤑"
+				else:
+					mensagem += "🥵 Stop Loss 🥵"
+				self.mostrar_mensagem(f'''{mensagem}
+		✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌
 	Stopwin: {self.config['goal']}
 	Total ganho: {round(self.ganho_total, 2)}
 	Stoploss: {-self.config['stoploss']}
-	Total perdido: {round(self.perda_total, 2)}''')
+	Total perdido: {round(self.perda_total, 2)}
+	⚠️ {BOTNAME} parado ⚠️''')
 				return True
 		return False
 
@@ -481,8 +473,8 @@ class Operacao(IQ_API):
 				anteriores = (atual == 0 or datetime.fromtimestamp(float(atual)) > timing)
 
 				perto_de_terminar = (self.tempo * 60 + 30 >= 
-								 (momento_atual - timing).seconds >= 
-								 self.tempo * 60 - 30)
+									(momento_atual - timing).seconds >= 
+									self.tempo * 60 - 30)
 				if anteriores and perto_de_terminar:
 					time.sleep(1)
 					print("Esperando as operações anteriores acabar...")

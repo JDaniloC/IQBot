@@ -2,8 +2,7 @@
 from iqoptionapi.api import IQOptionAPI
 import iqoptionapi.constants as OP_code
 import iqoptionapi.country_id as Country
-import threading
-import time
+import time, json
 import logging
 import operator
 import iqoptionapi.global_value as global_value
@@ -21,7 +20,7 @@ def nested_dict(n, type):
 
 
 class IQ_Option:
-    __version__ = "6.8.9.1"
+    __version__ = "7.0.0.0"
 
     def __init__(self, email, password, active_account_type="PRACTICE"):
         self.size = [1, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800,
@@ -75,7 +74,7 @@ class IQ_Option:
         self.SESSION_HEADER = header
         self.SESSION_COOKIE = cookie
 
-    def connect(self):
+    def connect(self, sms_code=None):
         try:
             self.api.close()
         except:
@@ -85,6 +84,14 @@ class IQ_Option:
         self.api = IQOptionAPI(
             "iqoption.com", self.email, self.password)
         check = None
+
+        # 2FA--
+        if sms_code is not None:
+            self.api.setTokenSMS(self.resp_sms)
+            status, reason = self.api.connect2fa(sms_code)
+            if not status:
+                return status, reason
+        # 2FA--
 
         self.api.set_session(headers=self.SESSION_HEADER,
                              cookies=self.SESSION_COOKIE)
@@ -128,9 +135,21 @@ class IQ_Option:
             # self.get_balance_id()
             return True, None
         else:
+            if json.loads(reason)['code'] == 'verify':
+                response = self.api.send_sms_code(json.loads(reason)['token'])
+
+                if response.json()['code'] != 'success':
+                    return False, response.json()['message']
+
+                # token_sms
+                self.resp_sms = response
+                return False, "2FA"
             return False, reason
 
     # self.update_ACTIVES_OPCODE()
+
+    def connect_2fa(self, sms_code):
+        return self.connect(sms_code=sms_code)
 
     def check_connect(self):
         # True/False
@@ -176,10 +195,8 @@ class IQ_Option:
         self.api.Get_Leader_Board(country_id, user_country_id, from_position, to_position,
                                   near_traders_country_count, near_traders_count, top_country_count, top_count, top_type)
 
-        start = time.time()
         while self.api.leaderboard_deals_client == None:
-            if time.time() - start > 60:
-                return None
+            pass
         return self.api.leaderboard_deals_client
 
     def get_instruments(self, type):
@@ -272,20 +289,19 @@ class IQ_Option:
         # for binary option turbo and binary
         OPEN_TIME = nested_dict(3, dict)
         binary_data = self.get_all_init_v2()
-        if binary_data == None:
-            return None
         binary_list = ["binary", "turbo"]
         for option in binary_list:
-            for actives_id in binary_data[option]["actives"]:
-                active = binary_data[option]["actives"][actives_id]
-                name = str(active["name"]).split(".")[1]
-                if active["enabled"] == True:
-                    if active["is_suspended"] == True:
-                        OPEN_TIME[option][name]["open"] = False
+            if option in binary_data:
+                for actives_id in binary_data[option]["actives"]:
+                    active = binary_data[option]["actives"][actives_id]
+                    name = str(active["name"]).split(".")[1]
+                    if active["enabled"] == True:
+                        if active["is_suspended"] == True:
+                            OPEN_TIME[option][name]["open"] = False
+                        else:
+                            OPEN_TIME[option][name]["open"] = True
                     else:
-                        OPEN_TIME[option][name]["open"] = True
-                else:
-                    OPEN_TIME[option][name]["open"] = active["enabled"]
+                        OPEN_TIME[option][name]["open"] = active["enabled"]
 
         # for digital
         digital_data = self.get_digital_underlying_list_data()["underlying"]
@@ -334,8 +350,6 @@ class IQ_Option:
     def get_all_profit(self):
         all_profit = nested_dict(2, dict)
         init_info = self.get_all_init()
-        if init_info == None:
-            return None
         for actives in init_info["result"]["turbo"]["actives"]:
             name = init_info["result"]["turbo"]["actives"][actives]["name"]
             name = name[name.index(".") + 1:len(name)]
@@ -577,9 +591,9 @@ class IQ_Option:
         start = time.time()
         self.api.candle_generated_check[str(ACTIVE)][int(size)] = {}
         while True:
-            if time.time() - start > 60:
+            if time.time() - start > 20:
                 logging.error(
-                    '**error** start_candles_one_stream late for 60 sec')
+                    '**error** start_candles_one_stream late for 20 sec')
                 return False
             try:
                 if self.api.candle_generated_check[str(ACTIVE)][int(size)] == True:
@@ -774,6 +788,7 @@ class IQ_Option:
     def check_win_v5(self, id_number, mode, delay = 0):
         if mode != "digital":
             result = self.get_optioninfo_v2(10)
+            order = None
             for option in result['msg']['open_options']:
                 if option['id'] == id_number:
                     order = option
@@ -806,8 +821,8 @@ class IQ_Option:
         self.start_candles_stream(active, 1, 1)
         wait_for = expiration + delay - time.time()
         time.sleep(wait_for if wait_for > 0 else 0)
-
         candles = self.get_realtime_candles(active, 1)
+        actual = -1
         for candle in candles:
             actual = candles[candle]['close']
         if ((actual - value < 0 and action == "put") or 
@@ -933,7 +948,7 @@ class IQ_Option:
         req_id = str(randint(0, 10000))
         try:
             self.api.buy_multi_option[req_id]["id"] = None
-        except Exception as e:
+        except:
             pass
         self.api.buyv3(
             float(price), OP_code.ACTIVES[ACTIVES], str(ACTION), int(expirations), req_id)
@@ -944,15 +959,15 @@ class IQ_Option:
             try:
                 if "message" in self.api.buy_multi_option[req_id].keys():
                     return False, self.api.buy_multi_option[req_id]["message"]
-            except Exception as e:
+            except:
                 pass
             try:
                 id = self.api.buy_multi_option[req_id]["id"]
-            except Exception as e:
+            except:
                 pass
-            if 31 >= time.time() - start_t >= 30:
-                logging.error('**aviso** a compra demorou mais de 30 segundos!')
-                # return False, None
+            if time.time() - start_t >= 5:
+                logging.error('**warning** buy late 5 sec')
+                return False, None
 
         return self.api.result, self.api.buy_multi_option[req_id]["id"]
 
@@ -976,7 +991,7 @@ class IQ_Option:
         self.api.get_digital_underlying()
         start_t = time.time()
         while self.api.underlying_list_data == None:
-            if time.time() - start_t >= 40:
+            if time.time() - start_t >= 30:
                 logging.error(
                     '**aviso** (get_digital_underlying_list_data) A IQ demorou mais de 40 segundos pra devolver o payout')
                 return None
@@ -1065,13 +1080,14 @@ class IQ_Option:
         # And need to be on GMT time
 
         # Type - P or C
+        action = action.lower()
         if action == 'put':
             action = 'P'
         elif action == 'call':
             action = 'C'
         else:
             logging.error('buy_digital_spot active error')
-            return -1
+            return False, -1
         # doEURUSD201907191250PT5MPSPT
         timestamp = int(self.api.timesync.server_timestamp)
         if duration == 1:
@@ -1578,3 +1594,78 @@ class IQ_Option:
             self.api.Get_Users_Availability(user_id)
             time.sleep(0.2)
         return self.api.users_availability
+
+    def get_digital_payout(self, active):
+        asset_id = OP_code.ACTIVES[active]
+        instrument_index = self.get_digital_instrument_index(active)
+
+        self.api.subscribe_digital_price_splitter(instrument_index, asset_id)
+
+        while self.api.digital_payout is None:
+            pass
+
+        self.api.unsubscribe_digital_price_splitter(instrument_index, asset_id)
+
+        return self.api.digital_payout
+
+    def get_digital_instrument_index(self, active):
+        asset_id = OP_code.ACTIVES[active]
+        time.sleep(self.suspend)
+        self.api.get_digital_instruments(asset_id)
+
+        while self.api.instruments_index is None:
+            pass
+
+        instruments = self.api.instruments_index["instruments"]
+        instrument = sorted(instruments, key=lambda k: k['index'])[-1]
+        instrument_index = instrument["index"]
+
+        return instrument_index
+
+    def get_digital_instruments(self, asset_id):
+        time.sleep(self.suspend)
+        self.api.get_digital_instruments(asset_id)
+
+        while self.api.instruments_index is None:
+            pass
+
+        return self.api.instruments_index["instruments"]
+        
+    def buy_digital_spot_v2(self, active, amount, action, duration):
+        action = action.lower()
+        if action == 'put':
+            action = 'P'
+        elif action == 'call':
+            action = 'C'
+        else:
+            logging.error('buy_digital_spot active error')
+            return -1, None
+
+        timestamp = int(self.api.timesync.server_timestamp)
+        if duration == 1:
+            exp, _ = get_expiration_time(timestamp, duration)
+        else:
+            now_date = datetime.fromtimestamp(timestamp) + timedelta(minutes=1, seconds=30)
+            while True:
+                if now_date.minute % duration == 0 and time.mktime(now_date.timetuple()) - timestamp > 30:
+                    break
+                now_date = now_date + timedelta(minutes=1)
+            exp = time.mktime(now_date.timetuple())
+
+        dateFormated = str(datetime.utcfromtimestamp(exp).strftime("%Y%m%dD%H%M%S"))
+
+        instrument_index = self.get_digital_instrument_index(active)
+        asset_id = OP_code.ACTIVES[active]
+        instrument_id = "do" + str(asset_id) + "A" + dateFormated + "T" + str(duration) + "M" + action + "SPT"
+
+        request_id = self.api.place_digital_option_v2(instrument_id, amount, instrument_index, asset_id)
+
+        while self.api.digital_option_placed_id.get(request_id) is None:
+            pass
+
+        digital_order_id = self.api.digital_option_placed_id.get(request_id)
+
+        if isinstance(digital_order_id, int):
+            return True, digital_order_id
+        else:
+            return False, digital_order_id

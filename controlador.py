@@ -1,8 +1,12 @@
-from os import system 
+from configparser import RawConfigParser
 from subprocess import check_output
+from os import system 
 
-project_name = "durable-matter-281714"
-account = "46980103503-compute@developer.gserviceaccount.com"
+config = RawConfigParser()
+config.read(".env")
+
+project_name = config.get("CLOUD", "project")
+account_name = config.get("CLOUD", "account")
 regions = [
     "us-east1-b", "us-east4-c", "us-central1-a",
     "us-west1-b", "us-west2-a", "us-west4-a"
@@ -106,7 +110,7 @@ class Control:
             self.regiao += 1
             print(f"Região alterada para {regions[self.regiao]}")
         name = "instancia" + str(len(self.instancias))
-        system(f'yes "Y" | gcloud beta compute --project={project_name} instances create {name} --zone={regions[self.regiao]} --machine-type=e2-medium --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE --service-account={account} --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server,https-server --image=padrao --image-project={project_name} --boot-disk-size=10GB --boot-disk-type=pd-standard --boot-disk-device-name={name} --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any')
+        system(f'yes "Y" | gcloud beta compute --project={project_name} instances create {name} --zone={regions[self.regiao]} --machine-type=e2-medium --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE --service-account={account_name} --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server,https-server --image=padrao --image-project={project_name} --boot-disk-size=10GB --boot-disk-type=pd-standard --boot-disk-device-name={name} --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any')
         status = -1
         while status != 0:
             status = system(f"gcloud compute ssh {name} --zone {regions[self.regiao]} --command='chmod 777 iqbot/setup.sh;./iqbot/setup.sh'")

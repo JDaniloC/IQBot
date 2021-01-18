@@ -3,11 +3,12 @@ from datetime import datetime
 import time
 
 class IQ_API:
-    def __init__(self, login, senha):
+    def __init__(self, login, senha, output = print):
         '''
         Recebe o login, e tenta se conectar
         '''
         self.API = IQ_Option(login, senha)
+        self.output = output
         if not self.conectar():
             raise ConnectionError(" ❌ Não conseguiu se conectar, reveja a senha ❌ ")
 
@@ -198,23 +199,6 @@ Todas as carteiras:\n"""
 
         return payouts
     
-    def top_ranking(self, quantidade, filtro = "Worldwide"):
-        '''
-        Devolve a lista de ID's do top ranking ou uma lista vazia.
-        '''
-        ranking = []
-        contador = 0
-        while contador < 2 and ranking == []:
-            ranking = API.get_leader_board(filtro, 1, quantidade, 0)
-            contador += 1
-
-        if ranking == []:
-            print(" [❗️] Não consegui pegar os top ranking [❗️]")
-            return []
-        else:
-            return [ranking['result']['positional'][trader]['user_id']
-                for trader in ranking['result']['positional']]
-   
     def ordem(
         self, par, direcao = "call", tempo = 1, valor = 1, 
         tipo = "binary", bloqueador = None, delay = False):
@@ -254,16 +238,15 @@ Todas as carteiras:\n"""
         if not status:
             if tipo == "digital":
                 identificador = identificador['message']
-            if "active is suspended" in str(identificador):
+            if "active is suspended" in str(identificador) or "is not available" in str(identificador):
                 self.output(f"  ❌ {par} fechada na {tipo} ❌".center(60))
             else:
                 self.output(str(identificador).center(60))
                 print(f"  ❌ {par}-{tipo} {direcao} máximo de operações ❌")
             return "error", 0
 
-        print(f'''
-            {par}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}
-        ''')
+        self.output(
+            f"Entrou em {par} {tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
 
         if delay == False:
             # Versão que pega no histórico

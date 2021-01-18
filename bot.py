@@ -40,7 +40,7 @@ def pegar_comando(texto):
         timeframe = re.search(
             r'[MH][1-6]?[0-5]', texto.upper())
         if timeframe: 
-            if "M" in timeframe[0]: 
+            if "M" in timeframe[0].upper(): 
                 timeframe = int(timeframe[0].strip("M"))
             else: 
                 timeframe = int(timeframe[0].strip("H")) * 60
@@ -108,8 +108,6 @@ def configuracoes(nome = LOCALCONFIG):
             "WIN", "soros").capitalize() == "True",
         "max_soros": arquivo.get(
             "WIN", "max_soros").capitalize() == "True",
-        "percent_soros": float(arquivo.get(
-            "WIN", "percent_soros").replace(",", ".")),
         "stoploss": float(
             arquivo.get("LOSS", "stoploss").replace(",", ".")),
         "tipo_gale": arquivo.get("LOSS", "tipo_gale").lower(),
@@ -117,8 +115,6 @@ def configuracoes(nome = LOCALCONFIG):
         "entrada_martin": arquivo.get(
             "LOSS", "entrada_martin").lower(),
         "max_gale": int(arquivo.get("LOSS", "max_gale")),
-        "percent_martin": float(arquivo.get(
-            "LOSS", "percent_martin").replace(",", ".")),
         "arquivo": arquivo.get("ENTRADAS", "arquivo"),
         "valor": float(
             arquivo.get("ENTRADAS", "valor").replace(",", ".")),
@@ -135,8 +131,6 @@ def configuracoes(nome = LOCALCONFIG):
             "TENDENCIA", "tipo_tendencia"),
         "periodo_tendencia": int(arquivo.get(
             "TENDENCIA", "periodo_tendencia")),
-        "desvio_tendencia": float(arquivo.get(
-            "TENDENCIA", "desvio_tendencia").replace(",", ".")),
         "noticias": arquivo.get(
             "NOTICIAS", "noticias").capitalize() == "True",
         "noticias_hora": int(arquivo.get(
@@ -160,14 +154,12 @@ def ver_gales(perdaInicial, taxa):
     '''
     Mostra na tela os tipos de martingale até a 10° perda
     '''
-    tipos = ["SIMPLES", "LEVE", "AGRESSIVO", "SEGURO", "PORCENTO", "PESSOAL"]
+    tipos = ["SIMPLES", "LEVE", "AGRESSIVO", "SEGURO", "PESSOAL"]
     for tipo in tipos:
         print(tipo, "\n")
-        if tipo == "PORCENTO":
-            lucro = float(input("Porcentagem encima da perda [0 - 1]: "))
-        elif tipo == "PESSOAL":
+        if tipo == "PESSOAL":
             tipo = float(input("Digite o fator multiplicativo: "))
-        lucro = perdaInicial//taxa if tipo != "PORCENTO" else lucro
+        lucro = perdaInicial//taxa
         perda = perdaInicial
         valor = perdaInicial
         for j in range(10):
@@ -227,7 +219,7 @@ def recebe_comandos(comandos):
                 entradas = MongoDB.get_entradas(int(config['num_lista']))
             else:
                 entradas = config['lista']
-            Operacao(config, entradas, 0, comandos[3])
+            Operacao(config, entradas, verboso = int(comandos[3]))
         else:
             print('''
             [COMANDOS]

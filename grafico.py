@@ -5,17 +5,16 @@ import matplotlib.animation as animation
 from tkinter import *
 from tkinter import messagebox
 from tkinter import ttk as t
-import time, threading, sys
 from datetime import datetime
+import time, threading
 
 # Faz a união com tkinter
 from matplotlib.backends.backend_tkagg import (
-    FigureCanvasTkAgg, NavigationToolbar2Tk)
-from matplotlib.backend_bases import key_press_handler
+    FigureCanvasTkAgg)
 
 # Tendências
 from talib import BBANDS
-import numpy, pandas
+import numpy
 
 class Tendencia(Frame):
     def __init__(self, janela, email, senha):

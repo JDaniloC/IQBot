@@ -18,15 +18,6 @@ asdf global python 3.8.0
 pip install --upgrade pip
 
 # Instalar dependências do python
-pip install amanobot pymongo requests==2.10.0 websocket-client==0.56 dnspython bs4 numpy
-
-# Instalar o ta-lib
-# tar -xzf iqbot/dependencies/ta-lib-0.4.0-src.tar.gz
-# cd ta-lib/
-# ./configure --prefix=/usr
-# make
-# sudo make install
-# pip install TA-Lib
-# cd ..
+pip install amanobot pymongo requests==2.10.0 websocket-client==0.56 dnspython bs4 numpy==1.19.3
 
 # Instalações finalizadas
