@@ -1,14 +1,20 @@
-from pymongo import MongoClient #Lib pra auxiliar o trabalho com o mongo
-from mongodb_py import users_schema
-from mongodb_py import waiting_schema
-from mongodb_py import adms_schema
-import time, pprint
+from configparser import RawConfigParser
+from schema import waiting_schema
+from schema import users_schema
+from schema import adms_schema
+from pymongo import MongoClient
+import time
 
-autenticacao = "mongodb+srv://Daniel:1231231414@cluster0.bfyqb.gcp.mongodb.net/<dbname>?retryWrites=true&w=majority"
+
+config = RawConfigParser()
+config.read(".env")
+
+autenticacao = config.get("DATABASE", "autentication")
 
 class Mongo:
-    def __init__(self, database, users_collection, users_em_aprovacao, 
-    default_infos, adms, entrada1, entrada2, entrada3):
+    def __init__(self, database, users_collection, 
+        users_em_aprovacao, default_infos, adms, 
+        entrada1, entrada2, entrada3):
         self.database = database
         self.Users_collection = users_collection
         self.Users_em_aprovacao = users_em_aprovacao

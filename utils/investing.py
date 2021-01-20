@@ -1,5 +1,5 @@
 def extrair_noticias():
-    from datetime import datetime, timedelta
+    from datetime import datetime
     from bs4 import BeautifulSoup
     import requests
 

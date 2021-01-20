@@ -1,4 +1,4 @@
-Versão 4.2 - News filter
+Versão 5 - API updated
 
             [RUN]
 Para rodar
@@ -25,12 +25,10 @@ O que significa:
  - correcao_entrada: segundos para se descontar do tempo de entrada
  - goal: valor objetivo que para se alcançar
  - soros: se vai realizar a sorosgale
- - percent_soros: valor de quanto irá aumentar na próxima soros, se 0 irá aumentar de acordo com o ganho
  - stoploss: valor limite de perdas
  - martin: se vai realizar martingale
  - max_gale: máximo de martingales
  - tipo_gale: caso haver gale, rode o script com -m
- - percent_martin: caso tipo_gale for "porcento", é o valor de em porcentagem (0, 50, 100...) que quer ganhar encima da perda
  - delay: tempo para pegar o resultado
 
 Exemplo:
@@ -52,12 +50,10 @@ tendencia = True|False
 [WIN]
 goal = 2-inf
 soros = True|False
-percent_soros = 0-inf
 
 [LOSS]
 stoploss = 1-inf
 martin = True|False
-percent_martin = 0-inf
 max_gale = 1-inf
 tipo_gale = seguro|simples|leve|agressivo|porcento|2.0-inf
 
