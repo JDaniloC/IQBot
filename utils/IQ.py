@@ -11,6 +11,10 @@ class IQ_API:
 
         self.saida = output
         self.API = IQ_Option(login, senha)
+        if output != None:
+            self.output = output
+        else:
+            output = print
         if not self.conectar():
             raise ConnectionError(" ❌ Não conseguiu se conectar, reveja a senha ❌ ")
 

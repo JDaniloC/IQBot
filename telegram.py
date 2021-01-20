@@ -70,9 +70,7 @@ def get_adms():
 # São atributos gerais para todas as contas
 # Pois o objeto Assistente é instanciado por usuário 
 adms = get_adms()
-entrada_01 = carregar_entradas(1)
-entrada_02 = carregar_entradas(2)
-entrada_03 = carregar_entradas(3)
+entrada_1gale = carregar_entradas(1)
 
 if os.name != "nt":
     controlador = Control()
@@ -382,7 +380,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         Método que recebe a mensagem de entradas, trata e salva.
         '''
-        global entrada_01, entrada_02, entrada_03
+        global entrada_1gale
         if self.id not in adms:
             return
                  
@@ -410,9 +408,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                 processa_entradas(
                     self.add_entrada, msg['text'].split("\n"))
             
-            entrada_01 = carregar_entradas(1)
-            entrada_02 = carregar_entradas(2)
-            entrada_03 = carregar_entradas(3)
+            entrada_1gale = carregar_entradas(1)
             
             self.add_entrada = "-"
             self.enviar_mensagem("Salvo")
@@ -469,7 +465,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                     reply_markup = ReplyKeyboardRemove())   
                 self.iniciar_operacao = False
                 self.informacoes["operando"] = True
-                MongoDB.modifica_usuario(self.informacoes, self.email)
+                MongoDB.modifica_usuario(
+                    self.informacoes, self.email)
                 
                 if os.name == "nt": # No windows 
                     os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}, {self.id}")
@@ -488,8 +485,10 @@ EURJPY 31/12/2000 CALL M5 02:30
                     self.enviar_mensagem("Você quer parar a operação ou ver o relatório?",
                         reply_markup = ReplyKeyboardMarkup(
                             keyboard = [
-                                [KeyboardButton( text = "Ver relatório" )],
-                                [KeyboardButton( text = "Parar operação" )]
+                                [KeyboardButton( 
+                                    text = "Ver relatório" )],
+                                [KeyboardButton( 
+                                    text = "Parar operação" )]
                             ]
                         ))
             return True
@@ -715,7 +714,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         Verifica se a mensagem está nas configurações avançadas
         Se estiver, devolve True caso contrário False
         '''
-        global adms, entrada_01, entrada_02, entrada_03, rodando
+        global adms, entrada_1gale, rodando
         
         if self.id not in adms:
             return False
@@ -949,8 +948,8 @@ EURJPY 31/12/2000 CALL M5 02:30
             pass # [2] Avançadas
         elif self.confirmar_entradas(msg):
             pass # [3] Entradas
-        elif self.habilitar_entradas(msg):
-            pass # [2] Entradas
+        # elif self.habilitar_entradas(msg):
+        #     pass # [2] Entradas
         elif self.parar_bot:
             if msg['text'] == "Sim":
                 self.desligar_bot()

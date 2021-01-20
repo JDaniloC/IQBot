@@ -2,7 +2,7 @@
 Script that simplify the IQ Option API to braziliams
 
 ## Download
-Click the button next to blue "Clone" button
+Click the "download" button.
 
 ## Getting started
 Install Python 3.7 or higher
@@ -34,5 +34,11 @@ All errors will be placed in "errors.log"
 
 ## Important
 
-Using the variant API of dsinmsdj:
+API created by Lu-Yi-Hsun all rights reserved to him.
+Github: https://github.com/Lu-Yi-Hsun/iqoptionapi
+
+Using the variant of dsinmsdj:
 Github: https://github.com/dsinmsdj/iqoptionapi
+
+All instructions by IQ Coding youtube channel:
+https://www.youtube.com/channel/UC51qSJBV60nneZXVNgM-bKQ/

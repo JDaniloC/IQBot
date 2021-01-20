@@ -317,7 +317,6 @@ class WebsocketClient(object):
                         """
                         dict ID-prodit:{ID:profit}
                         """
-
                         ans[symble] = ProfitPercent
                     except:
                         pass
