@@ -90,7 +90,7 @@ class Operacao(IQ_API):
 				if config['noticias']:
 					self.atualizar_noticias()
 
-				self.computar()
+				self.operar_lista()
 			except KeyboardInterrupt:
 				sys.exit(0)
 			except Exception as e:
@@ -158,6 +158,89 @@ class Operacao(IQ_API):
 					self.mostrar_mensagem(f"{info['text']}".center(60))
 					return False
 		return True
+
+	def recebe_payout(self, paridade, tempo = 1):
+		'''
+		Caso estiver em automático, verifica qual o maior
+		payout, primeiro vendo se estão abertas.
+		'''
+		if self.tipo == "auto":
+			try:
+				payout_binaria = self.payout_binaria(paridade, tempo)
+				payout_digital = self.payout_digital(paridade)
+				if (payout_binaria and payout_digital 
+					and payout_binaria < payout_digital):
+					tipo, payout = "digital", payout_digital
+				elif (payout_binaria and payout_digital 
+					and payout_binaria > payout_digital):
+					tipo, payout = "binary", payout_binaria
+				elif payout_binaria: 
+					tipo, payout = "binary", payout_binaria
+				else:
+					tipo, payout = "digital", payout_digital
+			except:
+				tipo, payout = "binary", 0.7
+			print(f"Payout de {paridade}: {tipo} {payout}%")
+		else:
+			payout, tipo = (self.payout_binaria(paridade) 
+				if self.tipo == "binary" 
+				else self.payout_digital(paridade)), self.tipo
+		return tipo, payout
+
+	def verificar_stop(self):
+		'''
+		Verifica se bateu no stopwin/loss
+		Devolve um booleano
+		'''
+		with self.cadeado:
+			if (-self.stoploss >= self.perda_total or 
+				self.ganho_total >= self.stopwin):
+				mensagem = "Fim da operação: "
+				if self.ganho_total >= self.stopwin:
+					mensagem += "🤑 Stop Gain 🤑"
+				else:
+					mensagem += "🥵 Stop Loss 🥵"
+				self.mostrar_mensagem(f'''{mensagem}
+		✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌
+	Stopwin: {self.stopwin}
+	Total ganho: {round(self.ganho_total, 2)}
+	Stoploss: {-self.stoploss}
+	Total perdido: {round(self.perda_total, 2)}
+	⚠️ {BOTNAME} parado ⚠️''')
+				return True
+		return False
+
+	def verifica_tendencia(self, paridade, direcao, timeframe):
+		if (self.config['tendencia'] and not self.calcular_tendencia(
+			self.config['tipo_tendencia'], paridade, direcao, 
+			timeframe, self.config['periodo_tendencia'])):
+			self.mostrar_mensagem(
+				f"[❗️] {paridade}|{direcao.upper()} está contra a tendência. [❗️]")
+			return True
+		return False
+
+	def esperar_anteriores(self, atual = 0):
+		'''
+		Espera as operações anteriores acabar para poder liberar a próxima
+		'''
+		esperar_anteriores = True
+
+		while esperar_anteriores:
+			esperar_anteriores = False
+			ativos = [
+				datetime.fromtimestamp(float(x.name)) for x in threading.enumerate() if self.istime(x.name) and x.name != atual]
+			for timing in ativos:
+				momento_atual = datetime.fromtimestamp(time.time())
+				anteriores = (atual == 0 or datetime.fromtimestamp(float(atual)) > timing)
+
+				perto_de_terminar = (self.tempo * 60 + 30 >= 
+									(momento_atual - timing).seconds >= 
+									self.tempo * 60 - 30)
+				if anteriores and perto_de_terminar:
+					time.sleep(1)
+					print("Esperando as operações anteriores acabar...")
+					esperar_anteriores = True
+					break
 
 	def operar(self, valor, paridade, ordem, tempo, 
 		payout, tipo, estrategia = False):
@@ -290,7 +373,16 @@ class Operacao(IQ_API):
 					if resultado not in ["error", "equal"]:
 						desconta_perda(resultado, lucro, True)
 						mostra_resultado()
-		
+						perda += abs(lucro)
+						num_gales += 1
+						lucro = valor * payout
+						if self.config['tipo_gale'] == 'ciclos':
+							valor = self.ciclos_gale[ciclo_atual][num_gales]
+						else:
+							valor = self.martingale(self.config['tipo_martin'], 
+								payout, perda, valor, lucro)
+						valor = 1 if valor < 1 else valor # Caso der doji
+
 					# self.esperar_anteriores(threading.currentThread().name)
 					# threading.currentThread().setName(str(time.time()))
 
@@ -301,81 +393,87 @@ class Operacao(IQ_API):
 							⚠️ {BOTNAME} parado ⚠️")
 						sys.exit(0)
 
-					print(f"\n [MARTINGALE] do tipo {self.config['tipo_martin']} na operação {par}|{ordem}")
-						
-					if resultado not in ["error", "equal"]:
-						perda += abs(lucro)
-						num_gales += 1
+					self.mostrar_mensagem(f"\n [{num_gales}° MARTINGALE] {self.config['tipo_martin']} na {paridade}|{ordem.upper()}")
 
-						lucro = valor * payout
-						valor = self.martingale(self.config['tipo_martin'], 
-							payout, perda, valor, lucro)
-					
-					valor = 1 if valor < 1 else valor # Caso der doji
+					if estrategia == "MSF" and num_gales == 0:
+						self.esperar_proximo_minuto()
+					elif type(estrategia) == list:
+						ordem = estrategia[num_gales]
 
 					resultado, lucro = self.ordem(
-						par, ordem, tempo, valor, tipo, 
-						self.cadeado, self.config['delay'])
-				
-				if resultado == "win":
+                        paridade, ordem, tempo, valor, tipo, 
+                        self.cadeado, self.config['delay'])
+				if resultado == "win" and self.config['tipo_stop'] != "fixo":
 					self.perda_total += perda
-			
-			elif self.config['tipo_gale'] == "martin":
-				print(f"\n [MARTINGALE] do tipo {self.config['tipo_martin']} na operação {par}|{ordem}")
-				self.perda_atual += abs(valor)
-				self.gale_atual += 1
-				lucro = (valor * payout if 
-						self.config["tipo_martin"] != "porcento" else 
-						self.config["percent_martin"] / 100)
-				with self.cadeado:
+				if self.config['tipo_gale'] == 'ciclos':
+					if ciclo_atual == len(self.ciclos_gale) - 1:
+						self.mostrar_mensagem(
+							"[GALE] Voltando ao primeiro ciclo")
+						self.config["ciclos"]['gales'] = 0
+					else:
+						self.config['ciclos']['gales'] += 1
+						self.mostrar_mensagem(
+							f"[GALE] Avançando para o {ciclo_atual+1}° ciclo")
+				
+			elif self.config['tipo_gale'] == "martingale":
+				if self.gale_atual < self.max_gale:
+					self.mostrar_mensagem(f"\n [{self.gale_atual + 1}° MARTINGALE] {self.config['tipo_martin']} on {paridade}|{ordem.upper()}")
+					self.perda_atual += abs(valor)
+					self.gale_atual += 1
+					lucro = valor * payout
 					self.valor = self.martingale(self.config['tipo_martin'], 
 						payout, self.perda_atual, valor, lucro)
-				self.valor = 1 if self.valor < 1 else self.valor 
+					self.valor = 1 if self.valor < 1 else self.valor
+				else:
+					self.valor = self.valor_inicial
+					self.gale_atual = 0
 
-			elif self.config['tipo_gale'] == 'soros':
-				print(f"\n [SOROSGALE] na operação {par}|{ordem} {valor} -> ", end = "")
+			elif self.config['tipo_gale'] == 'sorosgale':
+				mensagem = f"\n [SOROSGALE] na operação {paridade}|{ordem} {valor} -> "
 				self.perda_atual += abs(valor)
 				self.soros_atual = 0
 				self.valor = self.perda_atual / 2
 				self.valor = 1 if self.valor < 1 else self.valor
-				print(self.valor)
+				self.mostrar_mensagem(mensagem + str(self.valor))
+
+			elif self.config['tipo_gale'] == 'ciclos':
+				ciclo_atual = self.config["ciclos"]['gales']
+				if ciclo_atual < len(self.ciclos_gale):
+					if self.gale_atual < len(self.ciclos_gale[ciclo_atual]):
+						self.valor = self.ciclos_gale[ciclo_atual][self.gale_atual]
+						self.gale_atual += 1
+					else:
+						self.mostrar_mensagem(
+							f"[GALE] {ciclo_atual}° ciclo completo.")
+						self.config["ciclos"]["gales"] += 1
+						self.gale_atual = 0
+						self.valor = self.valor_inicial
+				else:
+					self.mostrar_mensagem(
+						"[GALE] Voltando ao primeiro ciclo")
+					self.config["ciclos"]["gales"] = 0
+					self.gale_atual = 0
+					self.valor = self.valor_inicial
 
 		if resultado != "error":
-			if resultado != "equal": desconta_perda(resultado, lucro)      
+			if resultado != "equal": 
+				desconta_perda(resultado, lucro)      
 			time.sleep(3)          
 			mostra_resultado()
+		return resultado
 
-	def computar(self):
+	def operar_lista(self):
 		'''
 		1 - Percorre todos os comandos.
 		2 - Pausa o script até a próxima hora:min
 		3 - Calcula o payout da paridade
 		4 - Cria uma thread para o método operar
 		'''
+		def formatHour(number):
+			if len(str(number)) == 1: return "0" + str(number)
+			return number
+
 		self.espera = []
-
-		if self.tipo == "auto":
-			ultima_vez = time.time()
-			paridades = []
-			for par in self.comandos:
-				paridade = par['par']
-				paridades.append(paridade)
-			self.payouts = self.abertas(paridades)
-
-			def atualizar_profits(comando):
-				'''
-				Atualiza os payouts do comando em diante.
-				'''
-				paridades = []
-				for par in self.comandos[self.comandos.index(comando):]:
-					paridade = par['par']
-					paridades.append(paridade)
-				novo = self.abertas(paridades)
-				if novo == None:
-					raise ConnectionAbortedError(
-				"Não estou conseguindo pegar as paridades. Reinicie o bot")
-				self.payouts.update(novo)
-		
 		if self.verboso:
 			mensagem = self.telegram.sendMessage(self.verboso, "Conectado com sucesso.")
 			self.message_id = mensagem['message_id']
@@ -387,29 +485,15 @@ class Operacao(IQ_API):
 			tempo = comando['timeframe'] if comando['timeframe'] != 0 else self.tempo
 			segundos = 0
 
-			if self.esperarAte(
-				horas, minutos, segundos, data, 
-				self.config['correcao'] + 1, True):
+			if self.esperarAte(horas, minutos, segundos, data, 
+                self.config['correcao'] + 1, self.mostrar_mensagem):
 
 				par = comando['par']
 				ordem = comando['ordem']
 				valor = self.valor
+				tipo, payout = self.recebe_payout(par, tempo)
 
-				if self.tipo == "auto":
-					maior = self.maior_payout(par, tempo)
-					if maior: tipo, payout = maior
-					else: tipo, payout = "binary", 0.7
-				else:
-					payout = (self.payout_binaria(par) / 100 if 
-								self.tipo == "binary" else 
-								self.payout_digital(par) / 100)
-					tipo = self.tipo
-
-				if self.config['tendencia'] and not self.calcular_tendencia(
-					self.config['tipo_tendencia'], par, ordem, tempo, 
-					self.config['periodo_tendencia'], self.config['desvio_tendencia']):
-					self.mostrar_mensagem(
-						f"[❗️] {par}|{ordem} às {horas}:{minutos} entrou contra a tendência. [❗️]")
+				if self.verifica_tendencia(par, ordem, tempo):
 					continue
 
 				if (self.config['noticias'] and
@@ -420,117 +504,341 @@ class Operacao(IQ_API):
 				if self.verificar_stop():
 					break
 				
-				payout_desejado = self.config["minimo"] / 100
-				if payout_desejado <= payout:
+				if self.config["minimo"] / 100 <= payout:
 					thread = threading.Thread(
 						target = self.operar, 
 						name = f"{time.time()}", 
-						args = (
-						valor, par, ordem, tempo, payout, tipo))
+						args = (valor, par, ordem, tempo, payout, tipo),
+						daemon = True)
 					self.espera.append(thread)
 					thread.start()
+					self.valor = self.valor_inicial
 				else:
-					self.mostrar_mensagem(f"[❗️] {par}|{ordem.upper()} payout: {payout * 100}% < {payout_desejado * 100}%. [❗️]")
-
-				if self.tipo == "auto":
-					if time.time() - ultima_vez > 900:
-						threading.Thread(
-						target = atualizar_profits,
-						args = (comando,)
-						).start()
+					self.mostrar_mensagem(f"{par} não atende o payout mínimo {payout * 100}% < {self.config['minimo']}%")
 			else:
 				momento = datetime.utcnow().timestamp() - 10800 # -3Horas
-				print(f" - {datetime.fromtimestamp(momento).strftime('dia %d - %H:%M')} | {comando['par']} - {horas}:{minutos} passou da hora - ")
+				self.mostrar_mensagem(
+	f" - {datetime.fromtimestamp(momento).strftime('dia %d - %H:%M')} | {comando['par']} - {formatHour(horas)}:{formatHour(minutos)} passou da hora - ")
+        
 		for thread in self.espera:
 			thread.join()
-		
-		try:
-			if self.tipo == "auto":
-				for comando in self.comandos:
-					par = comando["par"]
-					self.API.unsubscribe_strike_list(par, self.config["tempo"])
-		except:
-			pass
-		
+
 		time.sleep(1)
 		self.mostrar_mensagem(
 			f"\nFim da operação resultado final: R$ {round(self.ganho_total, 2)}\n")
 
-	def maior_payout(self, par, tempo):
+	def operar_taxas(self):
 		'''
-		Caso estiver em automático, verifica qual o maior
-		payout, primeiro vendo se estão abertas.
+		1 - Organiza a lista de taxas
+		2 - Procura payouts
+		3 - Inicia a busca pelas taxas para cada paridade
 		'''
-		tipo_binaria = "turbo" if tempo <= 5 else "binary"
-		if ((self.payouts["binary"][tipo_binaria][par][0] and 
-			self.payouts["digital"][par][0])
-			and 
-			(self.payouts["binary"][tipo_binaria][par][1] < 
-			self.payouts["digital"][par][1])):
-			tipo = "digital"
-			payout = self.payouts["digital"][par][1]
-		elif self.payouts["binary"][tipo_binaria][par][0]:
-			tipo = "binary"
-			payout = self.payouts["binary"][tipo_binaria][par][1]
-		elif self.payouts["digital"][par][0]:
-			tipo = "digital"
-			payout = self.payouts["digital"][par][1]
-		else:
+		def verificar_ativos():
+			'''
+			Verifica se alguma thread no self.esperar
+			Está ativa, devolve um boolean
+			'''
+			for thread in self.espera:
+				if thread.is_alive():
+					return True
 			return False
-		return tipo, payout
 
-	def verificar_stop(self):
+		par_taxa = {}  
+		for comando in self.comandos:
+			paridade = comando['par']
+			if paridade not in par_taxa:
+				par_taxa[paridade] = [comando['taxa']]
+			else:
+				par_taxa[paridade].append(comando['taxa'])
+		self.comandos = par_taxa
+
+		lista_taxas = [{"par": key, "taxas": value} 
+			for key, value in self.comandos.items()]
+		self.comandos = lista_taxas
+		self.espera = []
+
+		for comando in self.comandos:
+			thread = threading.Thread(
+				target = self.esperar_taxa, 
+				name = f"{time.time()}", 
+				args = (comando['par'], comando['taxas']),
+				daemon = True)
+			self.espera.append(thread)
+			thread.start()
+
+		while verificar_ativos():
+			time.sleep(5)
+
+		self.mostrar_mensagem(
+	f"\nFim da operação resultado final: R$ {round(self.ganho_total, 2)}\n")
+
+	def esperar_taxa(self, par, taxas):
 		'''
-		Verifica se bateu no stopwin/loss
-		Devolve um booleano
+		1 - Verifica se a taxa atual ultrapassou alguma das especificadas
+		2 - Cria uma thread para o método operar
 		'''
-		with self.cadeado:
-			if (-self.stoploss >= self.perda_total or 
-				self.ganho_total >= self.stopwin):
-				mensagem = "Fim da operação: "
-				if self.ganho_total >= self.stopwin:
-					mensagem += "🤑 Stop Gain 🤑"
+		self.API.start_candles_stream(par, 60, 1)
+		ultimo = {}
+		while ultimo == {}:
+			ultimo = self.API.get_realtime_candles(par, 60)
+			ultimo = ultimo[list(ultimo.keys())[0]]['close']
+			time.sleep(1)
+
+		self.mostrar_mensagem(f"{par.upper()} esperando bater nas taxas:")
+		self.mostrar_mensagem('\n'.join(list(map(str, taxas))))
+		chegou_perto = 0
+		while not self.verificar_stop() and taxas != []:
+			velas = self.API.get_realtime_candles(par, 60)
+			abertura = velas[list(velas.keys())[0]]['open']
+			fechamento = velas[list(velas.keys())[0]]['close']
+
+			for taxa in taxas:
+				if (fechamento >= taxa and ultimo < taxa or 
+					fechamento <= taxa and ultimo > taxa):
+
+					direcao = "call" if abertura > fechamento else "put"
+					tipo, payout = self.recebe_payout(par, self.tempo)
+
+					if (self.config['noticias'] and
+						not self.verificar_noticias(par)):
+						continue
+
+					if self.config["minimo"] / 100 <= payout:
+						thread = threading.Thread(
+							target = self.operar, 
+							name = f"{time.time()}", 
+							args = (self.valor, par, direcao, 
+								self.tempo, payout, tipo),
+							daemon = True
+						)
+						self.espera.append(thread)
+						thread.start()
+					else:
+						self.mostrar_mensagem(f"{par} não atende o payout mínimo {payout} {self.config['minimo']}")
+
+					taxas.remove(taxa)
 				else:
-					mensagem += "🥵 Stop Loss 🥵"
-				self.mostrar_mensagem(f'''{mensagem}
-		✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌
-	Stopwin: {self.stopwin}
-	Total ganho: {round(self.ganho_total, 2)}
-	Stoploss: {-self.stoploss}
-	Total perdido: {round(self.perda_total, 2)}
-	⚠️ {BOTNAME} parado ⚠️''')
-				return True
-		return False
+					if (abs(taxa - fechamento) < 0.00001 and 
+						chegou_perto != abs(taxa - fechamento)):
+						chegou_perto = abs(taxa - fechamento)
+						self.mostrar_mensagem(f"{par} perto da taxa {taxa}")
+			ultimo = fechamento
+			time.sleep(self.config['correcao'])
+		self.API.stop_candles_stream(par, 60)
 
-	def esperar_anteriores(self, atual = 0):
-		'''
-		Espera as operações anteriores acabar para poder liberar a próxima
-		'''
-		esperar_anteriores = True
+	def operar_estrategia(self):
+		def pegar_velas(par, quantidade, timeframe = 1, modo = "colors"):
+			velas = self.API.get_candles(
+				par, 60 * timeframe, quantidade, time.time())
+			if modo != "colors":
+				return [x['close'] for x in velas]
 
-		while esperar_anteriores:
-			esperar_anteriores = False
-			ativos = [
-				datetime.fromtimestamp(float(x.name)) for x in threading.enumerate() if self.istime(x.name) and x.name != atual]
-			for timing in ativos:
-				momento_atual = datetime.fromtimestamp(time.time())
-				anteriores = (atual == 0 or datetime.fromtimestamp(float(atual)) > timing)
+			resultado = []
+			for i in range(len(velas)):
+				print(datetime.fromtimestamp(velas[i]['from']))
+				resultado.append(('CALL' if velas[i]['open'] 
+				< velas[i]['close'] else 'PUT' if velas[i]['open'] 
+				> velas[i]['close'] else 'DOJI'))
 
-				perto_de_terminar = (self.tempo * 60 + 30 >= 
-									(momento_atual - timing).seconds >= 
-									self.tempo * 60 - 30)
-				if anteriores and perto_de_terminar:
-					time.sleep(1)
-					print("Esperando as operações anteriores acabar...")
-					esperar_anteriores = True
-					break
+			return resultado
 
-	def istime(self, string):
-		'''
-		Verifica se é numérico (timestamp)
-		'''
-		try:
-			float(string)
-			return True
-		except:
-			return False
+		def entrada_estrategias_m1(estrategia, minutos):
+			if estrategia == "DAKA":
+				entrar = (minutos + 1) % 4 == 0
+			else:
+				if minutos >= 10: minutos = int(str(minutos)[1])
+				if estrategia == "R7":
+					entrar = minutos == 5 # Quadrante de 10 velas
+				elif estrategia in [
+					"MSF", "HOPE", "Torres Gêmeas", 'Três Vizinhos']:
+					entrar = minutos == 3 or minutos == 8 # 5° vela
+				elif estrategia in ["Três Mosqueteiros"]:
+					entrar = minutos == 2 or minutos == 7 # 4° vela
+				elif estrategia in ["Melhor de 3"]:
+					entrar = minutos == 1 or minutos == 6 # 3° vela
+				elif estrategia in ["Padrão 23"]:
+					entrar = minutos == 0 or minutos == 5 # 2° vela
+				else:
+					entrar = minutos == 4 or minutos == 9 # 1° vela
+			return entrar
+
+		def velas_por_estrategia_m1(par, estrategia):
+			if estrategia in ["MHI", "MHI2", "MHI3"]:
+				velas = pegar_velas(par, 3)
+			elif estrategia == "Padrão Impar":
+				velas = [pegar_velas(par, 3)[0]]
+			elif estrategia == "HOPE":
+				velas = pegar_velas(par, 4)[::2]
+			elif estrategia == "Torres Gêmeas":
+				velas = [pegar_velas(par, 4)[0]]
+			elif estrategia == "Melhor de 3":
+				velas = pegar_velas(par, 6)[:-3]
+			elif estrategia == "Milhão":
+				velas = pegar_velas(par, 5)
+			elif estrategia == "Vituxo":
+				velas = pegar_velas(par, 5)[:3]
+			elif estrategia == "C3":
+				velas = pegar_velas(par, 5)[::2]
+			elif estrategia in ["MSF", "R7"]:
+				velas = [pegar_velas(par, 9)[0]]
+			else:
+				velas = pegar_velas(par, 1)
+			return velas
+
+		def entrada_estrategias_m5(estrategia, minutos):
+			if estrategia == "Super 3":
+				entrar = minutos == 14 or minutos == 44
+			elif estrategia == "Três Mosqueteiros":
+				entrar = minutos in [9, 24, 39, 54]
+			elif estrategia in ["Torres Gêmeas", 
+				"MHI", "MHI2", "MHI3", "Milhão"]:
+				entrar = minutos == 59
+			elif estrategia in ["Five Flip"]:
+				entrar = minutos == 54
+			elif estrategia == "Power": 
+				entrar = minutos in [59, 14, 29, 44]
+			else:
+				entrar = minutos == 29 or minutos == 59
+			return entrar
+
+		def velas_por_estrategia_m5(par, estrategia):
+			if estrategia == "Last of five":
+				velas = pegar_velas(par, 5, 5)
+			elif estrategia == "Três Mosqueteiros":
+				velas = pegar_velas(par, 2, 5)
+			elif estrategia in ["MHI", "MHI2", "MHI3"]:
+				velas = pegar_velas(par, 3, 5)
+			elif estrategia in ["Milhão"]:
+				velas = pegar_velas(par, 6, 5)
+			elif estrategia in ["Torres Gêmeas"]:
+				velas = [pegar_velas(par, 5, 5)[0]]
+			elif estrategia in ["Five Flip"]:
+				velas = [pegar_velas(par, 1, 5)[0]]
+			else:
+				velas = pegar_velas(par, 3, 5)
+			return velas
+
+		def entrada_estrategias_m15(estrategia, minutos):
+			if estrategia in [
+				"Hora do equilibrio", "Turn Over"]:
+				entrar = minutos == 59
+			else:
+				entrar = minutos == 29
+			return entrar
+
+		def velas_por_estrategia_m15(par, estrategia):
+			if estrategia == "Half hour":
+				velas = [pegar_velas(par, 2, 15)[0]]
+			elif estrategia == "Primeiros trocados":
+				velas = pegar_velas(par, 2, 15)[0]
+				velas = ["call"] if velas == "put" else ["put"]
+			elif estrategia == "Turn Over":
+				velas = pegar_velas(par, 1, 15)[0]
+				velas = ["call"] if velas == "put" else ["put"]
+			else:
+				velas = pegar_velas(par, 4, 15)
+			return velas
+		
+		def verifica_entrada(estrategia, timeframe):
+			minutos = datetime.now().minute
+			if timeframe == 1:
+				permitir = entrada_estrategias_m1(estrategia, minutos)
+			elif timeframe == 5:
+				permitir = entrada_estrategias_m5(estrategia, minutos)
+			else:
+				permitir = entrada_estrategias_m15(estrategia, minutos)
+			return permitir
+
+		def recebe_velas(paridade, estrategia, timeframe):
+			self.mostrar_mensagem('Verificando cores...')
+			if timeframe == 1:
+				velas = velas_por_estrategia_m1(paridade, estrategia)
+			elif timeframe == 5:
+				velas = velas_por_estrategia_m5(paridade, estrategia)
+			else:
+				velas = velas_por_estrategia_m15(paridade, estrategia)
+			self.mostrar_mensagem(" ".join(velas))
+			return velas
+
+		def pegar_catalogacao():
+			paridade, estramilhao = self.catalogar(
+				self.config["autotime"], 
+				self.config["autogale"])
+			estrategia, tipo_milhao = estramilhao
+			return paridade, estrategia, tipo_milhao
+
+		if self.config["auto"]:
+			paridade, estrategia, tipo_milhao = pegar_catalogacao()
+			timeframe = int(self.config["autotime"].strip("M"))
+		else:
+			tipo_milhao = self.config['tipo_milhao']
+			paridade = self.config['paridade']
+			estrategia = self.config['estrategia']
+			timeframe = 5 if (estrategia in [
+				"Super 5", "Super 3", "Power",
+				"Last of five", "Five Flip"
+			] or "M5" in estrategia) else 15 if estrategia in [
+			"Half hour", "Primeiros trocados", "Hora do equilibrio"
+			] else 1
+			estrategia = estrategia.replace("M5: ", "")
+
+		self.mostrar_mensagem(f"Seguindo {estrategia} pela {tipo_milhao} em {paridade}")
+		self.mostrar_mensagem("Esperando uma oportunidade")
+		while self.rodando and not self.verificar_stop():            
+			if verifica_entrada(estrategia, timeframe):
+				velas = recebe_velas(paridade, estrategia, timeframe)
+
+				direcao = False
+				if velas.count("DOJI") == 0 and not (estrategia == "Milhão" and timeframe == 5):
+					if estrategia in ["MSF", "Power",
+						"Super 5", "Super 3", "Last of five",
+						"Milhão", "MHI", "MHI2", "MHI3",
+						"Vituxo", "Hora do equilibrio"]:	
+						direcao = velas.count('CALL') > velas.count('PUT')
+						direcao = "call" if direcao else "put"
+						if tipo_milhao == "Minoria" or estrategia in [
+							"Hora do equilibrio", "MSF", "Power"]:
+							direcao = "put" if direcao == "call" else "call"
+							if (estrategia == "Power" and 
+								direcao.upper() != velas[1]):
+								direcao = False
+					elif timeframe == 5 and estrategia == "Três Mosqueteiros":
+						if velas[0] != velas[1]: direcao = velas[0].lower()
+					else:
+						if estrategia != "HOPE" or velas[0] == velas[1]:
+							direcao = velas[0].lower()
+				elif velas.count("DOJI") > 2 and estrategia == "Milhão" and timeframe == 5:
+					if velas.count("CALL") != velas.count("PUT"):
+						direcao = velas.count('CALL') > velas.count('PUT')
+						direcao = "call" if direcao else "put"
+						if tipo_milhao == "Minoria": 
+							direcao = "put" if direcao == "call" else "call"
+
+				if direcao:
+					self.mostrar_mensagem(f'Direção: {direcao.upper()}')
+					dados = (time.time(), paridade, direcao, timeframe)
+					if self.verifica_tendencia(
+						paridade, direcao, timeframe, 0, dados):
+						continue
+
+					if estrategia == "MHI2":
+						self.esperar_proximo_minuto(timeframe)
+					elif estrategia in ["MHI3", "Vituxo"]:
+						self.esperar_proximo_minuto(timeframe * 2)
+
+					tipo, payout = self.recebe_payout(
+						paridade, timeframe)
+					gale = False
+					if estrategia == "MSF": gale = "MSF"
+					elif estrategia == "C3": gale = velas
+
+					if self.config["minimo"] / 100 <= payout and self.rodando:
+						result = self.operar(self.valor, paridade, direcao, 
+							timeframe, payout, tipo, gale)
+						if result == "loose" and self.config["auto"]:
+							paridade, estrategia, tipo_milhao = pegar_catalogacao()
+					else:
+						self.mostrar_mensagem(f"{paridade} não atende o payout mínimo {payout * 100}% < {self.config['minimo']}%")
+			if self.rodando: self.esperar_proximo_minuto()
+		self.mostrar_mensagem(
+	f"\nFim da operação resultado final: R$ {round(self.ganho_total, 2)}\n")
