@@ -235,7 +235,7 @@ f"{paridade}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
             resultado, lucro = self.API.check_win_v5(identificador, tipo, delay)
 
         self.saida(f"""
-\t- - - - - - - - - - - - - - - - - - - - 
+{'-' * 30} 
     Paridade: {paridade}|{tipo.capitalize()}
     Direção: {direcao.upper()}
     tempo: M{tempo}
@@ -243,7 +243,7 @@ f"{paridade}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
     Hora: {hora_atual.strftime("%H:%M")}
     Valor: R$ {valor}
     {resultado.capitalize()}: R$ {round(lucro, 2)} 
-\t- - - - - - - - - - - - - - - - - - - - """)
+{'-' * 30} """)
 
         return resultado, round(lucro, 2)
 
