@@ -3,12 +3,10 @@ from datetime import datetime, timedelta
 import time, numpy, requests, json
 
 class IQ_API:
-    def __init__(self, login, senha, output, informacoes):
+    def __init__(self, login, senha, output):
         '''
         Recebe o login, e tenta se conectar
         '''
-        self.INFO = informacoes
-
         self.saida = output
         self.API = IQ_Option(login, senha)
         if not self.conectar():
@@ -232,15 +230,18 @@ f"{paridade}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
             # Versão que pega na hora
             resultado, lucro = self.API.check_win_v5(identificador, tipo, delay)
 
-        self.saida(self.INFO["operacao"].format(
-            resultado = resultado.capitalize(), par = paridade, 
-            tipo = tipo, direcao = direcao.upper(), 
-            tempo = tempo, hora = hora_atual.strftime("%H:%M"),
-            valor = round(valor, 2), lucro = round(lucro, 2),
-            **self.formatar()
-        ))
+        self.saida(f"""
+\t- - - - - - - - - - - - - - - - - - - - 
+    Paridade: {paridade}|{tipo.capitalize()}
+    Direção: {direcao.upper()}
+    tempo: M{tempo}
 
-        return resultado, lucro
+    Hora: {hora_atual.strftime("%H:%M")}
+    Valor: R$ {valor}
+    {resultado.capitalize()}: R$ {round(lucro, 2)} 
+\t- - - - - - - - - - - - - - - - - - - - """)
+
+        return resultado, round(lucro, 2)
 
     def scalper(self, identificador, valor, infos):
         aberto = True
@@ -319,10 +320,10 @@ f"{paridade}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
                 estrategia = estrategia.upper()
             return estrategia, maioria
 
-        if   gale == "2": gale = "porcentagemGale2"
-        elif gale == "1": gale = "porcentagemGale1"
+        if   gale == 2:   gale = "porcentagemGale2"
+        elif gale == 1:   gale = "porcentagemGale1"
         else:             gale = "porcentagemWinDePrimeira"
-        data = requests.get(f"https://catalogador.ml/api/{gale}/{timeframe}")
+        data = requests.get(f"https://catalogador.ml/api/{gale}/M{timeframe}")
         resultado = json.loads(data.text)['Todos']
         for estrategia in resultado:
             return estrategia[1].upper(), traduzir(estrategia[2])

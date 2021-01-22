@@ -108,61 +108,70 @@ class Assistente(amanobot.helper.ChatHandler):
         }
 
         self.mapeamento = {
+            "Adicionar lista": ["lista", False, list],
             "Tipo de conta": ["tipo_conta", False, tuple], 
             "Tipo de lista": ["tipo_lista", False, tuple],
             "Lista escolhida": ["num_lista", False, tuple],
-            
-            "Valor de entrada": ["valor", False, float],
-            "StopWin": ["goal", False, float],
-            "StopLoss": ["stoploss", False, float],
-            "Gerenciamento": ["tipo_gale", False, tuple], 
-            "Payout mínimo": ["minimo", False, int], 
-            
-            "Tipo de martingale": ["tipo_martin", False, tuple],
-            "Soros": ["soros", False, bool], 
-            "Máximo de gales": ["max_gale", False, int],
-            "Máximo de soros": ["max_soros", False, int],
-            "Martingale na próxima": ["entrada_martin", False, tuple],
-            
-            "Seguir tendência": ["tendencia", False, bool],
-            "Tipo de tendência": ["tipo_tendencia", False, tuple],
-            "Período da tendência": ["periodo_tendencia", False, int],
-            "Ativar notícias": ["noticias", False, bool],
-            "Filtro horas": ['noticias_hora', False, int],
-            "Filtro minutos": ['noticias_minuto', False, int],
             
             "Paridade": ["tipo_par", False, tuple],
             "Timeframe": ["tempo", False, tuple],
             "Correção": ["correcao", False, int],
             "Delay": ["delay", False, float],
+
+            "Valor de entrada": ["valor", False, float],
+            "Gerenciamento": ["tipo_gale", False, tuple], 
+            "Scalper Loss": ["scalper_loss", False, int],
+            "Scalper Win": ["scalper_win", False, int],
+            "Payout mínimo": ["minimo", False, int], 
+            "StopLoss": ["stoploss", False, float],
+            "StopWin": ["stopwin", False, float],
+
+            "Tipo de martingale": ["tipo_martin", False, tuple],
+            "Martingale na próxima": ["vez_gale", False, tuple],
+            "Máximo de soros": ["max_soros", False, int],
+            "Máximo de gales": ["max_gale", False, int],
             
-            "Adicionar lista": ["lista", False, list]
+            "Seguir tendência": ["tendencia", False, bool],
+            "Filtro toros": ["toros", False, tuple],
+            "Filtro horas": ['noticias_hora', False, int],
+            "Filtro minutos": ['noticias_minuto', False, int],
+            "Tipo de tendência": ["tipo_tendencia", False, tuple],
+            "Período da tendência": ["periodo_tendencia", False, int],
+
+            "Estratégia": ["estrategia", False, tuple],
+            "Tipo milhão": ["tipo_milhao", False, tuple],
+            "Auto: Ativar": ["auto", False, bool],
+            "Auto: Gales": ["autogale", False, tuple],
+            "Auto: Timeframe": ["autotime", False, tuple],
         }
 
         self.informacoes = {
-            "tipo_conta": "treino",
-            "valor": 2,
-            "minimo": 0,
-            "goal": 100,
-            "soros": False,
-            "stoploss": 20,
-            "max_gale": 2,
-            "max_soros": 1,
-            "tipo_gale": "martin",
-            "tipo_martin": "seguro",
-            "tendencia": False,
-            "tipo_tendencia": "velas",
+            "autogale": 2, "plano": "comum",
+            "noticias": False, "toros": 0, 
+            "autotime": 1, "delay": False,
+            "stopwin": 10, "max_soros": 1,
+            "valor": 2, "scalper_win": 0,
+            "auto": False, "max_gale": 2,
+            "stoploss": 20, "tempo": 5, 
+            "minimo": 0, "correcao": 1,
+            "tipo_gale": "martingale",
+            "tipo_martin": "simples",
+            "tipo_milhao": "Minoria",
+            "on_ciclos_soros": False,
             "periodo_tendencia": 21,
-            "noticias": False,
-            "noticias_hora": 0,
+            "tipo_tendencia": "sma",
+            "tipo_lista":"propria",
+            "tipo_conta": "treino",
+            "tipo_stop": "movel",
             "noticias_minuto": 0,
-            "tipo_lista": "propria",
-            "lista": [],
-            "plano": "comum",
+            "estrategia": "MHI",
+            "vez_gale": "vela",
             "tipo_par": "auto",
-            "delay": False,
-            "correcao": 1,
-            "tempo": 5
+            "tendencia": False,
+            "noticias_hora": 0,
+            "ciclos_soros": [],
+            "ciclos_gale": [],
+            "scalper_loss": 0,
         }
 
     def open(self, msg, id):
@@ -543,16 +552,16 @@ EURJPY 31/12/2000 CALL M5 02:30
                 
                 self.enviar_mensagem("Lista 03:\n" +
                     "\n".join(entrada_03), save = True)
-                self.comandos()
-                return True
             else:
                 if self.informacoes['lista'] != []:
                     self.enviar_mensagem("\n".join(
                         carregar_entradas(
-                            self.informacoes['lista'])))
+                            self.informacoes['lista'])), save = True)
                 else:
                     self.enviar_mensagem(
                         "Nenhuma lista registrada. Para adicionar: Conta > Adicionar lista.")
+            self.comandos()
+            return True
         else:
             self.enviar_mensagem("Usuário não autenticado")
         return False
@@ -569,7 +578,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                 "Valor de entrada": "Entrada",
                 "Tipo de martingale": "Martingale e Soros",
                 "Seguir tendência": "Tendência",
-                "Paridade": "Ajustes"
+                "Paridade": "Ajustes",
+                "Estratégia": "Auto Trade"
             }
             mensagem = ""
             for key, value in self.mapeamento.items():
@@ -591,11 +601,12 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.enviar_mensagem(
                 self.ver_configuracoes(), 
                 reply_markup = ReplyKeyboardMarkup( keyboard = [
-                    [KeyboardButton( text = "Conta e listas" )],
+                    [KeyboardButton( text = "Conta e listas" ),
+                     KeyboardButton( text = "Ajustes" )],
                     [KeyboardButton( text = "Entrada" ),
-                    KeyboardButton( text = "Martingale e Soros" )],
+                     KeyboardButton( text = "Martingale e Soros" )],
                     [KeyboardButton( text = "Tendência" ),
-                    KeyboardButton( text = "Ajustes" )],
+                     KeyboardButton( text = "Estratégias")],
                     [KeyboardButton( text = "Voltar ao menu" )]
             ], resize_keyboard = True))
             return True
@@ -607,47 +618,57 @@ EURJPY 31/12/2000 CALL M5 02:30
         verificador, teclado = False, []
         if msg['text'] == 'Conta e listas':
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Tipo de conta" )],
-                [KeyboardButton( text = "Tipo de lista" )],
+                [KeyboardButton( text = "Tipo de conta" ),
+                 KeyboardButton( text = "Tipo de lista" )],
                 [KeyboardButton( text = "Adicionar lista" )],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == 'Entrada':
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Valor de entrada" ),
-                KeyboardButton( text = "Gerenciamento" )],
+                 KeyboardButton( text = "Gerenciamento" )],
                 [KeyboardButton( text = "StopWin" ),
-                KeyboardButton( text = "StopLoss" )],
-                [KeyboardButton( text = "Payout mínimo" )],
-                [KeyboardButton( text = "Editar configurações" )]
+                 KeyboardButton( text = "StopLoss" )],
+                [KeyboardButton( text = "Scalper Win"),
+                 KeyboardButton( text = "Scalper Loss")],
+                [KeyboardButton( text = "Payout mínimo" ),
+                 KeyboardButton( text = "Editar configurações" )]
                 ])
             verificador = True
         elif msg['text'] == 'Tendência':
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Seguir tendência" ),
-                KeyboardButton( text = "Ativar notícias" )],
+                [KeyboardButton( text = "Filtro toros"),
+                 KeyboardButton( text = "Seguir tendência" )],
                 [KeyboardButton( text = "Filtro horas" ),
-                KeyboardButton( text = "Filtro minutos" )],
+                 KeyboardButton( text = "Filtro minutos" )],
                 [KeyboardButton( text = "Tipo de tendência" ),
-                KeyboardButton( text = "Período da tendência" )],
+                 KeyboardButton( text = "Período da tendência" )],
                 [KeyboardButton( text = "Editar configurações" )]
                 ])
             verificador = True
         elif msg['text'] == 'Martingale e Soros':
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Tipo de martingale" ),
-                KeyboardButton( text = "Soros" )],
+                 KeyboardButton( text = "Martingale na próxima" )],
                 [KeyboardButton( text = "Máximo de gales" ),
-                KeyboardButton( text = "Máximo de soros" )],
-                [KeyboardButton( text = "Martingale na próxima" )],
+                 KeyboardButton( text = "Máximo de soros" )],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == "Ajustes":
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Paridade" ),
-                KeyboardButton( text = "Timeframe" )],
+                 KeyboardButton( text = "Timeframe" )],
                 [KeyboardButton( text = "Correção" ),
-                KeyboardButton( text = "Delay" )],
+                 KeyboardButton( text = "Delay" )],
+                [KeyboardButton( text = "Editar configurações" )]])
+            verificador = True
+        elif msg['text'] == "Estratégias":
+            teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "Estratégia" ),
+                 KeyboardButton( text = "Tipo milhão" )],
+                [KeyboardButton( text = "Auto: Ativar" ),
+                 KeyboardButton( text = "Auto: Gales" ),
+                 KeyboardButton( text = "Auto: Timeframe")],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         if verificador:
@@ -673,22 +694,34 @@ EURJPY 31/12/2000 CALL M5 02:30
                     return False
                 elif value[2] == tuple:
                     opcoes = {
-                        "tipo_conta": ["treino", "real"],
-                        "max_gale": [0, 1, 2],
-                        "tempo": [1, 5, 15, 30],
-                        "num_lista": [1, 2, 3],
+                        "tempo": [1, 5, 15, 30], "autogale": [0, 1, 2],
+                        "autotime": [1, 5, 15], "num_lista": [1, 2, 3],
                         "tipo_par": ["binary", "digital", "auto"],
                         "tipo_lista": ["casa", "propria"],
+                        "tipo_conta": ["treino", "real"],
+                        "vez_gale": ["vela", "sinal"],
+                        "tipo_milhao": ["Minoria", "Maioria"],
                         "tipo_gale": [
-                            "martin", "soros", "nenhum"],
+                            "martingale", "sorosgale", "nenhum"],
                         "tipo_tendencia": [
                             "medias móveis simples", "velas"],
                         "tipo_martin": [
                             "seguro", "leve", "agressivo", "individual"],
-                        "entrada_martin": [
-                            "vela", "sinal"]
+                        "estrategia": ["Milhão", "Vituxo", "MHI", 
+                            "MHI2", "MHI3", 'C3', "MSF", "HOPE", 
+                            "Padrão Impar", 'Três Vizinhos', 
+                            'Torres Gêmeas', "Três Mosqueteiros", 
+                            "DAKA", "Padrão 23", "Power", 
+                            "Melhor de 3", "Super 5", "Super 3", 
+                            "Last of five", "Five Flip", "R7",
+                            "M5: Três Mosqueteiros", "M5: Milhão",
+                            "M5: Torres Gêmeas", "M5: MHI", 
+                            "M5: MHI2", "M5: MHI3", "Half hour", 
+                            "Primeiros trocados", "Turn Over",
+                            "Hora do equilibrio"]
                     }
-                    if value[0] in ["tipo_martin", "tipo_par"]:
+                    if value[0] in [
+                        "tipo_martin", "tipo_par", "estrategia"]:
                         # Um abaixo do outro
                         teclado = ReplyKeyboardMarkup( 
                         keyboard = [
@@ -847,7 +880,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                     novo = self.pegar_entrada(novo.split("\n"))
                 elif value[2] == bool:
                     novo = bool(novo.strip() == "Sim")
-                elif value[0] in ["tempo", "max_gale"]:
+                elif value[0] in ["tempo", "toros", 
+                    "num_lista", "autogale", "autotime"]:
                     try:
                         novo = int(novo)
                     except Exception as e:
@@ -926,7 +960,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.entrar()           # [1] Login
         elif msg['text'].capitalize() == 'Gerenciar':
             self.gerenciar()        # [1] Avançadas
-        elif msg['text'].capitalize() == "Voltar ao menu":
+        elif msg['text'].capitalize() in ["Voltar ao menu", "Menu"]:
             if not self.autenticacao: self.entrar()
             else: self.comandos()   # [1] Opções
         elif self.submenu_comandos(msg):

@@ -1,30 +1,47 @@
 user = {
     '_id': 0,
     "email": '',
-    "timestamp": 0,
-    "operando": False,
-    "tipo_conta": "treino",
-    "valor": 2,
-    "minimo": 0,
-    "goal": 100,
-    "soros": False,
-    "max_soros": 1,
-    "stoploss": 20,
-    "entrada_martin": "vela",
-    "max_gale": 2,
-    "tipo_martin": "seguro",
-    "tipo_gale": "martin",
-    "tendencia": False,
-    "tipo_tendencia": "velas",
-    "periodo_tendencia": 21,
-    "tipo_par": "auto",
-    "delay": False,
-    "correcao": 1,
-    "tempo": 5,
-    "tipo_lista":"propria",
     "lista": [],
+    "timestamp": 0,
     "plano": "comum",
-    "noticias": False,
+    "operando": False,
+    "tipo_lista":"propria",
+
+    "tipo_conta": "treino",
+    "tipo_par": "auto",
+    "stoploss": 20,
+    "stopwin": 10,
+    "valor": 2,
+    "tempo": 5,
+    
+    "minimo": 0,
+    "correcao": 1,
+    "delay": False,
+    "tipo_stop": "movel",
+    
+    "tipo_gale": "martingale",
+    "tipo_martin": "simples",
+    "vez_gale": "vela",
+    "scalper_loss": 0,        
+    "scalper_win": 0,         
+
+    "max_gale": 2,
+    "max_soros": 1,
+    "ciclos_gale": [],        ## Colocar!
+    "ciclos_soros": [],       ## Colocar!
+    "on_ciclos_soros": False, ## Colocar!
+    
+    "noticias_minuto": 0,
     "noticias_hora": 0,
-    "noticias_minuto": 0
+    "toros": 0,               
+
+    "auto": False,           
+    "autogale": 2,            
+    "autotime": 1,            
+    "estrategia": "MHI",      # Colocar
+    "tipo_milhao": "Minoria", # Colocar
+
+    "periodo_tendencia": 21,
+    "tipo_tendencia": "sma",
+    "tendencia": False,
 }

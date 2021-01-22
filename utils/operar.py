@@ -49,13 +49,10 @@ class Operacao(IQ_API):
 
 				if config['tipo_par'] == "auto":
 					self.tipo = config['tipo_par']
-				else:
-					self.tipo = "digital" if (
-						config['tipo_par'] == 'digital'
-					) else "binary"
 
 				# Para soros
 				self.valor_inicial = config['valor']
+				self.ganhos_perdas = [0, 0]
 				self.soros_atual = 0
 				self.gale_atual = 0
 
@@ -66,7 +63,9 @@ class Operacao(IQ_API):
 				self.max_gale = config["max_gale"]
 				self.ciclos_gale = config["ciclos_gale"]
 				self.ciclos_soros = config["ciclos_soros"]
-				self.ganhos_perdas = [0, 0]
+				self.noticias_ativas = (
+					config["noticias_hora"] > 0 and 
+					config["noticias_minuto"] > 0)
 
 				self.stopwin = 0.1 if (
 					self.stopwin == 0
@@ -87,7 +86,7 @@ class Operacao(IQ_API):
 				self.saldo_inicial = self.API.get_balance()
 				if config['tendencia']:
 					self.config['correcao'] += 3
-				if config['noticias']:
+				if self.noticias_ativas:
 					self.atualizar_noticias()
 
 				self.operar_lista()
@@ -195,13 +194,14 @@ class Operacao(IQ_API):
 		with self.cadeado:
 			if (-self.stoploss >= self.perda_total or 
 				self.ganho_total >= self.stopwin):
-				mensagem = "Fim da operação: "
+				mensagem = "Fim da operação: \n"
 				if self.ganho_total >= self.stopwin:
 					mensagem += "🤑 Stop Gain 🤑"
 				else:
 					mensagem += "🥵 Stop Loss 🥵"
+				placar = f"✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌"
 				self.mostrar_mensagem(f'''{mensagem}
-		✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌
+{placar.center(20, " ")}
 	Stopwin: {self.stopwin}
 	Total ganho: {round(self.ganho_total, 2)}
 	Stoploss: {-self.stoploss}
@@ -255,11 +255,11 @@ class Operacao(IQ_API):
 			threading.Thread(
 				target = self.mostrar_mensagem,
 				args = (f"""
-	Saldo inicial: R$ {self.saldo_inicial}
-	Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
-	{f'✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌'.center(20)}
-	{f'| Lucro: {perto_win} |'.center(10)}
-	{f'| Perda: {perto_loss} |'.center(10)}
+Saldo inicial: R$ {self.saldo_inicial}
+Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
+{f'✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌'.center(50)}
+	| \tLucro: {perto_win} \t\t|
+	| \tPerda: {perto_loss} \t\t|
 	""", )).start()
 
 		def desconta_perda(resultado, lucro, gale = False):
@@ -496,7 +496,7 @@ class Operacao(IQ_API):
 				if self.verifica_tendencia(par, ordem, tempo):
 					continue
 
-				if (self.config['noticias'] and
+				if (self.noticias_ativas and
 					not self.verificar_noticias(par)):
 						continue
 				# self.esperar_anteriores()
@@ -599,7 +599,7 @@ class Operacao(IQ_API):
 					direcao = "call" if abertura > fechamento else "put"
 					tipo, payout = self.recebe_payout(par, self.tempo)
 
-					if (self.config['noticias'] and
+					if (self.noticias_ativas and
 						not self.verificar_noticias(par)):
 						continue
 
@@ -769,7 +769,7 @@ class Operacao(IQ_API):
 
 		if self.config["auto"]:
 			paridade, estrategia, tipo_milhao = pegar_catalogacao()
-			timeframe = int(self.config["autotime"].strip("M"))
+			timeframe = self.config["autotime"]
 		else:
 			tipo_milhao = self.config['tipo_milhao']
 			paridade = self.config['paridade']
