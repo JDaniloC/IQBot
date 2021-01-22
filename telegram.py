@@ -22,15 +22,11 @@ TOKEN = config.get("TELEGRAM", "token")
 bot_name = config.get("TELEGRAM", "name")
 
 # Funções
-def strDateHour(number):
+def strDateHour(number:int) -> str:
     '''
     Converte números de 1 dígito para 2 dígitos:
         0:0 -> 00:00
         2/1/2000 -> 02/01/2000
-    params:
-        number = tipo int
-    return:
-        string do resultado
     '''
     return str(number) if len(str(number)) != 1 else "0" + str(number)
 
@@ -49,6 +45,11 @@ def carregar_entradas(opcao):
 
     lista_entradas = []
     for linha in lista:
+        if linha["tipo"] == "taxas": 
+            lista_entradas.append(f""""
+📊 Ativo: {linha['par']}
+📈 Taxa: {linha['taxa']}""")
+            continue
         direcao = linha["ordem"].lower()
         timeframe = linha['timeframe']
         if timeframe == 0:
@@ -70,7 +71,9 @@ def get_adms():
 # São atributos gerais para todas as contas
 # Pois o objeto Assistente é instanciado por usuário 
 adms = get_adms()
-entrada_1gale = carregar_entradas(1)
+entrada_01 = carregar_entradas(1)
+entrada_02 = carregar_entradas(2)
+entrada_03 = carregar_entradas(3)
 
 if os.name != "nt":
     controlador = Control()
@@ -96,6 +99,7 @@ class Assistente(amanobot.helper.ChatHandler):
         self.add_entrada = "-"        
         self.iniciar_operacao = False
         self.parar_bot = False
+        self.operar_lista = True
         self.alteracoes_avancadas = {
             "adm": False,     # Adicionar novo ADM
             "licenca": False, # Renovar licença
@@ -130,9 +134,9 @@ class Assistente(amanobot.helper.ChatHandler):
             "Máximo de gales": ["max_gale", False, int],
             
             "Seguir tendência": ["tendencia", False, bool],
-            "Filtro toros": ["toros", False, tuple],
-            "Filtro horas": ['noticias_hora', False, int],
-            "Filtro minutos": ['noticias_minuto', False, int],
+            "Notícias: toros": ["toros", False, tuple],
+            "Notícias: horas": ['noticias_hora', False, int],
+            "Notícias: minutos": ['noticias_minuto', False, int],
             "Tipo de tendência": ["tipo_tendencia", False, tuple],
             "Período da tendência": ["periodo_tendencia", False, int],
 
@@ -429,11 +433,12 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         if self.autenticacao:
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Operação" ),
-                KeyboardButton( text = "Ver lista de sinais" )],
+                [KeyboardButton( text = "Operação Lista" ),
+                 KeyboardButton( text = "Operação Estratégias" )],
                 [KeyboardButton( text = "Ver configurações" ),
-                KeyboardButton( text = "Editar configurações" )],
-                [KeyboardButton( text = "Sair da conta" )]
+                 KeyboardButton( text = "Ver lista de sinais" )],
+                [KeyboardButton( text = "Editar configurações" ),
+                 KeyboardButton( text = "Sair da conta" )]
             ])
 
             self.enviar_mensagem("O que deseja?", 
@@ -447,7 +452,11 @@ EURJPY 31/12/2000 CALL M5 02:30
         do menu principal, devolvendo um boolean
         '''
         texto = msg['text']
-        if texto == "Operação":
+        if texto == "Operação Lista":
+            self.operar_lista = True
+            return self.operar(msg)
+        elif texto == "Operação Estratégias":
+            self.operar_lista = False
             return self.operar(msg)
         elif texto == "Ver configurações":
             return self.enviar_mensagem(self.ver_configuracoes(), save = True)
@@ -478,7 +487,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                     self.informacoes, self.email)
                 
                 if os.name == "nt": # No windows 
-                    os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}, {self.id}")
+                    os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}, {self.id}, {self.operar_lista}")
                 else:
                     controlador.adicionar_pessoa(self.email, msg['text'], self.id)
                 self.enviar_mensagem("Operação iniciada. Se em 5min eu não avisar que está conectado, reincie a operação.")
@@ -538,6 +547,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         Mostra as listas de sinais (casa|pessoal)
         Devolve um boolean se está autenticado
         '''
+        global entrada_01, entrada_02, entrada_03
         if self.autenticacao:
             if self.informacoes['tipo_lista'] == "casa":
                 self.enviar_mensagem("Entradas:", 
@@ -636,10 +646,10 @@ EURJPY 31/12/2000 CALL M5 02:30
             verificador = True
         elif msg['text'] == 'Tendência':
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Filtro toros"),
+                [KeyboardButton( text = "Notícias: toros"),
                  KeyboardButton( text = "Seguir tendência" )],
-                [KeyboardButton( text = "Filtro horas" ),
-                 KeyboardButton( text = "Filtro minutos" )],
+                [KeyboardButton( text = "Notícias: horas" ),
+                 KeyboardButton( text = "Notícias: minutos" )],
                 [KeyboardButton( text = "Tipo de tendência" ),
                  KeyboardButton( text = "Período da tendência" )],
                 [KeyboardButton( text = "Editar configurações" )]
@@ -747,7 +757,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         Verifica se a mensagem está nas configurações avançadas
         Se estiver, devolve True caso contrário False
         '''
-        global adms, entrada_1gale, rodando
+        global adms, rodando, entrada_01, entrada_02, entrada_03
         
         if self.id not in adms:
             return False
@@ -982,8 +992,8 @@ EURJPY 31/12/2000 CALL M5 02:30
             pass # [2] Avançadas
         elif self.confirmar_entradas(msg):
             pass # [3] Entradas
-        # elif self.habilitar_entradas(msg):
-        #     pass # [2] Entradas
+        elif self.habilitar_entradas(msg):
+            pass # [2] Entradas
         elif self.parar_bot:
             if msg['text'] == "Sim":
                 self.desligar_bot()
@@ -1013,7 +1023,8 @@ Obrigado pela preferência.
 Qualquer outra dúvida contactar o suporte
 @JDaniloC""", reply_markup = ReplyKeyboardRemove())
 
-def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+def printProgressBar (iteration, total, prefix = '', suffix = '', 
+    decimals = 1, length = 100, fill = '█', printEnd = "\r"):
     """
     TAKEN FROM https://stackoverflow.com/questions/3173320/text-progress-bar-in-the-console
     """

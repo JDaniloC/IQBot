@@ -22,19 +22,19 @@ def escreve_log(email, mensagem):
 		file.write(mensagem + "\n")
 
 class Operacao(IQ_API): 
-	def __init__(self, config, comandos = [], 
-		maximo = 0, verboso = False):
+	def __init__(self, config, comandos = [], verboso = False, 
+		operacao_lista = True, tentativas = 0):
 		self.cadeado = threading.Lock()
 		self.comandos = comandos
 		self.verboso = verboso
-		self.maximo = maximo
+		self.tentativas = tentativas
 		self.config = config
 
 		self.ganho_total = 0
 		self.perda_total = 0
 		self.perda_atual = 0 # Para sorosgale
 
-		if self.maximo < 3:
+		if self.tentativas < 3:
 			try:
 				if self.verboso:
 					self.telegram = amanobot.Bot(BOTTOKEN)
@@ -63,8 +63,8 @@ class Operacao(IQ_API):
 				self.max_gale = config["max_gale"]
 				self.ciclos_gale = config["ciclos_gale"]
 				self.ciclos_soros = config["ciclos_soros"]
-				self.noticias_ativas = (
-					config["noticias_hora"] > 0 and 
+				self.ativar_noticias = (
+					config["noticias_hora"] > 0 or 
 					config["noticias_minuto"] > 0)
 
 				self.stopwin = 0.1 if (
@@ -86,25 +86,28 @@ class Operacao(IQ_API):
 				self.saldo_inicial = self.API.get_balance()
 				if config['tendencia']:
 					self.config['correcao'] += 3
-				if self.noticias_ativas:
+				if self.ativar_noticias:
 					self.atualizar_noticias()
 
-				self.operar_lista()
+				if operacao_lista: 
+					self.operar_lista()
+				else: self.operar_estrategia()
 			except KeyboardInterrupt:
 				sys.exit(0)
 			except Exception as e:
 				if type(e) == ConnectionError:
 					self.mostrar_mensagem("Não conseguiu se conectar na conta")
-					self.maximo = 3
+					self.tentativas = 3
 				else:
 					print("Aconteceu um erro na API, tentando novamente.")
 				escreve_erros(e)
 				
 				try:
 					print("Continuando as operações...")
-					self.maximo += 1
+					self.tentativas += 1
 					self.__init__(
-						self.config, self.comandos, self.maximo, self.verboso)
+						self.config, self.comandos, self.verboso, 
+						operacao_lista, self.tentativas)
 				except:
 					print("Deu erro novamente! Finalizando o programa.")
 					escreve_erros(e)
@@ -152,9 +155,9 @@ class Operacao(IQ_API):
 				minutes = self.config['noticias_minuto']):
 				if info['par'] in paridade.upper() and (
 					int(info['impacto']) >= self.config["toros"]):
-					self.mostrar_mensagem(f"Cancelando entrada devido notícia: \
-						{info['par']} {'⭐' * int(info['impacto'])}".center(60))
-					self.mostrar_mensagem(f"{info['text']}".center(60))
+					self.mostrar_mensagem(f"""Cancelando entrada devido notícia:
+	{info['par']} {'⭐' * int(info['impacto'])}
+{info['text'].center(60)}""")
 					return False
 		return True
 
@@ -179,7 +182,7 @@ class Operacao(IQ_API):
 					tipo, payout = "digital", payout_digital
 			except:
 				tipo, payout = "binary", 0.7
-			print(f"Payout de {paridade}: {tipo} {payout}%")
+			print(f"Payout de {paridade}: {tipo} {payout * 100}%")
 		else:
 			payout, tipo = (self.payout_binaria(paridade) 
 				if self.tipo == "binary" 
@@ -201,7 +204,7 @@ class Operacao(IQ_API):
 					mensagem += "🥵 Stop Loss 🥵"
 				placar = f"✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌"
 				self.mostrar_mensagem(f'''{mensagem}
-{placar.center(20, " ")}
+{placar.center(50, " ")}
 	Stopwin: {self.stopwin}
 	Total ganho: {round(self.ganho_total, 2)}
 	Stoploss: {-self.stoploss}
@@ -210,7 +213,7 @@ class Operacao(IQ_API):
 				return True
 		return False
 
-	def verifica_tendencia(self, paridade, direcao, timeframe):
+	def verificar_tendencia(self, paridade, direcao, timeframe):
 		if (self.config['tendencia'] and not self.calcular_tendencia(
 			self.config['tipo_tendencia'], paridade, direcao, 
 			timeframe, self.config['periodo_tendencia'])):
@@ -257,9 +260,9 @@ class Operacao(IQ_API):
 				args = (f"""
 Saldo inicial: R$ {self.saldo_inicial}
 Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
-{f'✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌'.center(50)}
-	| \tLucro: {perto_win} \t\t|
-	| \tPerda: {perto_loss} \t\t|
+{f'✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌'.center(30)}
+{f'| Lucro: {perto_win} |'.center(30)}
+{f'| Perda: {perto_loss} |'.center(30)}
 	""", )).start()
 
 		def desconta_perda(resultado, lucro, gale = False):
@@ -349,7 +352,8 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 					f" [SOROS] Preservando capital: R$ {round(valor, 2)} -> R$ {self.valor_inicial}")
 				self.valor = self.valor_inicial
 		
-		if resultado == "loose" or resultado == "equal":
+		if resultado in ["loose", "equal"]:
+			print(f"{paridade} {tipo} Perdeu!")
 			if ((self.config['max_soros'] > 0 and fazendo_soros)
 				or self.config['on_ciclos_soros']) and self.soros_atual > 0:
 				self.soros_atual = 0
@@ -360,6 +364,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 			if (self.config['tipo_gale'] == "martingale" and 
 				self.config['vez_gale'] == "vela") or (
 				self.config['tipo_gale'] == 'ciclos'):
+				print(f"{paridade} {tipo} fazendo martingale")
 				perda, num_gales, ciclo_atual = 0, 0, 0
 				if self.config['tipo_gale'] == 'ciclos':
 					ciclo_atual = self.config["ciclos"]['gales']
@@ -470,16 +475,42 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 		4 - Cria uma thread para o método operar
 		'''
 		def formatHour(number):
-			if len(str(number)) == 1: return "0" + str(number)
-			return number
+			'''
+			Converte números de 1 dígito para 2 dígitos:
+				0:0 -> 00:00
+				2/1/2000 -> 02/01/2000
+			'''
+			return str(number) if len(str(number)) != 1 else "0" + str(number)
 
 		self.espera = []
 		if self.verboso:
 			mensagem = self.telegram.sendMessage(self.verboso, "Conectado com sucesso.")
 			self.message_id = mensagem['message_id']
-
+		
+		# Taxas
+		par_taxa = {}  
 		for comando in self.comandos:
-			
+			if comando["tipo"] == "taxas":
+				paridade = comando['par']
+				if paridade not in par_taxa:
+					par_taxa[paridade] = [comando['taxa']]
+				else:
+					par_taxa[paridade].append(comando['taxa'])
+		
+		for paridade, taxas in par_taxa.items():
+			thread = threading.Thread(
+				target = self.esperar_taxa, 
+				name = f"{time.time()}", 
+				args = (paridade, taxas),
+				daemon = True)
+			self.espera.append(thread)
+			thread.start()
+
+		# Lista
+		self.comandos.sort(key = lambda x: x["timestamp"])
+		for comando in self.comandos:
+			if comando["tipo"] == "taxas": continue
+
 			data = comando["data"]
 			horas, minutos = comando["hora"]
 			tempo = comando['timeframe'] if comando['timeframe'] != 0 else self.tempo
@@ -493,10 +524,10 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 				valor = self.valor
 				tipo, payout = self.recebe_payout(par, tempo)
 
-				if self.verifica_tendencia(par, ordem, tempo):
+				if self.verificar_tendencia(par, ordem, tempo):
 					continue
 
-				if (self.noticias_ativas and
+				if (self.ativar_noticias and
 					not self.verificar_noticias(par)):
 						continue
 				# self.esperar_anteriores()
@@ -527,51 +558,6 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 		self.mostrar_mensagem(
 			f"\nFim da operação resultado final: R$ {round(self.ganho_total, 2)}\n")
 
-	def operar_taxas(self):
-		'''
-		1 - Organiza a lista de taxas
-		2 - Procura payouts
-		3 - Inicia a busca pelas taxas para cada paridade
-		'''
-		def verificar_ativos():
-			'''
-			Verifica se alguma thread no self.esperar
-			Está ativa, devolve um boolean
-			'''
-			for thread in self.espera:
-				if thread.is_alive():
-					return True
-			return False
-
-		par_taxa = {}  
-		for comando in self.comandos:
-			paridade = comando['par']
-			if paridade not in par_taxa:
-				par_taxa[paridade] = [comando['taxa']]
-			else:
-				par_taxa[paridade].append(comando['taxa'])
-		self.comandos = par_taxa
-
-		lista_taxas = [{"par": key, "taxas": value} 
-			for key, value in self.comandos.items()]
-		self.comandos = lista_taxas
-		self.espera = []
-
-		for comando in self.comandos:
-			thread = threading.Thread(
-				target = self.esperar_taxa, 
-				name = f"{time.time()}", 
-				args = (comando['par'], comando['taxas']),
-				daemon = True)
-			self.espera.append(thread)
-			thread.start()
-
-		while verificar_ativos():
-			time.sleep(5)
-
-		self.mostrar_mensagem(
-	f"\nFim da operação resultado final: R$ {round(self.ganho_total, 2)}\n")
-
 	def esperar_taxa(self, par, taxas):
 		'''
 		1 - Verifica se a taxa atual ultrapassou alguma das especificadas
@@ -599,11 +585,12 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 					direcao = "call" if abertura > fechamento else "put"
 					tipo, payout = self.recebe_payout(par, self.tempo)
 
-					if (self.noticias_ativas and
+					if (self.ativar_noticias and
 						not self.verificar_noticias(par)):
 						continue
 
 					if self.config["minimo"] / 100 <= payout:
+						self.mostrar_mensagem(f"Taxas: {par} {taxa} ")
 						thread = threading.Thread(
 							target = self.operar, 
 							name = f"{time.time()}", 
@@ -614,7 +601,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 						self.espera.append(thread)
 						thread.start()
 					else:
-						self.mostrar_mensagem(f"{par} não atende o payout mínimo {payout} {self.config['minimo']}")
+						self.mostrar_mensagem(f"{par} {taxa} não atende o payout mínimo {payout} {self.config['minimo']}")
 
 					taxas.remove(taxa)
 				else:
@@ -757,7 +744,8 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 				velas = velas_por_estrategia_m5(paridade, estrategia)
 			else:
 				velas = velas_por_estrategia_m15(paridade, estrategia)
-			self.mostrar_mensagem(" ".join(velas))
+			self.mostrar_mensagem(" ".join(
+				velas).replace("CALL", "🟢").replace("PUT", "🔴"))
 			return velas
 
 		def pegar_catalogacao():
@@ -784,7 +772,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 
 		self.mostrar_mensagem(f"Seguindo {estrategia} pela {tipo_milhao} em {paridade}")
 		self.mostrar_mensagem("Esperando uma oportunidade")
-		while self.rodando and not self.verificar_stop():            
+		while not self.verificar_stop():            
 			if verifica_entrada(estrategia, timeframe):
 				velas = recebe_velas(paridade, estrategia, timeframe)
 
@@ -816,9 +804,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 
 				if direcao:
 					self.mostrar_mensagem(f'Direção: {direcao.upper()}')
-					dados = (time.time(), paridade, direcao, timeframe)
-					if self.verifica_tendencia(
-						paridade, direcao, timeframe, 0, dados):
+					if self.verificar_tendencia(paridade, direcao, timeframe):
 						continue
 
 					if estrategia == "MHI2":
@@ -832,13 +818,14 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 					if estrategia == "MSF": gale = "MSF"
 					elif estrategia == "C3": gale = velas
 
-					if self.config["minimo"] / 100 <= payout and self.rodando:
+					if self.config["minimo"] / 100 <= payout:
 						result = self.operar(self.valor, paridade, direcao, 
 							timeframe, payout, tipo, gale)
 						if result == "loose" and self.config["auto"]:
 							paridade, estrategia, tipo_milhao = pegar_catalogacao()
+							self.mostrar_mensagem(f"Seguindo {estrategia} pela {tipo_milhao} em {paridade}")
 					else:
 						self.mostrar_mensagem(f"{paridade} não atende o payout mínimo {payout * 100}% < {self.config['minimo']}%")
-			if self.rodando: self.esperar_proximo_minuto()
+			self.esperar_proximo_minuto()
 		self.mostrar_mensagem(
 	f"\nFim da operação resultado final: R$ {round(self.ganho_total, 2)}\n")

@@ -13,18 +13,23 @@ LOCALCONFIG = "config/config.txt"
 
 print("\n[Comando para parar: Ctrl + C]\n")
 
-def pegar_comando(texto):
+def pegar_comando_lista(texto):
     '''
     Recebe um texto e devolve:
     {
         "data": [dia, mes, ano],
         "hora": [hora, minuto]
-        "par": par,
+        "par": paridade,
         "ordem": ordem,
         "timeframe": int
+        "tipo": "lista"
     }
     No qual o conteúdo das listas são inteiros
     '''
+    def timestamp(data, hora):
+        return datetime.datetime(
+            data[2], data[1], data[0], hora[0], hora[1]
+        ).timestamp()
     try:
         data = re.search(r'\d{2}\W\d{2}\W\d{4}', texto)
         if data:
@@ -34,8 +39,8 @@ def pegar_comando(texto):
             data = [hoje.day, hoje.month, hoje.year]
         hora = re.search(r'\d{2}:\d{2}', texto)[0]
         hora = [int(x) for x in re.split(r'\W', hora)]
-        par = re.search(
-        r'[A-Za-z]{6}(-OTC)?', texto.upper().replace("/", ""))[0]
+        par = re.search(r'[A-Za-z]{6}(-OTC)?', 
+            texto.upper().replace("/", ""))[0]
         ordem = re.search(r'CALL|PUT', texto.upper())[0].lower()
         timeframe = re.search(
             r'[MH][1-6]?[0-5]', texto.upper())
@@ -50,14 +55,56 @@ def pegar_comando(texto):
         print(f"Revise o comando {texto}")
         return {}
 
-    comando = {
+    return {
         "data": data,
         "hora": hora,
         "par": par,
         "ordem": ordem,
-        "timeframe": timeframe
+        "timeframe": timeframe,
+        "tipo": "lista",
+        "timestamp": timestamp(data, hora)
     }
 
+def pegar_comando_taxas(texto):
+    '''
+    Recebe um texto e devolve:
+    {
+        "par": paridade,
+        "taxa": int
+        "tipo": "taxas"
+    }
+    '''
+    try:
+        primeiro, segundo = re.split(r"[^\w.-]", texto.strip())
+        par = re.search(r'[A-Za-z]{6}(-OTC)?', 
+            primeiro.upper().replace("/", ""))
+        if not par:
+            par = re.search(r'[A-Za-z]{6}(-OTC)?', 
+                segundo.upper().replace("/", ""))[0]
+            taxa = float(primeiro)
+        else:
+            par = par[0]
+            taxa = float(segundo)
+    except Exception as e:
+        print(type(e), e)
+        print(f"Revise o comando {texto}")
+        return {}
+    return {
+        "par": par, 
+        "taxa": taxa, 
+        "tipo": "taxas",
+        "timestamp": datetime.now()
+    }
+
+def pegar_comando(texto):
+    '''
+    Verifica se a entrada é de lista ou taxas
+    e devolve um dicionário no qual um dos valores
+    é {tipo: lista|taxa}.
+    '''
+    comando = pegar_comando_lista(texto)
+    if comando == {}:
+        comando = pegar_comando_taxas(texto)
     return comando
 
 def abrir_arquivo(nome):
@@ -79,6 +126,9 @@ def abrir_arquivo(nome):
             comando = pegar_comando(entrada)
             if comando != {}:
                 comandos.append(comando)
+    comandos.sort(key = lambda x: x["timestamp"])
+    for entrada in comandos:
+        del entrada["timestamp"]
     return comandos
 
 def numerico(x):
@@ -91,62 +141,61 @@ def numerico(x):
     except:
         return False
 
+def atualizar(config, arquivo, tipo, label, func = str, error = ""):
+    try:
+        valor = arquivo.get(tipo, label)
+        if func == float: valor = valor.replace(",", ".")
+        config[label] = func(valor)
+    except: 
+        config[label] = error
+
 def configuracoes(nome = LOCALCONFIG):
     '''
     Carrega o arquivo de configuração e devolve um dicionário
     '''
     arquivo = RawConfigParser()
-    arquivo.read(nome)
+    arquivo.read(nome, encoding='utf-8')
  
-    config = {
-        "email": arquivo.get("CONTA", "email"),
-        "senha": arquivo.get("CONTA", "senha"),
-        "tipo_conta": arquivo.get("CONTA", "tipo").lower(),
-        "goal": float(
-            arquivo.get("WIN", "goal").replace(",", ".")),
-        "soros": arquivo.get(
-            "WIN", "soros").capitalize() == "True",
-        "max_soros": arquivo.get(
-            "WIN", "max_soros").capitalize() == "True",
-        "stoploss": float(
-            arquivo.get("LOSS", "stoploss").replace(",", ".")),
-        "tipo_gale": arquivo.get("LOSS", "tipo_gale").lower(),
-        "tipo_martin": arquivo.get("LOSS", "tipo_martin").lower(),
-        "entrada_martin": arquivo.get(
-            "LOSS", "entrada_martin").lower(),
-        "max_gale": int(arquivo.get("LOSS", "max_gale")),
-        "arquivo": arquivo.get("ENTRADAS", "arquivo"),
-        "valor": float(
-            arquivo.get("ENTRADAS", "valor").replace(",", ".")),
-        "tipo_par": arquivo.get("ENTRADAS", "tipo_par").lower(),
-        "tempo": int(arquivo.get("ENTRADAS", "tempo")),
-        "minimo": int(arquivo.get("ENTRADAS", "profit_minimo")),
-        "correcao": int(
-            arquivo.get("AJUSTES", "correcao_entrada")),
-        "delay": arquivo.get(
-            "AJUSTES", "delay").replace(",", "."),
-        "tendencia": arquivo.get(
-            "TENDENCIA", "tendencia").capitalize() == "True",
-        "tipo_tendencia": arquivo.get(
-            "TENDENCIA", "tipo_tendencia"),
-        "periodo_tendencia": int(arquivo.get(
-            "TENDENCIA", "periodo_tendencia")),
-        "noticias": arquivo.get(
-            "NOTICIAS", "noticias").capitalize() == "True",
-        "noticias_hora": int(arquivo.get(
-            "NOTICIAS", "noticias_hora")),
-        "noticias_minuto": int(arquivo.get(
-            "NOTICIAS", "noticias_minuto"))
-    }
+    config = {}
+    boolean = lambda x: x.capitalize() == "True"
+    atualizar(config, arquivo, "CONTA", "email")
+    atualizar(config, arquivo, "CONTA", "senha")
+    atualizar(config, arquivo, "CONTA", "tipo_conta")
 
-    # Caso colocar um float pra multiplicar
-    config["tipo_martin"] = config["tipo_martin"] if not numerico(
-        config['tipo_martin'].replace(",", ".")
-    ) else float(config['tipo_martin'].replace(",", "."))
+    atualizar(config, arquivo, "ENTRADAS", "arquivo")
+    atualizar(config, arquivo, "ENTRADAS", "tipo_par")
+    atualizar(config, arquivo, "ENTRADAS", "valor", float, 1)
+    atualizar(config, arquivo, "ENTRADAS", "tempo", int, 1)
+    atualizar(config, arquivo, "ENTRADAS", "minimo", int, 0)
 
-    # No caso queira pegar o resultado no histórico
-    config['delay'] = float(config['delay']
-        ) if numerico(config['delay']) else False
+    atualizar(config, arquivo, "WIN", "stopwin", float, 1)
+    atualizar(config, arquivo, "WIN", "max_soros", int, 0)
+    atualizar(config, arquivo, "WIN", "scalper_win", int, 0)
+
+    atualizar(config, arquivo, "LOSS", "stoploss", float, 1)
+    atualizar(config, arquivo, "LOSS", "max_gale", int, 2)
+    atualizar(config, arquivo, "LOSS", "scalper_loss", int, 0)
+    atualizar(config, arquivo, "LOSS", "tipo_gale", error = "martingale")
+    atualizar(config, arquivo, "LOSS", "tipo_martin", error = "simples")
+    atualizar(config, arquivo, "LOSS", "vez_gale", error = "vela")
+
+    atualizar(config, arquivo, "AJUSTE", "correcao", int, 0)
+    atualizar(config, arquivo, "AJUSTE", "delay", float, False)
+
+    atualizar(config, arquivo, "TENDENCIA", "tendencia", boolean, False)
+    atualizar(config, arquivo, "TENDENCIA", "tipo_tendencia", error = "sma")
+    atualizar(config, arquivo, "TENDENCIA", "periodo_tendencia", int, 21)
+    
+    atualizar(config, arquivo, "NOTICIAS", "toros", int, 0)
+    atualizar(config, arquivo, "NOTICIAS", "noticias_hora", int, 0)
+    atualizar(config, arquivo, "NOTICIAS", "noticias_minuto", int, 0)
+
+    atualizar(config, arquivo, "ESTRATEGIA", "auto", boolean, False)
+    atualizar(config, arquivo, "ESTRATEGIA", "autotime", int, 1)
+    atualizar(config, arquivo, "ESTRATEGIA", "autogale", int, 2)
+    atualizar(config, arquivo, "ESTRATEGIA", "estrategia", error = "MHI")
+    atualizar(config, arquivo, "ESTRATEGIA", "tipo_milhao", error = "Minoria")
+    atualizar(config, arquivo, "ESTRATEGIA", "paridade", error = "EURUSD")
 
     return config
 
@@ -202,12 +251,7 @@ def recebe_comandos(comandos):
             with open(LOCALAJUDA, "r+") as file:
                 for i in file:
                     print(i.strip())
-        elif comandos[0] in ["-p", "perfil"]:
-            config = configuracoes()
-            api = IQ_API(config["email"], config["senha"])
-            api.perfil()
-            return api
-        elif comandos[0] in ['-o', 'online'] and len(comandos[0:]) > 3:
+        elif comandos[0] in ['-o', 'online'] and len(comandos[1:]) > 3:
             # Carrega o arquivo de configurações a partir do e-mail
             config = MongoDB.get_user(comandos[1])
             config['senha'] = comandos[2]
@@ -216,15 +260,15 @@ def recebe_comandos(comandos):
             if config['tipo_lista'] == "casa":
                 # Une com as informações gerais
                 config.update(MongoDB.get_avancadas())
-                # maximo = int(config['max_gale'])
-                # if maximo < 1:
-                #     maximo = 1
-                # elif maximo > 2:
-                #     maximo = 2
-                entradas = MongoDB.get_entradas(1)
+                maximo = int(config['max_gale'])
+                if maximo < 1:
+                    maximo = 1
+                elif maximo > 3:
+                    maximo = 3
+                entradas = MongoDB.get_entradas(maximo)
             else:
                 entradas = config['lista']
-            Operacao(config, entradas, verboso = int(comandos[3]))
+            Operacao(config, entradas, int(comandos[3]), comandos[4] == "True")
         else:
             print('''
             [COMANDOS]
@@ -232,7 +276,6 @@ def recebe_comandos(comandos):
             Testar a leitura do arquivo/configuração: -t
             Rodar o bot a partir de uma configuração: -c nomeDoArquivo
             Verificar tipos de martingale: -m
-            Loga na conta e devolve a API: -p
             Para telegram: -o email senha
             ''')
     else:
