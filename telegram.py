@@ -489,7 +489,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                 if os.name == "nt": # No windows 
                     os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}, {self.id}, {self.operar_lista}")
                 else:
-                    controlador.adicionar_pessoa(self.email, msg['text'], self.id)
+                    controlador.adicionar_pessoa(
+                        self.email, msg['text'], self.id, self.operar_lista)
                 self.enviar_mensagem("Operação iniciada. Se em 5min eu não avisar que está conectado, reincie a operação.")
                 self.comandos()
             else:
