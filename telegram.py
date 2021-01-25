@@ -46,7 +46,7 @@ def carregar_entradas(opcao):
     lista_entradas = []
     for linha in lista:
         if linha["tipo"] == "taxas": 
-            lista_entradas.append(f""""
+            lista_entradas.append(f"""
 📊 Ativo: {linha['par']}
 📈 Taxa: {linha['taxa']}""")
             continue
