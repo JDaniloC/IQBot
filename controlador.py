@@ -122,7 +122,7 @@ class Control:
         
         self.instancias.append(Instancia(name))
 
-    def iniciar_bot(self, instancia, email, senha, identificador, ao_vivo = False):
+    def iniciar_bot(self, instancia, email, senha, identificador, operar_lista, ao_vivo = False):
         '''
         Inicia o bot para determinado email/senha na instância
         params:
@@ -140,7 +140,7 @@ class Control:
             self.ao_vivo.append(email)
             comando = f"@{email} -L -Logfile @{email}.log {caminho_python} -a"
 
-        system(f"gcloud compute ssh {instancia.name} --zone {regions[self.regiao]} --command='screen -dmS {comando} {email} {senha} {identificador}'")
+        system(f"gcloud compute ssh {instancia.name} --zone {regions[self.regiao]} --command='screen -dmS {comando} {email} {senha} {identificador} {operar_lista}'")
 
     def parar_operacao(self, email):
         '''

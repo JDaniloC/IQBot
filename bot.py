@@ -51,8 +51,6 @@ def pegar_comando_lista(texto):
                 timeframe = int(timeframe[0].strip("H")) * 60
         else: timeframe = 0
     except Exception as e:
-        print(type(e), e)
-        print(f"Revise o comando {texto}")
         return {}
 
     return {
@@ -93,7 +91,7 @@ def pegar_comando_taxas(texto):
         "par": par, 
         "taxa": taxa, 
         "tipo": "taxas",
-        "timestamp": datetime.now()
+        "timestamp": datetime.datetime.now()
     }
 
 def pegar_comando(texto):
