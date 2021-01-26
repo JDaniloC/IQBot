@@ -575,23 +575,27 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         global entrada_01, entrada_02, entrada_03
         if self.autenticacao:
+            def enviar_lista(label, lista):
+                msg = "\n".join(lista)
+                if len(msg) >  4000:
+                    mensagens = [msg[x:x+4000] 
+                        for x in range(0, len(msg), 4000)]
+                else:
+                    mensagens = [msg]
+                for msg in mensagens:
+                    self.enviar_mensagem(f"{label}:\n" +
+                        msg, save = True)
             if self.informacoes['tipo_lista'] == "casa":
                 self.enviar_mensagem("Entradas:", 
                     reply_markup = ReplyKeyboardRemove())
                 
-                self.enviar_mensagem("Lista 01:\n" +
-                    "\n".join(entrada_01), save = True)
-                
-                self.enviar_mensagem("Lista 02:\n" +
-                    "\n".join(entrada_02), save = True)
-                
-                self.enviar_mensagem("Lista 03:\n" +
-                    "\n".join(entrada_03), save = True)
+                enviar_lista("Lista 01", entrada_01)
+                enviar_lista("Lista 02", entrada_02)
+                enviar_lista("Lista 03", entrada_03)
             else:
                 if self.informacoes['lista'] != []:
-                    self.enviar_mensagem("\n".join(
-                        carregar_entradas(
-                            self.informacoes['lista'])), save = True)
+                    enviar_lista("Lista própria", carregar_entradas(
+                            self.informacoes['lista']))
                 else:
                     self.enviar_mensagem(
                         "Nenhuma lista registrada. Para adicionar: Conta > Adicionar lista.")
@@ -832,8 +836,8 @@ EURJPY 31/12/2000 CALL M5 02:30
             av = MongoDB.get_avancadas()
             lista = catalogador.catalogar(av["cat_time"], 
                 av["cat_days"], av["cat_perct"], av["cat_mg"])
-            entrada_03 = lista
             MongoDB.set_entradas(3, lista)
+            entrada_03 = carregar_entradas(3)
         elif msg['text'] == "Parar bot":
             self.parar_bot = True
             self.enviar_mensagem("Tem certeza?",
