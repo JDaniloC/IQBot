@@ -11,6 +11,7 @@ from amanobot.delegate import (
     pave_event_space, per_chat_id, create_open)
 
 from bot import pegar_comando, escreve_erros
+from utils.catalogador import Catalogador
 from controlador import Control
 from database import *
 
@@ -83,7 +84,10 @@ mapeamento_avancado = {
     "Tipo de paridade": ["tipo_par", False, tuple],
     "Mudar timeframe": ["tempo", False, tuple],
     "Mudar a correção": ["correcao", False, int],
-    "Mudar o delay": ["delay", False, float]
+    "Catalogar: Timeframe": ["cat_time", False, int],
+    "Catalogar: Dias": ["cat_days", False, int],
+    "Catalogar: Porcentagem": ["cat_perct", False, int],
+    "Catalogar: Martingale": ["cat_mg", False, int],
 }
 
 # O bot
@@ -279,9 +283,10 @@ class Assistente(amanobot.helper.ChatHandler):
             return False
 
         teclado = ReplyKeyboardMarkup(keyboard = [
-            [KeyboardButton( text = "Configurações avançadas" )],
-            [KeyboardButton( text = "Administração" )],
-            [KeyboardButton( text = "Parar bot" )],
+            [KeyboardButton( text = "Configurações avançadas" ),
+             KeyboardButton( text = "Administração" )],
+            [KeyboardButton( text = "Catalogação"),
+             KeyboardButton( text = "Parar bot" )],
             [KeyboardButton( text = "Voltar ao menu" )]
         ])
 
@@ -299,21 +304,38 @@ class Assistente(amanobot.helper.ChatHandler):
             mensagem = self.ver_avancadas()
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Adicionar entradas" ),
-                KeyboardButton( text = "Tipo de paridade" )],
+                 KeyboardButton( text = "Tipo de paridade" )],
                 [KeyboardButton( text = "Mudar a correção" ),
-                KeyboardButton( text = "Mudar o delay" )],
+                 KeyboardButton( text = "Mudar o delay" )],
                 [KeyboardButton( text = "Mudar timeframe" ),
-                KeyboardButton( text = "Gerenciar" )]
+                 KeyboardButton( text = "Gerenciar" )]
             ])
             verificador = True
         elif msg['text'] == "Administração":
             mensagem = "Escolha a opção:"
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Aprovar usuários" ),
-                KeyboardButton( text = "Renovar licença" )],
+                 KeyboardButton( text = "Renovar licença" )],
                 [KeyboardButton( text = "Tirar de cadastro" ),
-                KeyboardButton( text = "Remover usuários" )],
-                [KeyboardButton( text = "Adicionar administrador" )],
+                 KeyboardButton( text = "Remover usuários" )],
+                [KeyboardButton( text = "Adicionar administrador" ),
+                 KeyboardButton( text = "Atualizar informações" )],
+                [KeyboardButton( text = "Gerenciar" )]
+            ])
+            verificador = True
+        elif msg['text'] == "Catalogação":
+            mensagem = """Opções:
+            Timeframe: velas de M(1/5/15/30)
+            Dias: analisar últimos 1-30 dias
+            Porcentagem: mínimo 0-100%
+            Martingale: até 0-2 gales
+            """
+            teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "Catalogar")],
+                [KeyboardButton( text = "Catalogar: Timeframe" ),
+                 KeyboardButton( text = "Catalogar: Dias" )],
+                [KeyboardButton( text = "Catalogar: Porcentagem" ),
+                 KeyboardButton( text = "Catalogar: Martingale" )],
                 [KeyboardButton( text = "Gerenciar" )]
             ])
             verificador = True
@@ -393,7 +415,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         Método que recebe a mensagem de entradas, trata e salva.
         '''
-        global entrada_1gale
+        global entrada_01, entrada_02, entrada_03
         if self.id not in adms:
             return
                  
@@ -421,7 +443,9 @@ EURJPY 31/12/2000 CALL M5 02:30
                 processa_entradas(
                     self.add_entrada, msg['text'].split("\n"))
             
-            entrada_1gale = carregar_entradas(1)
+            entrada_01 = carregar_entradas(1)
+            entrada_02 = carregar_entradas(2)
+            entrada_03 = carregar_entradas(3)
             
             self.add_entrada = "-"
             self.enviar_mensagem("Salvo")
@@ -459,7 +483,8 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.operar_lista = False
             return self.operar(msg)
         elif texto == "Ver configurações":
-            return self.enviar_mensagem(self.ver_configuracoes(), save = True)
+            return self.enviar_mensagem(
+                self.ver_configuracoes(), save = True)
         elif texto == "Editar configurações":
             return self.editar_configuracoes()
         elif texto == "Ver lista de sinais":
@@ -773,6 +798,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             entrada_02 = carregar_entradas(2)
             entrada_03 = carregar_entradas(3)
             self.enviar_mensagem("Informações atualizadas.")
+            self.gerenciar()
         elif msg['text'] in [
             "Aprovar usuários", "Renovar licença", 
             "Tirar de cadastro", "Remover usuários"]:
@@ -801,6 +827,13 @@ EURJPY 31/12/2000 CALL M5 02:30
                     self.alteracoes_avancadas['plano'] = True
             else:
                 self.enviar_mensagem("Nenhum usuário no banco")
+        elif msg['text'] == "Catalogar":
+            catalogador = Catalogador(self.chat_id)
+            av = MongoDB.get_avancadas()
+            lista = catalogador.catalogar(av["cat_time"], 
+                av["cat_days"], av["cat_perct"], av["cat_mg"])
+            entrada_03 = lista
+            MongoDB.set_entradas(3, lista)
         elif msg['text'] == "Parar bot":
             self.parar_bot = True
             self.enviar_mensagem("Tem certeza?",
@@ -884,7 +917,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                             novo = False
                         else:
                             print(e)
-                            self.enviar_mensagem("Deve ser um número! Tente novamente")
+                            self.enviar_mensagem(
+                                "Deve ser um número! Tente novamente")
                             return False
                 elif value[2] == list:
                     novo = self.pegar_entrada(novo.split("\n"))

@@ -137,16 +137,16 @@ class Mongo:
         A depender da quantidade de gales
         '''
         if modo == 1:
-            self.Entrada1.delete_many({"ordem": 'call'})
-            self.Entrada1.delete_many({"ordem": 'put'})
+            self.Entrada1.delete_many({"tipo": 'taxas'})
+            self.Entrada1.delete_many({"tipo": 'lista'})
             self.Entrada1.insert_many(entradas)
         elif modo == 2:
-            self.Entrada2.delete_many({"ordem": 'call'})
-            self.Entrada2.delete_many({"ordem": 'put'})
+            self.Entrada2.delete_many({"tipo": 'taxas'})
+            self.Entrada2.delete_many({"tipo": 'lista'})
             self.Entrada2.insert_many(entradas)
         elif modo == 3:
-            self.Entrada3.delete_many({"ordem": 'call'})
-            self.Entrada3.delete_many({"ordem": 'put'})
+            self.Entrada3.delete_many({"tipo": 'taxas'})
+            self.Entrada3.delete_many({"tipo": 'lista'})
             self.Entrada3.insert_many(entradas)
 
     def modificar_banco_users(self, opcao):
