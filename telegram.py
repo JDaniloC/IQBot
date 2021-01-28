@@ -1,5 +1,5 @@
+import time, pprint, amanobot, os, sys, json
 from configparser import RawConfigParser
-import time, pprint, amanobot, os, sys
 from datetime import timedelta
 
 from amanobot.loop import MessageLoop
@@ -149,6 +149,10 @@ class Assistente(amanobot.helper.ChatHandler):
             "Auto: Ativar": ["auto", False, bool],
             "Auto: Gales": ["autogale", False, tuple],
             "Auto: Timeframe": ["autotime", False, tuple],
+
+            "Tipo soros": ["tipo_soros", False, tuple],
+            "Ciclos de soros": ["ciclos_soros", False, str],
+            "Ciclos de gales": ["ciclos_gale", False, str],
         }
 
         self.informacoes = {
@@ -163,11 +167,11 @@ class Assistente(amanobot.helper.ChatHandler):
             "tipo_gale": "martingale",
             "tipo_martin": "simples",
             "tipo_milhao": "Minoria",
-            "on_ciclos_soros": False,
             "periodo_tendencia": 21,
             "tipo_tendencia": "sma",
             "tipo_lista":"propria",
             "tipo_conta": "treino",
+            "tipo_soros": "normal",
             "tipo_stop": "movel",
             "noticias_minuto": 0,
             "estrategia": "MHI",
@@ -560,10 +564,9 @@ EURJPY 31/12/2000 CALL M5 02:30
         Apenas para linux, dá kill na operação através do e-mail
         '''
         self.enviar_mensagem("Parando operação...")
-        MongoDB.Users_collection.find_one_and_update({'email': self.email}, {'$set' : {'operando': False}})
-        if os.name == "nt":
-            pass
-        else:
+        MongoDB.Users_collection.find_one_and_update(
+            {'email': self.email}, {'$set' : {'operando': False}})
+        if os.name != "nt":
             controlador.parar_operacao(self.email)
         self.enviar_mensagem("Operação cancelada.")
         self.comandos()
@@ -575,23 +578,27 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         global entrada_01, entrada_02, entrada_03
         if self.autenticacao:
+            def enviar_lista(label, lista):
+                msg = "\n".join(lista)
+                if len(msg) >  4000:
+                    mensagens = [msg[x:x+4000] 
+                        for x in range(0, len(msg), 4000)]
+                else:
+                    mensagens = [msg]
+                for msg in mensagens:
+                    self.enviar_mensagem(f"{label}:\n" +
+                        msg, save = True)
             if self.informacoes['tipo_lista'] == "casa":
                 self.enviar_mensagem("Entradas:", 
                     reply_markup = ReplyKeyboardRemove())
                 
-                self.enviar_mensagem("Lista 01:\n" +
-                    "\n".join(entrada_01), save = True)
-                
-                self.enviar_mensagem("Lista 02:\n" +
-                    "\n".join(entrada_02), save = True)
-                
-                self.enviar_mensagem("Lista 03:\n" +
-                    "\n".join(entrada_03), save = True)
+                enviar_lista("Lista 01", entrada_01)
+                enviar_lista("Lista 02", entrada_02)
+                enviar_lista("Lista 03", entrada_03)
             else:
                 if self.informacoes['lista'] != []:
-                    self.enviar_mensagem("\n".join(
-                        carregar_entradas(
-                            self.informacoes['lista'])), save = True)
+                    enviar_lista("Lista própria", carregar_entradas(
+                            self.informacoes['lista']))
                 else:
                     self.enviar_mensagem(
                         "Nenhuma lista registrada. Para adicionar: Conta > Adicionar lista.")
@@ -670,6 +677,17 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Editar configurações" )]
                 ])
             verificador = True
+        elif msg['text'] == 'Martingale e Soros':
+            teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "Tipo de martingale" ),
+                 KeyboardButton( text = "Martingale na próxima" )],
+                [KeyboardButton( text = "Máximo de gales" ),
+                 KeyboardButton( text = "Máximo de soros" )],
+                [KeyboardButton( text = "Ciclos de soros" ),
+                 KeyboardButton( text = "Ciclos de gales" )],
+                [KeyboardButton( text = "Tipo soros" ),
+                 KeyboardButton( text = "Editar configurações" )]])
+            verificador = True
         elif msg['text'] == 'Tendência':
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Notícias: toros"),
@@ -680,14 +698,6 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Período da tendência" )],
                 [KeyboardButton( text = "Editar configurações" )]
                 ])
-            verificador = True
-        elif msg['text'] == 'Martingale e Soros':
-            teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Tipo de martingale" ),
-                 KeyboardButton( text = "Martingale na próxima" )],
-                [KeyboardButton( text = "Máximo de gales" ),
-                 KeyboardButton( text = "Máximo de soros" )],
-                [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == "Ajustes":
             teclado = ReplyKeyboardMarkup(keyboard = [
@@ -723,8 +733,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                         keyboard = [
                         [KeyboardButton( text = "Sim" ),
                         KeyboardButton( text = "Não" )]])
-                elif (self.informacoes['plano'] == "comum" and 
-                      value[0] == "tipo_lista"):
+                elif (value[0] == "tipo_lista" and 
+                    self.informacoes['plano'] == "comum"):
                     self.enviar_mensagem("Você não tem acesso a lista da casa, peça um upgrade na sua conta.")
                     return False
                 elif value[2] == tuple:
@@ -734,10 +744,11 @@ EURJPY 31/12/2000 CALL M5 02:30
                         "tipo_par": ["binary", "digital", "auto"],
                         "tipo_lista": ["casa", "propria"],
                         "tipo_conta": ["treino", "real"],
-                        "vez_gale": ["vela", "sinal"],
+                        "vez_gale": ["vela", "sinal"], 
+                        "tipo_soros": ["normal", "ciclos"],
                         "tipo_milhao": ["Minoria", "Maioria"],
                         "tipo_gale": [
-                            "martingale", "sorosgale", "nenhum"],
+                            "martingale", "sorosgale", "ciclos", "nenhum"],
                         "tipo_tendencia": [
                             "medias móveis simples", "velas"],
                         "tipo_martin": [
@@ -755,7 +766,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                             "Primeiros trocados", "Turn Over",
                             "Hora do equilibrio"]
                     }
-                    if value[0] in [
+                    if value[0] in ["tipo_gale", "tempo",
                         "tipo_martin", "tipo_par", "estrategia"]:
                         # Um abaixo do outro
                         teclado = ReplyKeyboardMarkup( 
@@ -770,6 +781,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                             for x in opcoes[value[0]]]])
                 else:
                     mensagem = "Digite a nova informação: "
+                    if value[2] == str:
+                        mensagem = "Pegue os ciclos no site: https://argente123.github.io/Ciclos/"
                     teclado = ReplyKeyboardRemove()
                 
                 dicionario[text][1] = True
@@ -832,8 +845,8 @@ EURJPY 31/12/2000 CALL M5 02:30
             av = MongoDB.get_avancadas()
             lista = catalogador.catalogar(av["cat_time"], 
                 av["cat_days"], av["cat_perct"], av["cat_mg"])
-            entrada_03 = lista
             MongoDB.set_entradas(3, lista)
+            entrada_03 = carregar_entradas(3)
         elif msg['text'] == "Parar bot":
             self.parar_bot = True
             self.enviar_mensagem("Tem certeza?",
@@ -932,6 +945,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                         dicionario[key][1] = False
                         self.enviar_mensagem("Deve ser um número.")
                         return False
+                elif value[2] == str:
+                    novo = json.loads(novo)
                 elif novo == "individual":
                     self.enviar_mensagem(
                         "Digite o fator do martingale:\nEx: 2.5", 

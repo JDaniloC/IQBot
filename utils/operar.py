@@ -311,8 +311,8 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 		
 		if resultado == "win" and (self.config['max_soros'] > 0 or 
 			(self.config["tipo_gale"] == "sorosgale" and 
-			self.perda_atual > 0) or self.config["on_ciclos_soros"]):
-			if self.config["on_ciclos_soros"]:
+			self.perda_atual > 0) or self.config["tipo_soros"] == "ciclos"):
+			if self.config["tipo_soros"] == "ciclos":
 				ciclo_atual = self.config["ciclos"]["soros"]
 				if ciclo_atual < len(self.ciclos_soros):
 					if self.soros_atual < len(self.ciclos_soros[ciclo_atual]):
@@ -355,7 +355,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 		if resultado in ["loose", "equal"]:
 			print(f"{paridade} {tipo} Perdeu!")
 			if ((self.config['max_soros'] > 0 and fazendo_soros)
-				or self.config['on_ciclos_soros']) and self.soros_atual > 0:
+				or self.config["tipo_soros"] == "ciclos") and self.soros_atual > 0:
 				self.soros_atual = 0
 				self.mostrar_mensagem(
 					f" [SOROS] Preservando capital: R$ {round(valor, 2)} -> R$ {self.valor_inicial}")
