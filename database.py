@@ -23,6 +23,10 @@ class Mongo:
         self.Entrada1 = entrada1
         self.Entrada2 = entrada2
         self.Entrada3 = entrada3
+        self.infos_collection = infos
+        self.infos = infos.find_one()
+
+    def atualizar_infos(self):
         self.infos = infos.find_one()
 
     def adicionar_cadastro(self, email):
@@ -48,7 +52,10 @@ class Mongo:
         if user:
             user = users_schema.user
             user['email'] = email
-            user['timestamp'] = time.time() + 2592000
+            if plano == "teste":
+                user['timestamp'] = time.time() + 43200
+            else:
+                user['timestamp'] = time.time() + 2592000
             user['plano'] = plano
             user["_id"] = time.time()
             self.Users_collection.insert_one(user)
@@ -57,7 +64,10 @@ class Mongo:
         '''
         Aumenta a licença de determinado e-mail
         '''
-        data = time.time() + 2592000
+        if plano == "teste":
+            data = time.time() + 43200
+        else:
+            data = time.time() + 2592000
         self.Users_collection.find_one_and_update(
             {'email':email}, {'$set': {
                 'timestamp': data,
