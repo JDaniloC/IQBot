@@ -7,7 +7,6 @@ from utils.IQ import IQ_API
 config = RawConfigParser()
 config.read(".env")
 
-BOTNAME = config.get("TELEGRAM", "name")
 BOTTOKEN = config.get("TELEGRAM", "token")
 LOCALERROR = "errors.log"
 LOCALLOG = ""
@@ -209,7 +208,7 @@ class Operacao(IQ_API):
 	Total ganho: {round(self.ganho_total, 2)}
 	Stoploss: {-self.stoploss}
 	Total perdido: {round(self.perda_total, 2)}
-	⚠️ {BOTNAME} parado ⚠️''')
+	⚠️ Bot parado ⚠️''')
 				return True
 		return False
 
@@ -395,7 +394,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 						self.ganhos_perdas[1] += 1
 						self.mostrar_mensagem(
 							f"🥵 Stop Loss 🥵\nR$ {round(self.perda_total, 2)}!\
-							⚠️ {BOTNAME} parado ⚠️")
+							⚠️ Bot parado ⚠️")
 						sys.exit(0)
 
 					self.mostrar_mensagem(f"\n [{num_gales}° MARTINGALE] {self.config['tipo_martin']} na {paridade}|{ordem.upper()}")
