@@ -4,7 +4,7 @@ user = {
     "lista": [],
     "timestamp": 0,
     "num_lista": "1",
-    "plano": "comum",
+    "plano": "teste",
     "operando": False,
     "tipo_lista":"propria",
 

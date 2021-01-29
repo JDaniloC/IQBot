@@ -154,7 +154,7 @@ class Assistente(amanobot.helper.ChatHandler):
         }
 
         self.informacoes = {
-            "autogale": 2, "plano": "comum",
+            "autogale": 2, "plano": "teste",
             "noticias": False, "toros": 0, 
             "autotime": 1, "delay": False,
             "stopwin": 10, "max_soros": 1,
@@ -325,7 +325,8 @@ class Assistente(amanobot.helper.ChatHandler):
                  KeyboardButton( text = "Remover usuários" )],
                 [KeyboardButton( text = "Adicionar administrador" ),
                  KeyboardButton( text = "Remover administrador")],
-                [KeyboardButton( text = "Gerenciar" )]
+                [KeyboardButton( text = "Atualizar informações"),
+                 KeyboardButton( text = "Gerenciar" )]
             ])
             verificador = True
         elif msg['text'] == "Catalogação":
@@ -735,7 +736,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                         [KeyboardButton( text = "Sim" ),
                         KeyboardButton( text = "Não" )]])
                 elif (value[0] == "tipo_lista" and 
-                    self.informacoes['plano'] == "comum"):
+                    self.informacoes['plano'] == "teste"):
                     self.enviar_mensagem("Você não tem acesso a lista da casa, peça um upgrade na sua conta.")
                     return False
                 elif value[2] == tuple:
@@ -797,7 +798,8 @@ EURJPY 31/12/2000 CALL M5 02:30
         Verifica se a mensagem está nas configurações avançadas
         Se estiver, devolve True caso contrário False
         '''
-        global ADMS, rodando, entrada_01, entrada_02, entrada_03
+        global ADMS, BOTNAME, rodando, \
+            entrada_01, entrada_02, entrada_03
         
         if self.id not in ADMS:
             return False
@@ -815,6 +817,8 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.alteracoes_avancadas['adm_out'] = True
         elif msg['text'] == "Atualizar informações":
             self.enviar_mensagem("Atualizando...")
+            MongoDB.atualizar_infos()
+            BOTNAME = MongoDB.infos["nome"]
             ADMS = MongoDB.get_adms()
             entrada_01 = carregar_entradas(1)
             entrada_02 = carregar_entradas(2)
@@ -900,8 +904,8 @@ EURJPY 31/12/2000 CALL M5 02:30
         elif self.alteracoes_avancadas['plano'] == True:
             self.enviar_mensagem("Escolha o tipo de plano",
                 reply_markup = ReplyKeyboardMarkup(keyboard = [
-                    [KeyboardButton( text = "comum" ),
-                    KeyboardButton( text = "premium" )]]))
+                    [KeyboardButton( text = "teste" ),
+                    KeyboardButton( text = "mensal" )]]))
             self.alteracoes_avancadas['plano'] = msg
             return False
         elif self.alteracoes_avancadas['aprovar']:
