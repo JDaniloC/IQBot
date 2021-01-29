@@ -20,7 +20,7 @@ config = RawConfigParser()
 config.read(".env")
 
 TOKEN = config.get("TELEGRAM", "token")
-bot_name = config.get("TELEGRAM", "name")
+BOTNAME = MongoDB.infos["nome"]
 
 # Funções
 def strDateHour(number:int) -> str:
@@ -66,12 +66,9 @@ def carregar_entradas(opcao):
         ''')
     return lista_entradas
 
-def get_adms():
-    return [x[0] for x in [list(value.values()) for value in list(MongoDB.ADMS.find())]]
-
 # São atributos gerais para todas as contas
 # Pois o objeto Assistente é instanciado por usuário 
-adms = get_adms()
+ADMS = MongoDB.get_adms()
 entrada_01 = carregar_entradas(1)
 entrada_02 = carregar_entradas(2)
 entrada_03 = carregar_entradas(3)
@@ -105,7 +102,8 @@ class Assistente(amanobot.helper.ChatHandler):
         self.parar_bot = False
         self.operar_lista = True
         self.alteracoes_avancadas = {
-            "adm": False,     # Adicionar novo ADM
+            "adm_in": False,  # Adicionar novo ADM
+            "adm_out": False,  # Remover um ADM
             "licenca": False, # Renovar licença
             "aprovar": False, # Aprovar usuário
             "remover": False, # Tirar um usuário cadastrado
@@ -199,12 +197,12 @@ class Assistente(amanobot.helper.ChatHandler):
         
         teclado = InlineKeyboardMarkup(inline_keyboard = [
             [InlineKeyboardButton(
-                text = "Comprar licença",
-                url = "https://www.google.com.br"
+                text = MongoDB.infos["campo1"]["titulo"],
+                url = MongoDB.infos["campo1"]["link"]
             ),
             InlineKeyboardButton(
-                text = "Tutorial",
-                url = "https://www.google.com.br"
+                text = MongoDB.infos["campo2"]["titulo"],
+                url = MongoDB.infos["campo1"]["link"]
             )]
         ])
         
@@ -212,7 +210,7 @@ class Assistente(amanobot.helper.ChatHandler):
             "Não se esqueça dos links importantes", reply_markup = teclado)
 
         self.enviar_mensagem(
-            f"Olá, eu sou seu assistente do {bot_name}.", 
+            f"Olá, eu sou seu assistente do {BOTNAME}.", 
             delete = False, reply_markup = ReplyKeyboardMarkup(
                 keyboard = [[KeyboardButton(text = "Entrar")]]))
 
@@ -260,8 +258,11 @@ class Assistente(amanobot.helper.ChatHandler):
             if restante > 0:
                 self.entrada = False
                 self.autenticacao = True
+                restante = str(
+                    timedelta(seconds = restante)
+                ).replace('days', 'dias')
                 self.enviar_mensagem(
-                    f"E-mail autenticado, seja bem-vindo Sr(a) {self.nome_usuario} sua licença expira em: {str(timedelta(seconds = restante)).replace('days', 'dias')}",
+                    f"E-mail autenticado, seja bem-vindo Sr(a) {self.nome_usuario} sua licença expira em: {restante[:-10]}.",
                     save = True)
                 self.comandos()
             else:
@@ -282,7 +283,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Comandos para administradores
         '''
-        if self.id not in adms:
+        if self.id not in ADMS:
             self.enviar_mensagem("Usuário não tem permissão")
             return False
 
@@ -299,7 +300,7 @@ class Assistente(amanobot.helper.ChatHandler):
 
 
     def submenu_avancado(self, msg):
-        if self.id not in adms:
+        if self.id not in ADMS:
             return False
         
         mensagem, teclado = "", []
@@ -323,7 +324,7 @@ class Assistente(amanobot.helper.ChatHandler):
                 [KeyboardButton( text = "Tirar de cadastro" ),
                  KeyboardButton( text = "Remover usuários" )],
                 [KeyboardButton( text = "Adicionar administrador" ),
-                 KeyboardButton( text = "Atualizar informações" )],
+                 KeyboardButton( text = "Remover administrador")],
                 [KeyboardButton( text = "Gerenciar" )]
             ])
             verificador = True
@@ -353,7 +354,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Método que mostra do jeito cru as configurações avançadas
         '''
-        if self.id not in adms:
+        if self.id not in ADMS:
             self.enviar_mensagem("Usuário não tem permissão")
             return False
         default = MongoDB.get_avancadas()
@@ -367,7 +368,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Mudar caminho do arquivo de entradas
         '''
-        if self.id in adms and msg['text'] == "Adicionar entradas":
+        if self.id in ADMS and msg['text'] == "Adicionar entradas":
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "entrada 01" )],
                 [KeyboardButton( text = "entrada 02" )],
@@ -384,7 +385,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         Método que habilita a espera por uma nova lista
         '''
-        if self.id not in adms:
+        if self.id not in ADMS:
             self.enviar_mensagem("Usuário não tem permissão")
             return False
         if msg['text'] in ["entrada 01", "entrada 02", "entrada 03", "todas"]:
@@ -420,7 +421,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         Método que recebe a mensagem de entradas, trata e salva.
         '''
         global entrada_01, entrada_02, entrada_03
-        if self.id not in adms:
+        if self.id not in ADMS:
             return
                  
         if self.add_entrada != "-":
@@ -796,17 +797,25 @@ EURJPY 31/12/2000 CALL M5 02:30
         Verifica se a mensagem está nas configurações avançadas
         Se estiver, devolve True caso contrário False
         '''
-        global adms, rodando, entrada_01, entrada_02, entrada_03
+        global ADMS, rodando, entrada_01, entrada_02, entrada_03
         
-        if self.id not in adms:
+        if self.id not in ADMS:
             return False
         if msg['text'] == 'Adicionar administrador':
             self.enviar_mensagem("Coloque o ID do telegram:",
                 reply_markup = ReplyKeyboardRemove())
-            self.alteracoes_avancadas['adm'] = True
+            self.alteracoes_avancadas['adm_in'] = True
+        elif msg['text'] == "Remover administrador":
+            teclado = [[KeyboardButton(text = _id)] 
+                for _id in ADMS]
+            self.enviar_mensagem(
+                "Coloque o ID que deseja remover:",
+                reply_markup = ReplyKeyboardMarkup(
+                    keyboard = teclado))
+            self.alteracoes_avancadas['adm_out'] = True
         elif msg['text'] == "Atualizar informações":
             self.enviar_mensagem("Atualizando...")
-            adms = get_adms()
+            ADMS = MongoDB.get_adms()
             entrada_01 = carregar_entradas(1)
             entrada_02 = carregar_entradas(2)
             entrada_03 = carregar_entradas(3)
@@ -872,15 +881,21 @@ EURJPY 31/12/2000 CALL M5 02:30
         Se sim, faz a operação no banco de dados e desabilita
         Devolve um boolean caso positivo.
         '''
-        global adms
-        if self.id not in adms:
+        global ADMS
+        if self.id not in ADMS:
             return False
         msg = msg['text']
-        if self.alteracoes_avancadas['adm']:
+        if self.alteracoes_avancadas['adm_in']:
             MongoDB.adiciona_adm(int(msg))
-            adms = get_adms()
+            ADMS = MongoDB.get_adms()
             self.enviar_mensagem("Adminstrador adicionado.")
-            self.alteracoes_avancadas["adm"] = False
+            self.alteracoes_avancadas["adm_in"] = False
+            return True
+        elif self.alteracoes_avancadas['adm_out']:
+            MongoDB.remover_adm(int(msg))
+            ADMS = MongoDB.get_adms()
+            self.enviar_mensagem("Adminstrador removido.")
+            self.alteracoes_avancadas["adm_out"] = False
             return True
         elif self.alteracoes_avancadas['plano'] == True:
             self.enviar_mensagem("Escolha o tipo de plano",
@@ -963,7 +978,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         Método que altera as informações avançadas
         '''
-        if self.id not in adms:
+        if self.id not in ADMS:
             return False
         result = self.confirmar_mapeamento(mapeamento_avancado, msg['text'])
         if result:
@@ -1007,10 +1022,13 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         Método que é chamado sempre que é digitado alguma coisa
         '''
+        
         if self.entrada:
             self.login(msg)         # [0] Login
         elif self.iniciar_operacao:
             self.operar(msg)        # [3] Opções
+        elif self.salvar_alteracoes_avancadas(msg):
+            self.gerenciar()        # [4] Avançadas (ADM)
         elif msg['text'] == "Parar operação":
             self.parar_operar(msg)  # [4] Opções
         elif msg['text'] == "Ver relatório":
@@ -1028,8 +1046,6 @@ EURJPY 31/12/2000 CALL M5 02:30
             pass                    # [1] Alterações
         elif self.adicionar_entrada(msg):
             pass                    # [1] Entradas
-        elif self.salvar_alteracoes_avancadas(msg):
-            self.gerenciar()        # [4] Avançadas (ADM)
         elif self.confirmar_alteracao(msg):
             pass # [3] Alterações
         elif self.habilitar_alteracao(msg):
@@ -1063,15 +1079,13 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         if self.autenticacao:
             MongoDB.modifica_usuario(self.informacoes, self.email)
-        if self.id in adms:
+        if self.id in ADMS:
             for key in mapeamento_avancado:
                 mapeamento_avancado[key][1] = False
 
         print(f"Usuário {self.nome_usuario} saiu.\n")
-        self.enviar_mensagem("""
-Obrigado pela preferência.
-Qualquer outra dúvida contactar o suporte
-@JDaniloC""", reply_markup = ReplyKeyboardRemove())
+        self.enviar_mensagem(MongoDB.infos["despedida"], 
+            reply_markup = ReplyKeyboardRemove())
 
 def printProgressBar (iteration, total, prefix = '', suffix = '', 
     decimals = 1, length = 100, fill = '█', printEnd = "\r"):

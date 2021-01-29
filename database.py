@@ -14,7 +14,7 @@ autenticacao = config.get("DATABASE", "autentication")
 class Mongo:
     def __init__(self, database, users_collection, 
         users_em_aprovacao, default_infos, adms, 
-        entrada1, entrada2, entrada3):
+        entrada1, entrada2, entrada3, infos):
         self.database = database
         self.Users_collection = users_collection
         self.Users_em_aprovacao = users_em_aprovacao
@@ -23,6 +23,7 @@ class Mongo:
         self.Entrada1 = entrada1
         self.Entrada2 = entrada2
         self.Entrada3 = entrada3
+        self.infos = infos.find_one()
 
     def adicionar_cadastro(self, email):
         '''
@@ -117,6 +118,20 @@ class Mongo:
         '''
         return self.Users_collection.find_one({'email': email})
 
+    def get_adms(self):
+        '''
+        Devolve a lista do ID dos ADMS
+        '''
+        return [x[0] for x in [list(value.values()) 
+            for value in list(self.ADMS.find())]]
+
+    def remover_adm(self, id):
+        '''
+        Remove um ADM com certo ID da lista de ADMS
+        '''
+        return self.ADMS.find_one_and_delete(
+            {"_id": id})
+
     def get_entradas(self, modo):
         '''
         Devolve as lista de entradas (modo 1/2)
@@ -161,17 +176,18 @@ class Mongo:
                 {}, {'$set': {'timestamp': data}})
 
 client =  MongoClient(autenticacao)
-IQ_DataBase = client.iqbot 
-Users_collection = IQ_DataBase.user
-Users_em_aprovacao = IQ_DataBase.queue
-default_infos = IQ_DataBase.default
-ADMS = IQ_DataBase.ADMS
+database = client.iqbot 
+users_list = database.user
+queue_list = database.queue
+default = database.default
+ADMS = database.ADMS
 aprovacao = waiting_schema.queue
-entrada1 = IQ_DataBase.entradas1
-entrada2 = IQ_DataBase.entradas2
-entrada3 = IQ_DataBase.entradas3
+entrada1 = database.entradas1
+entrada2 = database.entradas2
+entrada3 = database.entradas3
+infos = database.infos
 
 MongoDB = Mongo(
-    IQ_DataBase, Users_collection, Users_em_aprovacao, 
-    default_infos, ADMS, entrada1, entrada2, entrada3
+    database, users_list, queue_list, default, 
+    ADMS, entrada1, entrada2, entrada3, infos
 )
