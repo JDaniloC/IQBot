@@ -80,7 +80,7 @@ class Control:
         return alvo
 
     def adicionar_pessoa(
-        self, email, senha, identificador, ao_vivo = False):
+        self, email, senha, identificador, operar_lista = False, ao_vivo = False):
         '''
         Verifica se o e-mail está em alguma instância
         Caso não estiver verifica se a última instância 
@@ -99,7 +99,7 @@ class Control:
         
         if not ao_vivo or email not in self.ao_vivo:
             self.iniciar_bot(
-                alvo, email, senha, identificador, ao_vivo)
+                alvo, email, senha, identificador, operar_lista, ao_vivo)
 
     def criar_instancia(self):
         '''
@@ -122,7 +122,7 @@ class Control:
         
         self.instancias.append(Instancia(name))
 
-    def iniciar_bot(self, instancia, email, senha, identificador, operar_lista, ao_vivo = False):
+    def iniciar_bot(self, instancia, email, senha, identificador, operar_lista, ao_vivo):
         '''
         Inicia o bot para determinado email/senha na instância
         params:

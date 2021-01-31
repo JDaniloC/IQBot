@@ -22,15 +22,15 @@ user = {
     
     "tipo_gale": "martingale",
     "tipo_martin": "simples",
+    "tipo_soros": "normal", 
     "vez_gale": "vela",
     "scalper_loss": 0,        
     "scalper_win": 0,         
 
     "max_gale": 2,
     "max_soros": 1,
-    "ciclos_gale": [],        ## Colocar!
-    "ciclos_soros": [],       ## Colocar!
-    "on_ciclos_soros": False, ## Colocar!
+    "ciclos_gale": [],        
+    "ciclos_soros": [],       
     
     "noticias_minuto": 0,
     "noticias_hora": 0,
@@ -38,9 +38,10 @@ user = {
 
     "auto": False,           
     "autogale": 2,            
-    "autotime": 1,            
-    "estrategia": "MHI",      # Colocar
-    "tipo_milhao": "Minoria", # Colocar
+    "autotime": 1,    
+    "estrategia": "MHI",      
+    "paridade": "EURUSD",        
+    "tipo_milhao": "Minoria", 
 
     "periodo_tendencia": 21,
     "tipo_tendencia": "sma",

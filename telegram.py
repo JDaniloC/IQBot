@@ -117,7 +117,7 @@ class Assistente(amanobot.helper.ChatHandler):
             "Tipo de lista": ["tipo_lista", False, tuple],
             "Lista escolhida": ["num_lista", False, tuple],
             
-            "Paridade": ["tipo_par", False, tuple],
+            "Tipo par": ["tipo_par", False, tuple],
             "Timeframe": ["tempo", False, tuple],
             "Correção": ["correcao", False, int],
             "Delay": ["delay", False, float],
@@ -132,9 +132,12 @@ class Assistente(amanobot.helper.ChatHandler):
 
             "Tipo de martingale": ["tipo_martin", False, tuple],
             "Martingale na próxima": ["vez_gale", False, tuple],
+            "Ciclos de soros": ["ciclos_soros", False, str],
+            "Ciclos de gales": ["ciclos_gale", False, str],
             "Máximo de soros": ["max_soros", False, int],
             "Máximo de gales": ["max_gale", False, int],
-            
+            "Tipo soros": ["tipo_soros", False, tuple],
+
             "Seguir tendência": ["tendencia", False, bool],
             "Notícias: toros": ["toros", False, tuple],
             "Notícias: horas": ['noticias_hora', False, int],
@@ -142,45 +145,15 @@ class Assistente(amanobot.helper.ChatHandler):
             "Tipo de tendência": ["tipo_tendencia", False, tuple],
             "Período da tendência": ["periodo_tendencia", False, int],
 
+            "Paridade": ["paridade", False, str],
             "Estratégia": ["estrategia", False, tuple],
             "Tipo milhão": ["tipo_milhao", False, tuple],
-            "Auto: Ativar": ["auto", False, bool],
-            "Auto: Gales": ["autogale", False, tuple],
             "Auto: Timeframe": ["autotime", False, tuple],
-
-            "Tipo soros": ["tipo_soros", False, tuple],
-            "Ciclos de soros": ["ciclos_soros", False, str],
-            "Ciclos de gales": ["ciclos_gale", False, str],
+            "Auto: Gales": ["autogale", False, tuple],
+            "Auto: Ativar": ["auto", False, bool],
         }
 
-        self.informacoes = {
-            "autogale": 2, "plano": "teste",
-            "noticias": False, "toros": 0, 
-            "autotime": 1, "delay": False,
-            "stopwin": 10, "max_soros": 1,
-            "valor": 2, "scalper_win": 0,
-            "auto": False, "max_gale": 2,
-            "stoploss": 20, "tempo": 5, 
-            "minimo": 0, "correcao": 1,
-            "tipo_gale": "martingale",
-            "tipo_martin": "simples",
-            "tipo_milhao": "Minoria",
-            "periodo_tendencia": 21,
-            "tipo_tendencia": "sma",
-            "tipo_lista":"propria",
-            "tipo_conta": "treino",
-            "tipo_soros": "normal",
-            "tipo_stop": "movel",
-            "noticias_minuto": 0,
-            "estrategia": "MHI",
-            "vez_gale": "vela",
-            "tipo_par": "auto",
-            "tendencia": False,
-            "noticias_hora": 0,
-            "ciclos_soros": [],
-            "ciclos_gale": [],
-            "scalper_loss": 0,
-        }
+        self.informacoes = {}
 
     def open(self, msg, id):
         '''
@@ -253,7 +226,7 @@ class Assistente(amanobot.helper.ChatHandler):
         if MongoDB.Users_collection.find_one({"email": email}): 
             # Verifica se está no banco de dados e entra na conta
             self.email = msg["text"].lower()
-            self.informacoes.update(MongoDB.get_user(self.email))
+            self.informacoes = MongoDB.get_user(self.email)
             restante = self.informacoes['timestamp'] - time.time()
             if restante > 0:
                 self.entrada = False
@@ -622,8 +595,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                 "Valor de entrada": "Entrada",
                 "Tipo de martingale": "Martingale e Soros",
                 "Seguir tendência": "Tendência",
-                "Paridade": "Ajustes",
-                "Estratégia": "Auto Trade"
+                "Tipo par": "Ajustes",
+                "Paridade": "Auto Trade"
             }
             mensagem = ""
             for key, value in self.mapeamento.items():
@@ -703,7 +676,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             verificador = True
         elif msg['text'] == "Ajustes":
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Paridade" ),
+                [KeyboardButton( text = "Tipo par" ),
                  KeyboardButton( text = "Timeframe" )],
                 [KeyboardButton( text = "Correção" ),
                  KeyboardButton( text = "Delay" )],
@@ -711,7 +684,8 @@ EURJPY 31/12/2000 CALL M5 02:30
             verificador = True
         elif msg['text'] == "Estratégias":
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Estratégia" ),
+                [KeyboardButton( text = "Paridade" ),
+                 KeyboardButton( text = "Estratégia" ),
                  KeyboardButton( text = "Tipo milhão" )],
                 [KeyboardButton( text = "Auto: Ativar" ),
                  KeyboardButton( text = "Auto: Gales" ),
@@ -737,7 +711,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                         KeyboardButton( text = "Não" )]])
                 elif (value[0] == "tipo_lista" and 
                     self.informacoes['plano'] == "teste"):
-                    self.enviar_mensagem("Você não tem acesso a lista da casa, peça um upgrade na sua conta.")
+                    self.enviar_mensagem(
+                        "Você não tem acesso a lista da casa, peça um upgrade na sua conta.")
                     return False
                 elif value[2] == tuple:
                     opcoes = {
@@ -783,7 +758,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                             for x in opcoes[value[0]]]])
                 else:
                     mensagem = "Digite a nova informação: "
-                    if value[2] == str:
+                    if value[2] == str and value[0] != "paridade":
                         mensagem = "Pegue os ciclos no site: https://argente123.github.io/Ciclos/"
                     teclado = ReplyKeyboardRemove()
                 

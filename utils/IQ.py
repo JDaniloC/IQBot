@@ -328,9 +328,11 @@ f"{paridade}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
         elif gale == 1:   gale = "porcentagemGale1"
         else:             gale = "porcentagemWinDePrimeira"
         data = requests.get(f"https://catalogador.ml/api/{gale}/M{timeframe}")
-        resultado = json.loads(data.text)['Todos']
-        for estrategia in resultado:
-            return estrategia[1].upper(), traduzir(estrategia[2])
+        try:
+            resultado = json.loads(data.text)['Todos']
+            for estrategia in resultado:
+                return estrategia[1].upper(), traduzir(estrategia[2])
+        except: return "EURUSD", ("MHI", False)
 
     @staticmethod
     def esperarAte(horas, minutos, segundos = 0, data = (), tolerancia = 0, output = False):
