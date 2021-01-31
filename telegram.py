@@ -1,6 +1,6 @@
 import time, pprint, amanobot, os, sys, json
 from configparser import RawConfigParser
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from amanobot.loop import MessageLoop
 from amanobot.namedtuple import (
@@ -113,6 +113,8 @@ class Assistente(amanobot.helper.ChatHandler):
 
         self.mapeamento = {
             "Adicionar lista": ["lista", False, list],
+            "Catalogar sinais": ["catalogar", False, list],
+
             "Tipo de conta": ["tipo_conta", False, tuple], 
             "Tipo de lista": ["tipo_lista", False, tuple],
             "Lista escolhida": ["num_lista", False, tuple],
@@ -210,6 +212,7 @@ class Assistente(amanobot.helper.ChatHandler):
             self.entrada = True
         else:
             self.enviar_mensagem("Você já está logado")
+            self.comandos()
 
     def login(self, msg):
         '''
@@ -218,6 +221,7 @@ class Assistente(amanobot.helper.ChatHandler):
         '''
         if self.autenticacao:
             self.enviar_mensagem("Você já está logado.")
+            self.comandos()
             return False
 
         self.enviar_mensagem("Carregado...")
@@ -491,7 +495,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                     self.informacoes, self.email)
                 
                 if os.name == "nt": # No windows 
-                    os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}, {self.id}, {self.operar_lista}")
+                    os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}, {self.chat_id}, {self.operar_lista}")
                 else:
                     controlador.adicionar_pessoa(
                         self.email, msg['text'], self.id, self.operar_lista)
@@ -563,6 +567,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                 for msg in mensagens:
                     self.enviar_mensagem(f"{label}:\n" +
                         msg, save = True)
+            
             if self.informacoes['tipo_lista'] == "casa":
                 self.enviar_mensagem("Entradas:", 
                     reply_markup = ReplyKeyboardRemove())
@@ -600,7 +605,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             }
             mensagem = ""
             for key, value in self.mapeamento.items():
-                if value[0] not in ["lista"]:
+                if value[0] not in ["lista", "catalogar"]:
                     if key in headers:
                         mensagem += f"\n⚙️ {headers[key]} ⚙️\n"
                     mensagem += f"{key}: {str(self.informacoes[value[0]]).replace('True', 'Sim').replace('False', 'Não')}\n"
@@ -637,7 +642,8 @@ EURJPY 31/12/2000 CALL M5 02:30
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Tipo de conta" ),
                  KeyboardButton( text = "Tipo de lista" )],
-                [KeyboardButton( text = "Adicionar lista" )],
+                [KeyboardButton( text = "Adicionar lista" ),
+                 KeyboardButton( text = "Catalogar sinais")],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == 'Entrada':
@@ -709,6 +715,18 @@ EURJPY 31/12/2000 CALL M5 02:30
                         keyboard = [
                         [KeyboardButton( text = "Sim" ),
                         KeyboardButton( text = "Não" )]])
+                elif value[0] == "catalogar":
+                    sinais = MongoDB.get_entradas(3)
+                    if len(sinais) == 0 or (len(sinais) > 0 and 
+                        (datetime.now() - datetime.fromtimestamp(
+                            sinais[0]["timestamp"])
+                        ).days > 0):
+                        self.catalogar_sinais()
+                    self.informacoes["lista"] = MongoDB.get_entradas(3)
+                    
+                    self.enviar_mensagem(
+                        "Sinais catalogados adicionados à sua lista particular.")
+                    return self.editar_configuracoes()
                 elif (value[0] == "tipo_lista" and 
                     self.informacoes['plano'] == "teste"):
                     self.enviar_mensagem(
@@ -829,12 +847,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             else:
                 self.enviar_mensagem("Nenhum usuário no banco")
         elif msg['text'] == "Catalogar":
-            catalogador = Catalogador(self.chat_id)
-            av = MongoDB.get_avancadas()
-            lista = catalogador.catalogar(av["cat_time"], 
-                av["cat_days"], av["cat_perct"], av["cat_mg"])
-            MongoDB.set_entradas(3, lista)
-            entrada_03 = carregar_entradas(3)
+            self.catalogar_sinais()
         elif msg['text'] == "Parar bot":
             self.parar_bot = True
             self.enviar_mensagem("Tem certeza?",
@@ -844,6 +857,16 @@ EURJPY 31/12/2000 CALL M5 02:30
         else:
             return self.mapear(mapeamento_avancado, msg['text'])
         return True
+
+    def catalogar_sinais(self):
+        global entrada_03
+        catalogador = Catalogador(self.chat_id)
+        conf = MongoDB.get_avancadas()
+        lista = catalogador.catalogar(
+            conf["cat_time"], conf["cat_days"], 
+            conf["cat_perct"], conf["cat_mg"])
+        MongoDB.set_entradas(3, lista)
+        entrada_03 = carregar_entradas(3)
 
     def habilitar_alteracao(self, msg):
         '''
