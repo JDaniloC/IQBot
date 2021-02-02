@@ -597,9 +597,9 @@ EURJPY 31/12/2000 CALL M5 02:30
             
             headers = {
                 "Tipo de conta": "Conta e listas",
-                "Valor de entrada": "Entrada",
+                "Valor de entrada": "Entrada e gerenciamento",
                 "Tipo de martingale": "Martingale e Soros",
-                "Seguir tendência": "Tendência",
+                "Seguir tendência": "Tendência e notícias",
                 "Tipo par": "Ajustes",
                 "Paridade": "Auto Trade"
             }
@@ -625,9 +625,9 @@ EURJPY 31/12/2000 CALL M5 02:30
                 reply_markup = ReplyKeyboardMarkup( keyboard = [
                     [KeyboardButton( text = "Conta e listas" ),
                      KeyboardButton( text = "Ajustes" )],
-                    [KeyboardButton( text = "Entrada" ),
+                    [KeyboardButton( text = "Entrada e gerenciamento" ),
                      KeyboardButton( text = "Martingale e Soros" )],
-                    [KeyboardButton( text = "Tendência" ),
+                    [KeyboardButton( text = "Tendência e notícias" ),
                      KeyboardButton( text = "Estratégias")],
                     [KeyboardButton( text = "Voltar ao menu" )]
             ], resize_keyboard = True))
@@ -646,7 +646,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Catalogar sinais")],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
-        elif msg['text'] == 'Entrada':
+        elif msg['text'] == 'Entrada e gerenciamento':
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Valor de entrada" ),
                  KeyboardButton( text = "Gerenciamento" )],
@@ -669,7 +669,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "Tipo soros" ),
                  KeyboardButton( text = "Editar configurações" )]])
             verificador = True
-        elif msg['text'] == 'Tendência':
+        elif msg['text'] == 'Tendência e notícias':
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Notícias: toros"),
                  KeyboardButton( text = "Seguir tendência" )],
@@ -707,83 +707,83 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         Faz o mapeamento de botões para os métodos habilitar
         '''
-        for key, value in dicionario.items():
-            if text == key:
-                mensagem = "Escolha uma das opções abaixo:"
-                if value[2] == bool:
-                    teclado = ReplyKeyboardMarkup( 
-                        keyboard = [
-                        [KeyboardButton( text = "Sim" ),
-                        KeyboardButton( text = "Não" )]])
-                elif value[0] == "catalogar":
-                    sinais = MongoDB.get_entradas(3)
-                    if len(sinais) == 0 or (len(sinais) > 0 and 
-                        (datetime.now() - datetime.fromtimestamp(
-                            sinais[0]["timestamp"])
-                        ).days > 0):
-                        self.catalogar_sinais()
-                    self.informacoes["lista"] = MongoDB.get_entradas(3)
-                    
-                    self.enviar_mensagem(
-                        "Sinais catalogados adicionados à sua lista particular.")
-                    return self.editar_configuracoes()
-                elif (value[0] == "tipo_lista" and 
-                    self.informacoes['plano'] == "teste"):
-                    self.enviar_mensagem(
-                        "Você não tem acesso a lista da casa, peça um upgrade na sua conta.")
-                    return False
-                elif value[2] == tuple:
-                    opcoes = {
-                        "tempo": [1, 5, 15, 30], "autogale": [0, 1, 2],
-                        "autotime": [1, 5, 15], "num_lista": [1, 2, 3],
-                        "tipo_par": ["binary", "digital", "auto"],
-                        "tipo_lista": ["casa", "propria"],
-                        "tipo_conta": ["treino", "real"],
-                        "vez_gale": ["vela", "sinal"], 
-                        "tipo_soros": ["normal", "ciclos"],
-                        "tipo_milhao": ["Minoria", "Maioria"],
-                        "tipo_gale": [
-                            "martingale", "sorosgale", "ciclos", "nenhum"],
-                        "tipo_tendencia": [
-                            "medias móveis simples", "velas"],
-                        "tipo_martin": [
-                            "seguro", "leve", "agressivo", "individual"],
-                        "estrategia": ["Milhão", "Vituxo", "MHI", 
-                            "MHI2", "MHI3", 'C3', "MSF", "HOPE", 
-                            "Padrão Impar", 'Três Vizinhos', 
-                            'Torres Gêmeas', "Três Mosqueteiros", 
-                            "DAKA", "Padrão 23", "Power", 
-                            "Melhor de 3", "Super 5", "Super 3", 
-                            "Last of five", "Five Flip", "R7",
-                            "M5: Três Mosqueteiros", "M5: Milhão",
-                            "M5: Torres Gêmeas", "M5: MHI", 
-                            "M5: MHI2", "M5: MHI3", "Half hour", 
-                            "Primeiros trocados", "Turn Over",
-                            "Hora do equilibrio"]
-                    }
-                    if value[0] in ["tipo_gale", "tempo",
-                        "tipo_martin", "tipo_par", "estrategia"]:
-                        # Um abaixo do outro
-                        teclado = ReplyKeyboardMarkup( 
-                        keyboard = [
-                            [KeyboardButton( text = x )] 
-                            for x in opcoes[value[0]]])
-                    else:
-                        # Um do lado do outro
-                        teclado = teclado = ReplyKeyboardMarkup( 
-                        keyboard = [
-                            [KeyboardButton( text = x )
-                            for x in opcoes[value[0]]]])
-                else:
-                    mensagem = "Digite a nova informação: "
-                    if value[2] == str and value[0] != "paridade":
-                        mensagem = "Pegue os ciclos no site: https://argente123.github.io/Ciclos/"
-                    teclado = ReplyKeyboardRemove()
+        if text in dicionario:
+            value = dicionario[text]
+            mensagem = "Escolha uma das opções abaixo:"
+            if value[2] == bool:
+                teclado = ReplyKeyboardMarkup( 
+                    keyboard = [
+                    [KeyboardButton( text = "Sim" ),
+                    KeyboardButton( text = "Não" )]])
+            elif value[0] == "catalogar":
+                sinais = MongoDB.get_entradas(3)
+                if len(sinais) == 0 or (len(sinais) > 0 and 
+                    (datetime.now() - datetime.fromtimestamp(
+                        sinais[0]["timestamp"])
+                    ).days > 0):
+                    self.catalogar_sinais()
+                self.informacoes["lista"] = MongoDB.get_entradas(3)
                 
-                dicionario[text][1] = True
-                self.enviar_mensagem(mensagem, 
-                    reply_markup = teclado)
+                self.enviar_mensagem(
+                    "Sinais catalogados adicionados à sua lista particular.")
+                return self.editar_configuracoes()
+            elif (value[0] == "tipo_lista" and 
+                self.informacoes['plano'] == "teste"):
+                self.enviar_mensagem(
+                    "Você não tem acesso a lista da casa, peça um upgrade na sua conta.", save = True)
                 return True
+            elif value[2] == tuple:
+                opcoes = {
+                    "toros": [0, 1, 2, 3], "num_lista": [1, 2, 3],
+                    "tempo": [1, 5, 15, 30], "autogale": [0, 1, 2],
+                    "autotime": [1, 5, 15], "vez_gale": ["vela", "sinal"],
+                    "tipo_par": ["binary", "digital", "auto"],
+                    "tipo_lista": ["casa", "propria"],
+                    "tipo_conta": ["treino", "real"],
+                    "tipo_soros": ["normal", "ciclos"],
+                    "tipo_milhao": ["Minoria", "Maioria"],
+                    "tipo_gale": [
+                        "martingale", "sorosgale", "ciclos", "nenhum"],
+                    "tipo_tendencia": [
+                        "medias móveis simples", "velas"],
+                    "tipo_martin": [
+                        "seguro", "leve", "agressivo", "individual"],
+                    "estrategia": ["Milhão", "Vituxo", "MHI", 
+                        "MHI2", "MHI3", 'C3', "MSF", "HOPE", 
+                        "Padrão Impar", 'Três Vizinhos', 
+                        'Torres Gêmeas', "Três Mosqueteiros", 
+                        "DAKA", "Padrão 23", "Power", 
+                        "Melhor de 3", "Super 5", "Super 3", 
+                        "Last of five", "Five Flip", "R7",
+                        "M5: Três Mosqueteiros", "M5: Milhão",
+                        "M5: Torres Gêmeas", "M5: MHI", 
+                        "M5: MHI2", "M5: MHI3", "Half hour", 
+                        "Primeiros trocados", "Turn Over",
+                        "Hora do equilibrio"]
+                }
+                if value[0] in ["tipo_gale", "tempo",
+                    "tipo_martin", "tipo_par", "estrategia"]:
+                    # Um abaixo do outro
+                    teclado = ReplyKeyboardMarkup( 
+                    keyboard = [
+                        [KeyboardButton( text = x )] 
+                        for x in opcoes[value[0]]])
+                else:
+                    # Um do lado do outro
+                    teclado = teclado = ReplyKeyboardMarkup( 
+                    keyboard = [
+                        [KeyboardButton( text = x )
+                        for x in opcoes[value[0]]]])
+            else:
+                mensagem = f"Digite a nova informação para {text}: "
+                if value[2] == str and value[0] != "paridade":
+                    mensagem = "Pegue os ciclos no site: https://argente123.github.io/Ciclos/"
+                teclado = ReplyKeyboardRemove()
+            
+            dicionario[text][1] = True
+            self.enviar_mensagem(mensagem, 
+                reply_markup = teclado)
+            return True
         return False
 
     def habilitar_avancadas(self, msg):
@@ -948,8 +948,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                         else:
                             print(e)
                             self.enviar_mensagem(
-                                "Deve ser um número! Tente novamente")
-                            return False
+                                "Deve ser um número! Tente novamente", save = True)
+                            return True
                 elif value[2] == list:
                     novo = self.pegar_entrada(novo.split("\n"))
                 elif value[2] == bool:
@@ -960,15 +960,20 @@ EURJPY 31/12/2000 CALL M5 02:30
                         novo = int(novo)
                     except Exception as e:
                         dicionario[key][1] = False
-                        self.enviar_mensagem("Deve ser um número.")
-                        return False
+                        self.enviar_mensagem("Deve ser um número.", save = True)
+                        return True
                 elif value[2] == str:
-                    novo = json.loads(novo)
+                    try:
+                        novo = json.loads(novo)
+                    except:
+                        self.enviar_mensagem(
+                            "Não entendi, tente novamente: https://argente123.github.io/Ciclos/")
+                        return True
                 elif novo == "individual":
                     self.enviar_mensagem(
                         "Digite o fator do martingale:\nEx: 2.5", 
                         reply_markup = ReplyKeyboardRemove())
-                    return False
+                    return True
                 elif value[0] == "tipo_martin" and novo not in [
                     "seguro", "leve", "agressivo"]:
                     novo = float(novo.strip().replace(",", "."))
@@ -983,13 +988,13 @@ EURJPY 31/12/2000 CALL M5 02:30
         if self.id not in ADMS:
             return False
         result = self.confirmar_mapeamento(mapeamento_avancado, msg['text'])
-        if result:
+        if result and type(result) == tuple:
             info, valor = result
             MongoDB.modifica_avancadas(info, valor)
             self.enviar_mensagem(f"Valor salvo.")
             self.gerenciar()
             return True
-        return False
+        return result
 
     def confirmar_alteracao(self, msg):
         '''
@@ -998,12 +1003,13 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         if self.autenticacao:
             result = self.confirmar_mapeamento(self.mapeamento, msg['text'])
-            if result:
+            if result and type(result) == tuple:
                 info, valor = result
                 self.informacoes[info] = valor
                 self.enviar_mensagem("Alteração salva!")
                 self.editar_configuracoes()
                 return True
+            return result
         return False
 
     def desligar_bot(self):
@@ -1035,7 +1041,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.parar_operar(msg)  # [4] Opções
         elif msg['text'] == "Ver relatório":
             self.ver_relatorio(msg) # [4] Opções
-        elif msg['text'].capitalize() == "Entrar":
+        elif msg['text'].capitalize() in ["Entrar", "/start"]:
             self.entrar()           # [1] Login
         elif msg['text'].capitalize() == 'Gerenciar':
             self.gerenciar()        # [1] Avançadas
@@ -1067,6 +1073,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                 self.desligar_bot()
             else:
                 self.parar_bot = False
+        else:
+            self.entrar()
         
     def on__idle(self, event):
         '''
@@ -1122,6 +1130,8 @@ if __name__ == "__main__":
             time.sleep(3)
     except KeyboardInterrupt:
         pass
+    except ConnectionResetError:
+        problema = True
     except Exception as e:	
         escreve_erros(e)
         problema = True
