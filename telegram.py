@@ -440,8 +440,8 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         if self.autenticacao:
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Operação Lista" ),
-                 KeyboardButton( text = "Operação Estratégias" )],
+                [KeyboardButton( text = "Operar Lista/Taxas" ),
+                 KeyboardButton( text = "Operar Estratégias" )],
                 [KeyboardButton( text = "Ver configurações" ),
                  KeyboardButton( text = "Ver lista de sinais" )],
                 [KeyboardButton( text = "Editar configurações" ),
@@ -459,10 +459,10 @@ EURJPY 31/12/2000 CALL M5 02:30
         do menu principal, devolvendo um boolean
         '''
         texto = msg['text']
-        if texto == "Operação Lista":
+        if texto == "Operar Lista/Taxas":
             self.operar_lista = True
             return self.operar(msg)
-        elif texto == "Operação Estratégias":
+        elif texto == "Operar Estratégias":
             self.operar_lista = False
             return self.operar(msg)
         elif texto == "Ver configurações":
@@ -1035,8 +1035,9 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.login(msg)         # [0] Login
         elif self.iniciar_operacao:
             self.operar(msg)        # [3] Opções
-        elif self.salvar_alteracoes_avancadas(msg):
-            self.gerenciar()        # [4] Avançadas (ADM)
+        elif self.salvar_alteracoes_avancadas(msg) in [True, None]:
+            if not self.alteracoes_avancadas['plano']:
+                self.gerenciar()    # [4] Avançadas (ADM)
         elif msg['text'] == "Parar operação":
             self.parar_operar(msg)  # [4] Opções
         elif msg['text'] == "Ver relatório":
