@@ -905,18 +905,20 @@ EURJPY 31/12/2000 CALL M5 02:30
                     [KeyboardButton( text = "teste" ),
                     KeyboardButton( text = "mensal" )]]))
             self.alteracoes_avancadas['plano'] = msg
-            return False
+            return None
         elif self.alteracoes_avancadas['aprovar']:
             MongoDB.aprovar(
                 self.alteracoes_avancadas['plano'], msg)
             self.enviar_mensagem("Usuário aprovado.")
             self.alteracoes_avancadas["aprovar"] = False
+            self.alteracoes_avancadas['plano'] = False
             return True
         elif self.alteracoes_avancadas['licenca']:
             MongoDB.renovar_licenca(
                 self.alteracoes_avancadas['plano'], msg)
             self.enviar_mensagem("Licença renovada")
             self.alteracoes_avancadas["licenca"] = False
+            self.alteracoes_avancadas['plano'] = False
             return True
         elif self.alteracoes_avancadas['remover']:
             MongoDB.remover_usuario(msg)
