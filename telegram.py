@@ -113,8 +113,6 @@ class Assistente(amanobot.helper.ChatHandler):
 
         self.mapeamento = {
             "Adicionar lista": ["lista", False, list],
-            "Catalogar sinais": ["catalogar", False, list],
-
             "Tipo de conta": ["tipo_conta", False, tuple], 
             "Tipo de lista": ["tipo_lista", False, tuple],
             "Lista escolhida": ["num_lista", False, tuple],
@@ -150,9 +148,8 @@ class Assistente(amanobot.helper.ChatHandler):
             "Paridade": ["paridade", False, str],
             "Estratégia": ["estrategia", False, tuple],
             "Tipo milhão": ["tipo_milhao", False, tuple],
-            "Auto: Timeframe": ["autotime", False, tuple],
-            "Auto: Gales": ["autogale", False, tuple],
-            "Auto: Ativar": ["auto", False, bool],
+            "Auto VIP: Timeframe": ["autotime", False, tuple],
+            "Auto VIP: Gales": ["autogale", False, tuple],
         }
 
         self.informacoes = {}
@@ -285,12 +282,11 @@ class Assistente(amanobot.helper.ChatHandler):
         if msg['text'] == "Configurações avançadas":
             mensagem = self.ver_avancadas()
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Adicionar entradas" ),
-                 KeyboardButton( text = "Tipo de paridade" )],
+                [KeyboardButton( text = "Tipo de paridade" ),
+                 KeyboardButton( text = "Mudar timeframe" )],
                 [KeyboardButton( text = "Mudar a correção" ),
                  KeyboardButton( text = "Mudar o delay" )],
-                [KeyboardButton( text = "Mudar timeframe" ),
-                 KeyboardButton( text = "Gerenciar" )]
+                [KeyboardButton( text = "Gerenciar" )]
             ])
             verificador = True
         elif msg['text'] == "Administração":
@@ -314,7 +310,6 @@ class Assistente(amanobot.helper.ChatHandler):
             Martingale: até 0-2 gales
             """
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Catalogar")],
                 [KeyboardButton( text = "Catalogar: Timeframe" ),
                  KeyboardButton( text = "Catalogar: Dias" )],
                 [KeyboardButton( text = "Catalogar: Porcentagem" ),
@@ -440,8 +435,10 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         if self.autenticacao:
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Operação Lista" ),
+                [KeyboardButton( text = "Operação Lista/Taxas" ),
                  KeyboardButton( text = "Operação Estratégias" )],
+                [KeyboardButton( text = "Catalogar sinais"),
+                 KeyboardButton( text = "Operação Auto VIP")],
                 [KeyboardButton( text = "Ver configurações" ),
                  KeyboardButton( text = "Ver lista de sinais" )],
                 [KeyboardButton( text = "Editar configurações" ),
@@ -459,12 +456,29 @@ EURJPY 31/12/2000 CALL M5 02:30
         do menu principal, devolvendo um boolean
         '''
         texto = msg['text']
-        if texto == "Operação Lista":
+        if texto == "Operação Lista/Taxas":
             self.operar_lista = True
             return self.operar(msg)
         elif texto == "Operação Estratégias":
+            self.informacoes["auto"] = False
             self.operar_lista = False
             return self.operar(msg)
+        elif texto == "Operação Auto VIP":
+            self.informacoes["auto"] = True
+            return self.operar(msg)
+        elif texto == "Catalogar sinais":
+            self.enviar_mensagem("Carregando...")
+            sinais = MongoDB.get_entradas(3)
+            if len(sinais) == 0 or (len(sinais) > 0 and 
+                (datetime.now() - datetime.fromtimestamp(
+                    sinais[0]["timestamp"])
+                ).days > 0):
+                self.catalogar_sinais()
+            self.informacoes["lista"] = MongoDB.get_entradas(3)
+            self.enviar_mensagem(
+                "Sinais catalogados adicionados à sua lista.", save = True)
+            self.comandos()
+            return True
         elif texto == "Ver configurações":
             return self.enviar_mensagem(
                 self.ver_configuracoes(), save = True)
@@ -605,7 +619,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             }
             mensagem = ""
             for key, value in self.mapeamento.items():
-                if value[0] not in ["lista", "catalogar"]:
+                if value[0] not in ["lista", "tipo_lista", "num_lista"]:
                     if key in headers:
                         mensagem += f"\n⚙️ {headers[key]} ⚙️\n"
                     mensagem += f"{key}: {str(self.informacoes[value[0]]).replace('True', 'Sim').replace('False', 'Não')}\n"
@@ -640,10 +654,8 @@ EURJPY 31/12/2000 CALL M5 02:30
         verificador, teclado = False, []
         if msg['text'] == 'Conta e listas':
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Tipo de conta" ),
-                 KeyboardButton( text = "Tipo de lista" )],
-                [KeyboardButton( text = "Adicionar lista" ),
-                 KeyboardButton( text = "Catalogar sinais")],
+                [KeyboardButton( text = "Tipo de conta" )],
+                [KeyboardButton( text = "Adicionar lista" )],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == 'Entrada e gerenciamento':
@@ -693,9 +705,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "Paridade" ),
                  KeyboardButton( text = "Estratégia" ),
                  KeyboardButton( text = "Tipo milhão" )],
-                [KeyboardButton( text = "Auto: Ativar" ),
-                 KeyboardButton( text = "Auto: Gales" ),
-                 KeyboardButton( text = "Auto: Timeframe")],
+                [KeyboardButton( text = "Auto VIP: Gales" ),
+                 KeyboardButton( text = "Auto VIP: Timeframe")],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         if verificador:
@@ -715,18 +726,6 @@ EURJPY 31/12/2000 CALL M5 02:30
                     keyboard = [
                     [KeyboardButton( text = "Sim" ),
                     KeyboardButton( text = "Não" )]])
-            elif value[0] == "catalogar":
-                sinais = MongoDB.get_entradas(3)
-                if len(sinais) == 0 or (len(sinais) > 0 and 
-                    (datetime.now() - datetime.fromtimestamp(
-                        sinais[0]["timestamp"])
-                    ).days > 0):
-                    self.catalogar_sinais()
-                self.informacoes["lista"] = MongoDB.get_entradas(3)
-                
-                self.enviar_mensagem(
-                    "Sinais catalogados adicionados à sua lista particular.")
-                return self.editar_configuracoes()
             elif (value[0] == "tipo_lista" and 
                 self.informacoes['plano'] == "teste"):
                 self.enviar_mensagem(
@@ -778,6 +777,10 @@ EURJPY 31/12/2000 CALL M5 02:30
                 mensagem = f"Digite a nova informação para {text}: "
                 if value[2] == str and value[0] != "paridade":
                     mensagem = "Pegue os ciclos no site: https://argente123.github.io/Ciclos/"
+                elif value[2] == list:
+                    mensagem = """Envie a lista no formato:
+    01/01/2000 13:00 EURUSD-OTC PUT M1
+Não importa a ordem das informações, e sim o formato de cada componente."""
                 teclado = ReplyKeyboardRemove()
             
             dicionario[text][1] = True
