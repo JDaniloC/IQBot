@@ -435,10 +435,10 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         if self.autenticacao:
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Operação Lista/Taxas" ),
-                 KeyboardButton( text = "Operação Estratégias" )],
+                [KeyboardButton( text = "Operar Lista/Taxas" ),
+                 KeyboardButton( text = "Operar Estratégias" )],
                 [KeyboardButton( text = "Catalogar sinais"),
-                 KeyboardButton( text = "Operação Auto VIP")],
+                 KeyboardButton( text = "Operar Auto VIP")],
                 [KeyboardButton( text = "Ver configurações" ),
                  KeyboardButton( text = "Ver lista de sinais" )],
                 [KeyboardButton( text = "Editar configurações" ),
@@ -456,15 +456,16 @@ EURJPY 31/12/2000 CALL M5 02:30
         do menu principal, devolvendo um boolean
         '''
         texto = msg['text']
-        if texto == "Operação Lista/Taxas":
+        if texto == "Operar Lista/Taxas":
             self.operar_lista = True
             return self.operar(msg)
-        elif texto == "Operação Estratégias":
+        elif texto == "Operar Estratégias":
             self.informacoes["auto"] = False
             self.operar_lista = False
             return self.operar(msg)
-        elif texto == "Operação Auto VIP":
+        elif texto == "Operar Auto VIP":
             self.informacoes["auto"] = True
+            self.operar_lista = False
             return self.operar(msg)
         elif texto == "Catalogar sinais":
             self.enviar_mensagem("Carregando...")
@@ -803,6 +804,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.enviar_mensagem("Coloque o ID do telegram:",
                 reply_markup = ReplyKeyboardRemove())
             self.alteracoes_avancadas['adm_in'] = True
+            return True
         elif msg['text'] == "Remover administrador":
             teclado = [[KeyboardButton(text = _id)] 
                 for _id in ADMS]
@@ -811,6 +813,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                 reply_markup = ReplyKeyboardMarkup(
                     keyboard = teclado))
             self.alteracoes_avancadas['adm_out'] = True
+            return True
         elif msg['text'] == "Atualizar informações":
             self.enviar_mensagem("Atualizando...")
             MongoDB.atualizar_infos()
@@ -847,8 +850,9 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                 else:
                     self.alteracoes_avancadas['licenca'] = True
                     self.alteracoes_avancadas['plano'] = True
+                return True
             else:
-                self.enviar_mensagem("Nenhum usuário no banco")
+                self.enviar_mensagem("Nenhum usuário no banco", save = True)
         elif msg['text'] == "Catalogar":
             self.catalogar_sinais()
         elif msg['text'] == "Parar bot":
@@ -908,18 +912,20 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                     [KeyboardButton( text = "teste" ),
                     KeyboardButton( text = "mensal" )]]))
             self.alteracoes_avancadas['plano'] = msg
-            return False
+            return None
         elif self.alteracoes_avancadas['aprovar']:
             MongoDB.aprovar(
                 self.alteracoes_avancadas['plano'], msg)
             self.enviar_mensagem("Usuário aprovado.")
             self.alteracoes_avancadas["aprovar"] = False
+            self.alteracoes_avancadas['plano'] = False
             return True
         elif self.alteracoes_avancadas['licenca']:
             MongoDB.renovar_licenca(
                 self.alteracoes_avancadas['plano'], msg)
             self.enviar_mensagem("Licença renovada")
             self.alteracoes_avancadas["licenca"] = False
+            self.alteracoes_avancadas['plano'] = False
             return True
         elif self.alteracoes_avancadas['remover']:
             MongoDB.remover_usuario(msg)
@@ -1038,8 +1044,9 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.login(msg)         # [0] Login
         elif self.iniciar_operacao:
             self.operar(msg)        # [3] Opções
-        elif self.salvar_alteracoes_avancadas(msg):
-            self.gerenciar()        # [4] Avançadas (ADM)
+        elif self.salvar_alteracoes_avancadas(msg) in [True, None]:
+            if not self.alteracoes_avancadas['plano']:
+                self.gerenciar()    # [4] Avançadas (ADM)
         elif msg['text'] == "Parar operação":
             self.parar_operar(msg)  # [4] Opções
         elif msg['text'] == "Ver relatório":
