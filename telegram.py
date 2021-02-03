@@ -528,9 +528,9 @@ EURJPY 31/12/2000 CALL M5 02:30
                         reply_markup = ReplyKeyboardMarkup(
                             keyboard = [
                                 [KeyboardButton( 
-                                    text = "Ver relatório" )],
+                                    text = "Ver relatório da operação" )],
                                 [KeyboardButton( 
-                                    text = "Parar operação" )]
+                                    text = "Parar operação/Clique se não foi iniciada" )]
                             ]
                         ))
             return True
@@ -1047,9 +1047,9 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         elif self.salvar_alteracoes_avancadas(msg) in [True, None]:
             if not self.alteracoes_avancadas['plano']:
                 self.gerenciar()    # [4] Avançadas (ADM)
-        elif msg['text'] == "Parar operação":
+        elif msg['text'] == "Parar operação/Clique se não foi iniciada":
             self.parar_operar(msg)  # [4] Opções
-        elif msg['text'] == "Ver relatório":
+        elif msg['text'] == "Ver relatório da operação":
             self.ver_relatorio(msg) # [4] Opções
         elif msg['text'].capitalize() in ["Entrar", "/start"]:
             self.entrar()           # [1] Login
