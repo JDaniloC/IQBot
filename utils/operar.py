@@ -48,7 +48,11 @@ class Operacao(IQ_API):
 
 				if config['tipo_par'] == "auto":
 					self.tipo = config['tipo_par']
-
+				else:
+					self.tipo = "digital" if (
+						config['tipo_par'] == 'digital'
+					) else "binary"
+					
 				# Para soros
 				self.valor_inicial = config['valor']
 				self.ganhos_perdas = [0, 0]
@@ -378,7 +382,6 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 						desconta_perda(resultado, lucro, True)
 						mostra_resultado()
 						perda += abs(lucro)
-						num_gales += 1
 						lucro = valor * payout
 						if self.config['tipo_gale'] == 'ciclos':
 							valor = self.ciclos_gale[ciclo_atual][num_gales]
@@ -407,6 +410,9 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 					resultado, lucro = self.ordem(
                         paridade, ordem, tempo, valor, tipo, 
                         self.cadeado, self.config['delay'])
+					if resultado not in ["error", "equal"]:
+						num_gales += 1
+
 				if resultado == "win" and self.config['tipo_stop'] != "fixo":
 					self.perda_total += perda
 				if self.config['tipo_gale'] == 'ciclos':

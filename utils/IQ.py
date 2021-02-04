@@ -295,7 +295,7 @@ f"{paridade}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
 
             if velas[0] == velas[1] == velas[2]:
                 direcao = 1 if direcao.lower() == "call" else -1
-                return velas[0] == direcao.lower()
+                return velas[0] == direcao
         return True if (
             direcao.lower() == "call" 
             and diferenca > 0) or (
