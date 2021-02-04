@@ -166,11 +166,11 @@ class Catalogador(IQ_API):
         for par in catalogacao:
             for horario in sorted(catalogacao[par]):
                 ok = False		
-                porcentagem_sinal = catalogacao[par][horario]['mg'+str(i+1)]['%']
                 if catalogacao[par][horario]['%'] >= porcentagem:
                     ok = True
                 else:
                     for i in range(int(martingale)):
+                        porcentagem_sinal = catalogacao[par][horario]['mg'+str(i+1)]['%']
                         if porcentagem_sinal != "N/A" and porcentagem_sinal >= porcentagem:
                             ok = True
                             break
@@ -179,6 +179,7 @@ class Catalogador(IQ_API):
                     msg = par + ' ' + horario + ' ' + catalogacao[par][horario]['dir'] + ' ' + str(catalogacao[par][horario]['%']) + '% '
                     
                     for i in range(int(martingale)):
+                        porcentagem_sinal = catalogacao[par][horario]['mg'+str(i+1)]['%']
                         if str(porcentagem_sinal) != 'N/A':
                             msg += f'{i+1} | MG ' + str(porcentagem_sinal) + '% '
                         else:
