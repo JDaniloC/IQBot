@@ -48,6 +48,10 @@ class Operacao(IQ_API):
 
 				if config['tipo_par'] == "auto":
 					self.tipo = config['tipo_par']
+				else:
+					self.tipo = "digital" if (
+						config['tipo_par'] == 'digital'
+					) else "binary"
 
 				# Para soros
 				self.valor_inicial = config['valor']
@@ -184,7 +188,7 @@ class Operacao(IQ_API):
 			print(f"Payout de {paridade}: {tipo} {payout * 100}%")
 		else:
 			payout, tipo = (self.payout_binaria(paridade) 
-				if self.tipo == "binary" 
+				if self.tipo != "digital" 
 				else self.payout_digital(paridade)), self.tipo
 		return tipo, payout
 
@@ -378,12 +382,12 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 						desconta_perda(resultado, lucro, True)
 						mostra_resultado()
 						perda += abs(lucro)
-						num_gales += 1
 						lucro = valor * payout
 						if self.config['tipo_gale'] == 'ciclos':
 							valor = self.ciclos_gale[ciclo_atual][num_gales]
 						else:
-							valor = self.martingale(self.config['tipo_martin'], 
+							valor = self.martingale(
+								self.config['tipo_martin'], 
 								payout, perda, valor, lucro)
 						valor = 1 if valor < 1 else valor # Caso der doji
 
@@ -407,6 +411,9 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 					resultado, lucro = self.ordem(
                         paridade, ordem, tempo, valor, tipo, 
                         self.cadeado, self.config['delay'])
+					if resultado not in ["error", "equal"]:
+						num_gales += 1
+						
 				if resultado == "win" and self.config['tipo_stop'] != "fixo":
 					self.perda_total += perda
 				if self.config['tipo_gale'] == 'ciclos':
