@@ -43,7 +43,8 @@ def carregar_entradas(opcao):
         lista = MongoDB.get_entradas(opcao)
     else:
         lista = opcao
-
+    lista.sort(key = lambda x: x["timestamp"])
+    
     lista_entradas = []
     for linha in lista:
         if linha["tipo"] == "taxas": 
@@ -72,6 +73,7 @@ ADMS = MongoDB.get_adms()
 entrada_01 = carregar_entradas(1)
 entrada_02 = carregar_entradas(2)
 entrada_03 = carregar_entradas(3)
+cache_catalogador = ()
 
 if os.name != "nt":
     controlador = Control()
@@ -116,14 +118,10 @@ class Assistente(amanobot.helper.ChatHandler):
             "Tipo de conta": ["tipo_conta", False, tuple], 
             "Tipo de lista": ["tipo_lista", False, tuple],
             "Lista escolhida": ["num_lista", False, tuple],
-            
-            "Tipo par": ["tipo_par", False, tuple],
-            "Timeframe": ["tempo", False, tuple],
-            "Correção": ["correcao", False, int],
-            "Delay": ["delay", False, float],
-
             "Valor de entrada": ["valor", False, float],
+
             "Gerenciamento": ["tipo_gale", False, tuple], 
+            "Tipo de Stoploss": ["tipo_stop", False, tuple], 
             "Scalper Loss": ["scalper_loss", False, int],
             "Scalper Win": ["scalper_win", False, int],
             "Payout mínimo": ["minimo", False, int], 
@@ -150,6 +148,11 @@ class Assistente(amanobot.helper.ChatHandler):
             "Tipo milhão": ["tipo_milhao", False, tuple],
             "Auto VIP: Timeframe": ["autotime", False, tuple],
             "Auto VIP: Gales": ["autogale", False, tuple],
+
+            "Tipo par": ["tipo_par", False, tuple],
+            "Timeframe": ["tempo", False, tuple],
+            "Correção": ["correcao", False, int],
+            "Delay": ["delay", False, float],
         }
 
         self.informacoes = {}
@@ -470,10 +473,14 @@ EURJPY 31/12/2000 CALL M5 02:30
         elif texto == "Catalogar sinais":
             self.enviar_mensagem("Carregando...")
             sinais = MongoDB.get_entradas(3)
+            conf = MongoDB.get_avancadas()
+            conf_catalogador = (
+                conf["cat_time"], conf["cat_days"], 
+                conf["cat_perct"], conf["cat_mg"])
             if len(sinais) == 0 or (len(sinais) > 0 and 
                 (datetime.now() - datetime.fromtimestamp(
-                    sinais[0]["timestamp"])
-                ).days > 0):
+                    sinais[0]["timestamp"])).days > 0 or 
+                cache_catalogador != conf_catalogador):
                 self.catalogar_sinais()
             self.informacoes["lista"] = MongoDB.get_entradas(3)
             self.enviar_mensagem(
@@ -481,8 +488,9 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.comandos()
             return True
         elif texto == "Ver configurações":
-            return self.enviar_mensagem(
+            self.enviar_mensagem(
                 self.ver_configuracoes(), save = True)
+            return True
         elif texto == "Editar configurações":
             return self.editar_configuracoes()
         elif texto == "Ver lista de sinais":
@@ -612,7 +620,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             
             headers = {
                 "Tipo de conta": "Conta e listas",
-                "Valor de entrada": "Entrada e gerenciamento",
+                "Gerenciamento": "Gerenciamento",
                 "Tipo de martingale": "Martingale e Soros",
                 "Seguir tendência": "Tendência e notícias",
                 "Tipo par": "Ajustes",
@@ -640,7 +648,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                 reply_markup = ReplyKeyboardMarkup( keyboard = [
                     [KeyboardButton( text = "Conta e listas" ),
                      KeyboardButton( text = "Ajustes" )],
-                    [KeyboardButton( text = "Entrada e gerenciamento" ),
+                    [KeyboardButton( text = "Gerenciamento" ),
                      KeyboardButton( text = "Martingale e Soros" )],
                     [KeyboardButton( text = "Tendência e notícias" ),
                      KeyboardButton( text = "Estratégias")],
@@ -655,13 +663,14 @@ EURJPY 31/12/2000 CALL M5 02:30
         verificador, teclado = False, []
         if msg['text'] == 'Conta e listas':
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Tipo de conta" )],
+                [KeyboardButton( text = "Tipo de conta" ),
+                 KeyboardButton( text = "Valor de entrada" )],
                 [KeyboardButton( text = "Adicionar lista" )],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
-        elif msg['text'] == 'Entrada e gerenciamento':
+        elif msg['text'] == 'Gerenciamento':
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Valor de entrada" ),
+                [KeyboardButton( text = "Tipo de Stoploss" ),
                  KeyboardButton( text = "Gerenciamento" )],
                 [KeyboardButton( text = "StopWin" ),
                  KeyboardButton( text = "StopLoss" )],
@@ -741,6 +750,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                     "tipo_lista": ["casa", "propria"],
                     "tipo_conta": ["treino", "real"],
                     "tipo_soros": ["normal", "ciclos"],
+                    "tipo_stop": ["movel", "fixo"],
                     "tipo_milhao": ["Minoria", "Maioria"],
                     "tipo_gale": [
                         "martingale", "sorosgale", "ciclos", "nenhum"],
@@ -866,14 +876,20 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         return True
 
     def catalogar_sinais(self):
-        global entrada_03
+        global entrada_03, cache_catalogador
         catalogador = Catalogador(self.chat_id)
         conf = MongoDB.get_avancadas()
-        lista = catalogador.catalogar(
+        cache_catalogador = (
             conf["cat_time"], conf["cat_days"], 
             conf["cat_perct"], conf["cat_mg"])
-        MongoDB.set_entradas(3, lista)
-        entrada_03 = carregar_entradas(3)
+        lista = catalogador.catalogar(*cache_catalogador)
+
+        if lista != []:
+            MongoDB.set_entradas(3, lista)
+            entrada_03 = carregar_entradas(3)
+        else:
+            self.enviar_mensagem(
+                "Nenhum sinal encontrado...")
 
     def habilitar_alteracao(self, msg):
         '''
@@ -971,7 +987,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                         dicionario[key][1] = False
                         self.enviar_mensagem("Deve ser um número.", save = True)
                         return True
-                elif value[2] == str:
+                elif value[2] == str and value[0] != "paridade":
                     try:
                         novo = json.loads(novo)
                     except:
