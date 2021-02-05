@@ -20,9 +20,9 @@ class Mongo:
         self.Users_em_aprovacao = users_em_aprovacao
         self.Default = default_infos
         self.ADMS = adms
-        self.Entrada1 = entrada1
-        self.Entrada2 = entrada2
-        self.Entrada3 = entrada3
+        self.entradas01 = entrada1
+        self.entradas02 = entrada2
+        self.entradas03 = entrada3
         self.infos_collection = infos
         self.infos = infos.find_one()
 
@@ -149,30 +149,30 @@ class Mongo:
         '''
         resultado = []
         if modo == 1:
-            resultado =  list(self.Entrada1.find())
+            resultado =  list(self.entradas01.find())
         elif modo == 2:
-            resultado = list(self.Entrada2.find())
+            resultado = list(self.entradas02.find())
         elif modo == 3:
-            resultado = list(self.Entrada3.find())
+            resultado = list(self.entradas03.find())
         return resultado
 
     def set_entradas(self, modo, entradas):
         '''
-        Modifica a lista de entradas (modo 1/2)
+        Modifica a lista de entradas (modo 1/2/3)
         A depender da quantidade de gales
         '''
         if modo == 1:
-            self.Entrada1.delete_many({"tipo": 'taxas'})
-            self.Entrada1.delete_many({"tipo": 'lista'})
-            self.Entrada1.insert_many(entradas)
+            self.entradas01.delete_many({"tipo": 'taxas'})
+            self.entradas01.delete_many({"tipo": 'lista'})
+            self.entradas01.insert_many(entradas)
         elif modo == 2:
-            self.Entrada2.delete_many({"tipo": 'taxas'})
-            self.Entrada2.delete_many({"tipo": 'lista'})
-            self.Entrada2.insert_many(entradas)
+            self.entradas02.delete_many({"tipo": 'taxas'})
+            self.entradas02.delete_many({"tipo": 'lista'})
+            self.entradas02.insert_many(entradas)
         elif modo == 3:
-            self.Entrada3.delete_many({"tipo": 'taxas'})
-            self.Entrada3.delete_many({"tipo": 'lista'})
-            self.Entrada3.insert_many(entradas)
+            self.entradas03.delete_many({"tipo": 'taxas'})
+            self.entradas03.delete_many({"tipo": 'lista'})
+            self.entradas03.insert_many(entradas)
 
     def modificar_banco_users(self, opcao):
         if opcao == "clear":

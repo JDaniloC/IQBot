@@ -43,6 +43,7 @@ def carregar_entradas(opcao):
         lista = MongoDB.get_entradas(opcao)
     else:
         lista = opcao
+    lista.sort(key = lambda x: x["timestamp"])
 
     lista_entradas = []
     for linha in lista:
@@ -118,14 +119,15 @@ class Assistente(amanobot.helper.ChatHandler):
             "Tipo de conta": ["tipo_conta", False, tuple], 
             "Tipo de lista": ["tipo_lista", False, tuple],
             "Lista escolhida": ["num_lista", False, tuple],
+            "Valor de entrada": ["valor", False, float],
             
             "Tipo par": ["tipo_par", False, tuple],
             "Timeframe": ["tempo", False, tuple],
             "Correção": ["correcao", False, int],
             "Delay": ["delay", False, float],
 
-            "Valor de entrada": ["valor", False, float],
             "Gerenciamento": ["tipo_gale", False, tuple], 
+            "Tipo de Stoploss": ["tipo_stop", False, tuple], 
             "Scalper Loss": ["scalper_loss", False, int],
             "Scalper Win": ["scalper_win", False, int],
             "Payout mínimo": ["minimo", False, int], 
@@ -466,8 +468,9 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.operar_lista = False
             return self.operar(msg)
         elif texto == "Ver configurações":
-            return self.enviar_mensagem(
+            self.enviar_mensagem(
                 self.ver_configuracoes(), save = True)
+            return True
         elif texto == "Editar configurações":
             return self.editar_configuracoes()
         elif texto == "Ver lista de sinais":
@@ -597,7 +600,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             
             headers = {
                 "Tipo de conta": "Conta e listas",
-                "Valor de entrada": "Entrada e gerenciamento",
+                "Gerenciamento": "Gerenciamento",
                 "Tipo de martingale": "Martingale e Soros",
                 "Seguir tendência": "Tendência e notícias",
                 "Tipo par": "Ajustes",
@@ -625,7 +628,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                 reply_markup = ReplyKeyboardMarkup( keyboard = [
                     [KeyboardButton( text = "Conta e listas" ),
                      KeyboardButton( text = "Ajustes" )],
-                    [KeyboardButton( text = "Entrada e gerenciamento" ),
+                    [KeyboardButton( text = "Gerenciamento" ),
                      KeyboardButton( text = "Martingale e Soros" )],
                     [KeyboardButton( text = "Tendência e notícias" ),
                      KeyboardButton( text = "Estratégias")],
@@ -644,11 +647,13 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Tipo de lista" )],
                 [KeyboardButton( text = "Adicionar lista" ),
                  KeyboardButton( text = "Catalogar sinais")],
-                [KeyboardButton( text = "Editar configurações" )]])
-            verificador = True
-        elif msg['text'] == 'Entrada e gerenciamento':
-            teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Valor de entrada" ),
+                 KeyboardButton( text = "Editar configurações" )]
+                ])
+            verificador = True
+        elif msg['text'] == 'Gerenciamento':
+            teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "Tipo de Stoploss" ),
                  KeyboardButton( text = "Gerenciamento" )],
                 [KeyboardButton( text = "StopWin" ),
                  KeyboardButton( text = "StopLoss" )],
@@ -741,6 +746,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                     "tipo_lista": ["casa", "propria"],
                     "tipo_conta": ["treino", "real"],
                     "tipo_soros": ["normal", "ciclos"],
+                    "tipo_stop": ["movel", "fixo"],
                     "tipo_milhao": ["Minoria", "Maioria"],
                     "tipo_gale": [
                         "martingale", "sorosgale", "ciclos", "nenhum"],
@@ -778,6 +784,10 @@ EURJPY 31/12/2000 CALL M5 02:30
                 mensagem = f"Digite a nova informação para {text}: "
                 if value[2] == str and value[0] != "paridade":
                     mensagem = "Pegue os ciclos no site: https://argente123.github.io/Ciclos/"
+                elif value[2] == list:
+                    mensagem = """Envie a lista no formato:
+    01/01/2000 13:00 EURUSD-OTC PUT M1
+Não importa a ordem das informações, e sim o formato de cada componente."""
                 teclado = ReplyKeyboardRemove()
             
             dicionario[text][1] = True
@@ -800,6 +810,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.enviar_mensagem("Coloque o ID do telegram:",
                 reply_markup = ReplyKeyboardRemove())
             self.alteracoes_avancadas['adm_in'] = True
+            return True
         elif msg['text'] == "Remover administrador":
             teclado = [[KeyboardButton(text = _id)] 
                 for _id in ADMS]
@@ -808,6 +819,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                 reply_markup = ReplyKeyboardMarkup(
                     keyboard = teclado))
             self.alteracoes_avancadas['adm_out'] = True
+            return True
         elif msg['text'] == "Atualizar informações":
             self.enviar_mensagem("Atualizando...")
             MongoDB.atualizar_infos()
@@ -844,8 +856,10 @@ EURJPY 31/12/2000 CALL M5 02:30
                 else:
                     self.alteracoes_avancadas['licenca'] = True
                     self.alteracoes_avancadas['plano'] = True
+                return True
             else:
-                self.enviar_mensagem("Nenhum usuário no banco")
+                self.enviar_mensagem(
+                    "Nenhum usuário no banco", save = True)
         elif msg['text'] == "Catalogar":
             self.catalogar_sinais()
         elif msg['text'] == "Parar bot":
@@ -964,7 +978,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                         dicionario[key][1] = False
                         self.enviar_mensagem("Deve ser um número.", save = True)
                         return True
-                elif value[2] == str:
+                elif value[2] == str and value[0] != "paridade":
                     try:
                         novo = json.loads(novo)
                     except:
