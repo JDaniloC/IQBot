@@ -268,7 +268,7 @@ class Assistente(amanobot.helper.ChatHandler):
             [KeyboardButton( text = "Configurações avançadas" ),
              KeyboardButton( text = "Administração" )],
             [KeyboardButton( text = "Catalogação"),
-             KeyboardButton( text = "Parar bot" )],
+             KeyboardButton( text = "Desligar VPS" )],
             [KeyboardButton( text = "Voltar ao menu" )]
         ])
 
@@ -442,9 +442,9 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Operar Estratégias" )],
                 [KeyboardButton( text = "Catalogar sinais"),
                  KeyboardButton( text = "Operar Auto VIP")],
-                [KeyboardButton( text = "Ver configurações" ),
-                 KeyboardButton( text = "Ver lista de sinais" )],
                 [KeyboardButton( text = "Editar configurações" ),
+                 KeyboardButton( text = "Ver lista de sinais" )],
+                [KeyboardButton( text = "Parar Bot" ),
                  KeyboardButton( text = "Sair da conta" )]
             ])
 
@@ -538,7 +538,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                                 [KeyboardButton( 
                                     text = "Ver relatório da operação" )],
                                 [KeyboardButton( 
-                                    text = "Parar operação/Clique se não foi iniciada" )]
+                                    text = "Parar Bot/Clique se não foi iniciada" )]
                             ]
                         ))
             return True
@@ -652,7 +652,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                      KeyboardButton( text = "Martingale e Soros" )],
                     [KeyboardButton( text = "Tendência e notícias" ),
                      KeyboardButton( text = "Estratégias")],
-                    [KeyboardButton( text = "Voltar ao menu" )]
+                    [KeyboardButton( text = "Ver configurações" ), 
+                     KeyboardButton( text = "Voltar ao menu" )]
             ], resize_keyboard = True))
             return True
         else:
@@ -865,9 +866,11 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                 self.enviar_mensagem("Nenhum usuário no banco", save = True)
         elif msg['text'] == "Catalogar":
             self.catalogar_sinais()
-        elif msg['text'] == "Parar bot":
+        elif msg['text'] == "Desligar VPS":
             self.parar_bot = True
-            self.enviar_mensagem("Tem certeza?",
+            self.enviar_mensagem("Tem certeza? Isso irá desligar a VPS\n\
+                Cancelando as operações dos clientes\n\
+                Até o suporte ligar novamente",
                 reply_markup = ReplyKeyboardMarkup(keyboard = [
                     [KeyboardButton( text = "Sim" ),
                     KeyboardButton( text = "Não" )]]))
@@ -1063,7 +1066,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         elif self.salvar_alteracoes_avancadas(msg) in [True, None]:
             if not self.alteracoes_avancadas['plano']:
                 self.gerenciar()    # [4] Avançadas (ADM)
-        elif msg['text'] == "Parar operação/Clique se não foi iniciada":
+        elif "Parar Bot" in msg['text']:
             self.parar_operar(msg)  # [4] Opções
         elif msg['text'] == "Ver relatório da operação":
             self.ver_relatorio(msg) # [4] Opções
@@ -1099,6 +1102,9 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                 self.desligar_bot()
             else:
                 self.parar_bot = False
+                self.enviar_mensagem(
+                    "Deixando o bot ligado", save = True)
+                self.gerenciar()
         else:
             self.entrar()
         
