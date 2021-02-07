@@ -120,7 +120,7 @@ class Assistente(amanobot.helper.ChatHandler):
             "Lista escolhida": ["num_lista", False, tuple],
             "Valor de entrada": ["valor", False, float],
 
-            "Gerenciamento": ["tipo_gale", False, tuple], 
+            "Tipo de gale": ["tipo_gale", False, tuple], 
             "Tipo de Stoploss": ["tipo_stop", False, tuple], 
             "Scalper Loss": ["scalper_loss", False, int],
             "Scalper Win": ["scalper_win", False, int],
@@ -620,7 +620,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             
             headers = {
                 "Tipo de conta": "Conta e listas",
-                "Gerenciamento": "Gerenciamento",
+                "Tipo de gale": "Gerenciamento",
                 "Tipo de martingale": "Martingale e Soros",
                 "Seguir tendência": "Tendência e notícias",
                 "Tipo par": "Ajustes",
@@ -672,7 +672,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         elif msg['text'] == 'Gerenciamento':
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Tipo de Stoploss" ),
-                 KeyboardButton( text = "Gerenciamento" )],
+                 KeyboardButton( text = "Tipo de gale" )],
                 [KeyboardButton( text = "StopWin" ),
                  KeyboardButton( text = "StopLoss" )],
                 [KeyboardButton( text = "Scalper Win"),
