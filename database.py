@@ -139,8 +139,7 @@ class Mongo:
         '''
         Remove um ADM com certo ID da lista de ADMS
         '''
-        return self.ADMS.find_one_and_delete(
-            {"_id": id})
+        return self.ADMS.find_one_and_delete({"_id": id})
 
     def get_entradas(self, modo):
         '''
@@ -175,7 +174,7 @@ class Mongo:
             self.entradas03.insert_many(entradas)
 
     def modificar_banco_users(self, opcao):
-        if opcao == "clear":
+        if opcao == "delete":
             self.Users_collection.delete_many({})
         elif opcao == "off":
             self.Users_collection.update_many(
@@ -184,6 +183,12 @@ class Mongo:
             data = time.time() + 2592000
             self.Users_collection.update_many(
                 {}, {'$set': {'timestamp': data}})
+        elif opcao == "clear":
+            users = self.Users_collection.find(
+                {"timestamp": {"$lt": time.time()}})
+            for user in users:
+                print("Removing:", user["email"])
+                self.remover_usuario(user["email"])
 
 client =  MongoClient(autenticacao)
 database = client.iqbot 
@@ -201,3 +206,5 @@ MongoDB = Mongo(
     database, users_list, queue_list, default, 
     ADMS, entrada1, entrada2, entrada3, infos
 )
+
+MongoDB.modificar_banco_users("clear")
