@@ -434,7 +434,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 					lucro = valor * payout
 					self.valor = self.martingale(self.config['tipo_martin'], 
 						payout, self.perda_atual, valor, lucro)
-					self.valor = 1 if self.valor < 1 else self.valor
+					self.valor = 2 if self.valor < 2 else self.valor
 				else:
 					self.valor = self.valor_inicial
 					self.gale_atual = 0
@@ -444,7 +444,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 				self.perda_atual += abs(valor)
 				self.soros_atual = 0
 				self.valor = self.perda_atual / 2
-				self.valor = 1 if self.valor < 1 else self.valor
+				self.valor = 2 if self.valor < 2 else self.valor
 				self.mostrar_mensagem(mensagem + str(self.valor))
 
 			elif self.config['tipo_gale'] == 'ciclos':
@@ -627,11 +627,12 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 				return [x['close'] for x in velas]
 
 			resultado = []
-			for i in range(len(velas)):
-				print(datetime.fromtimestamp(velas[i]['from']))
-				resultado.append(('CALL' if velas[i]['open'] 
-				< velas[i]['close'] else 'PUT' if velas[i]['open'] 
-				> velas[i]['close'] else 'DOJI'))
+			if resultado != None:
+				for i in range(len(velas)):
+					print(datetime.fromtimestamp(velas[i]['from']))
+					resultado.append(('CALL' if velas[i]['open'] 
+					< velas[i]['close'] else 'PUT' if velas[i]['open'] 
+					> velas[i]['close'] else 'DOJI'))
 
 			return resultado
 

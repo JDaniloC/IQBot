@@ -162,7 +162,7 @@ class IQ_API:
     
     def ordem(self, paridade, direcao = "call", tempo = 1, 
         valor = 1, tipo = "binary", bloqueador = None, 
-        delay = False, scalper = False):
+        delay = False, scalper = False, trying = False):
         '''
         Faz uma ordem e devolve o resultado.
         Params:
@@ -200,10 +200,17 @@ class IQ_API:
             
         if not status:
             if tipo == "digital":
-                identificador = identificador['message']
-            self.saida(str(identificador))
-            self.saida(
-    f"❌ {paridade}-{tipo} {direcao} fechada ou máximo de operações ❌")
+                identificador = str(identificador['message'])
+            else: identificador = str(identificador)
+            self.saida(identificador)
+            if "active_suspended" in identificador and not trying:
+                if self.tipo != "auto": 
+                    self.tipo = ("binary" if 
+                        self.tipo == "digital" else "digital")
+                return self.ordem(paridade, direcao, tempo, valor, 
+                "binary" if tipo == "digital" else "digital", 
+                bloqueador, delay, scalper, True)
+            self.saida(f"❌ {paridade}-{tipo} {direcao.upper()} fechada ou máximo de operações ❌")
             return "error", 0
 
         self.saida(
