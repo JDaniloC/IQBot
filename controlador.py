@@ -13,9 +13,10 @@ regions = [
 ]
 
 class Instancia:
-    def __init__(self, name):
+    def __init__(self, name, region):
         self.name = name
         self.people = []
+        self.region = region
         
     def is_full(self):
         '''
@@ -79,8 +80,8 @@ class Control:
                 break
         return alvo
 
-    def adicionar_pessoa(
-        self, email, senha, identificador, operar_lista = False, ao_vivo = False):
+    def adicionar_pessoa(self, email, senha, identificador, 
+        operar_lista = False, ao_vivo = False):
         '''
         Verifica se o e-mail está em alguma instância
         Caso não estiver verifica se a última instância 
@@ -99,7 +100,8 @@ class Control:
         
         if not ao_vivo or email not in self.ao_vivo:
             self.iniciar_bot(
-                alvo, email, senha, identificador, operar_lista, ao_vivo)
+                alvo, email, senha, identificador, 
+                operar_lista, ao_vivo)
 
     def criar_instancia(self):
         '''
@@ -109,20 +111,23 @@ class Control:
         if len(self.instancias) != 0 and len(self.instancias) % 4 == 0:
             self.regiao += 1
             print(f"Região alterada para {regions[self.regiao]}")
+        
+        regiao = regions[self.regiao]
         name = "instancia" + str(len(self.instancias))
-        system(f'yes "Y" | gcloud beta compute --project={project_name} instances create {name} --zone={regions[self.regiao]} --machine-type=e2-medium --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE --service-account={account_name} --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server,https-server --image=padrao --image-project={project_name} --boot-disk-size=10GB --boot-disk-type=pd-standard --boot-disk-device-name={name} --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any')
+        system(f'yes "Y" | gcloud beta compute --project={project_name} instances create {name} --zone={regiao} --machine-type=e2-medium --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE --service-account={account_name} --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server,https-server --image=padrao --image-project={project_name} --boot-disk-size=10GB --boot-disk-type=pd-standard --boot-disk-device-name={name} --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any')
         status = -1
         while status != 0:
-            status = system(f"gcloud compute ssh {name} --zone {regions[self.regiao]} --command='chmod 777 iqbot/setup.sh;./iqbot/setup.sh'")
+            status = system(f"gcloud compute ssh {name} --zone {regiao} --command='chmod 777 iqbot/setup.sh;./iqbot/setup.sh'")
             print("Status:", status)
             if status == 256:
                 self.regiao += 1
-                print(f"Região alterada para {regions[self.regiao]}")
+                print(f"Região alterada para {regiao}.")
                 return
         
-        self.instancias.append(Instancia(name))
+        self.instancias.append(Instancia(name, regiao))
 
-    def iniciar_bot(self, instancia, email, senha, identificador, operar_lista, ao_vivo):
+    def iniciar_bot(self, instancia, email, senha, 
+        identificador, operar_lista, ao_vivo):
         '''
         Inicia o bot para determinado email/senha na instância
         params:
@@ -140,7 +145,7 @@ class Control:
             self.ao_vivo.append(email)
             comando = f"@{email} -L -Logfile @{email}.log {caminho_python} -a"
 
-        system(f"gcloud compute ssh {instancia.name} --zone {regions[self.regiao]} --command='screen -dmS {comando} {email} {senha} {identificador} {operar_lista}'")
+        system(f"gcloud compute ssh {instancia.name} --zone {instancia.region} --command='screen -dmS {comando} {email} {senha} {identificador} {operar_lista}'")
 
     def parar_operacao(self, email):
         '''
@@ -149,7 +154,7 @@ class Control:
         '''
         alvo = self.procura_email(email)
         if alvo != None:
-            system(f"gcloud compute ssh {alvo.name} --zone {regions[self.regiao]} --command='screen -X -S {email} quit'")
+            system(f"gcloud compute ssh {alvo.name} --zone {alvo.region} --command='screen -X -S {email} quit'")
 
     def pegar_log(self, email):
         '''
@@ -157,7 +162,7 @@ class Control:
         '''
         alvo = self.procura_email(email)
         if alvo != None:
-            resultado = check_output(f"gcloud compute ssh {alvo.name} --zone {regions[self.regiao]} --command='tail -n 50 {email}.log'", shell = True)
+            resultado = check_output(f"gcloud compute ssh {alvo.name} --zone {alvo.region} --command='tail -n 50 {email}.log'", shell = True)
             return resultado.decode()
         return "Registro não encontrado."
 
@@ -169,7 +174,7 @@ class Control:
         usuarios = []
         for instancia in self.instancias:
             usuarios.extend(instancia.get_people())
-            system(f'yes "Y" | gcloud compute instances delete --zone {regions[self.regiao]} {instancia.name}')
+            system(f'yes "Y" | gcloud compute instances delete --zone {instancia.region} {instancia.name}')
         self.instancias = []
         return usuarios
 
@@ -191,5 +196,5 @@ class Control:
             self.ao_vivo.remove(email)
         alvo = self.procura_email(email)
         if alvo != None and email in self.ao_vivo:
-            system(f"gcloud compute ssh {alvo.name} --zone {regions[self.regiao]} --command='screen -X -S @{email} stuff \"{comando}\n\"'")
+            system(f"gcloud compute ssh {alvo.name} --zone {alvo.region} --command='screen -X -S @{email} stuff \"{comando}\n\"'")
         return "Modo ao vivo não ligado."
