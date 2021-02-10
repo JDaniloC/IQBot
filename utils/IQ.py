@@ -176,6 +176,12 @@ class IQ_API:
         return:
             (resultado, lucro)
         '''
+        def verify_string(verifiers, string):
+            for node in verifiers:
+                if node in string:
+                    return True
+            return False
+
         direcao = direcao.lower()
         hora_atual = datetime.fromtimestamp(
             datetime.utcnow().timestamp() - 10800)
@@ -203,7 +209,8 @@ class IQ_API:
                 identificador = str(identificador['message'])
             else: identificador = str(identificador)
             self.saida(identificador)
-            if "active_suspended" in identificador and not trying:
+            if verify_string(["active_suspended", "invalid"], 
+                identificador) and not trying:
                 if self.tipo != "auto": 
                     self.tipo = ("binary" if 
                         self.tipo == "digital" else "digital")

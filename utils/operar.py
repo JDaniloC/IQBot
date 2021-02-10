@@ -3,6 +3,7 @@ from utils.investing import extrair_noticias
 from datetime import datetime, timedelta
 from configparser import RawConfigParser
 from utils.IQ import IQ_API
+from pprint import pprint
 
 config = RawConfigParser()
 config.read(".env")
@@ -33,6 +34,7 @@ class Operacao(IQ_API):
 		self.perda_total = 0
 		self.perda_atual = 0 # Para sorosgale
 
+		pprint(self.config)
 		if self.tentativas < 3:
 			try:
 				if self.verboso:
@@ -356,7 +358,6 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 				self.valor = self.valor_inicial
 		
 		if resultado in ["loose", "equal"]:
-			print(f"{paridade} {tipo} Perdeu!")
 			if ((self.config['max_soros'] > 0 and fazendo_soros)
 				or self.config["tipo_soros"] == "ciclos") and self.soros_atual > 0:
 				self.soros_atual = 0
@@ -367,7 +368,6 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 			if (self.config['tipo_gale'] == "martingale" and 
 				self.config['vez_gale'] == "vela") or (
 				self.config['tipo_gale'] == 'ciclos'):
-				print(f"{paridade} {tipo} fazendo martingale")
 				perda, num_gales, ciclo_atual = 0, 0, 0
 				if self.config['tipo_gale'] == 'ciclos':
 					ciclo_atual = self.config["ciclos"]['gales']
@@ -627,7 +627,7 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 				return [x['close'] for x in velas]
 
 			resultado = []
-			if resultado != None:
+			if velas != None:
 				for i in range(len(velas)):
 					print(datetime.fromtimestamp(velas[i]['from']))
 					resultado.append(('CALL' if velas[i]['open'] 

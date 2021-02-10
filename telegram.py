@@ -964,19 +964,20 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         Se houver verifica se o novo valor está correto
         Devolve um bool, usado para confirmar_alteracao/avancado
         '''
+        def numerization(valor, func):
+            try:
+                return func(valor.strip().replace(",", "."))
+            except: return False
+
         for key, value in dicionario.items():
             if value[1]:
                 if value[2] in [int, float]:
-                    try:
-                        novo = value[2](
-                            novo.strip().replace(",", ".").replace("%", ""))
-                    except Exception as e:
+                    novo = numerization(novo, value[2])
+                    if novo != 0 and not novo:
                         if value[0] == "delay":
                             novo = False
                         else:
-                            print(e)
-                            self.enviar_mensagem(
-                                "Deve ser um número! Tente novamente", save = True)
+                            self.enviar_mensagem("Deve ser um número! Tente novamente", save = True)
                             return True
                 elif value[2] == list:
                     novo = self.pegar_entrada(novo.split("\n"))
@@ -992,8 +993,12 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                         return True
                 elif value[2] == str and value[0] != "paridade":
                     try:
-                        novo = json.loads(novo)
-                    except:
+                        if novo != "0" and not numerization(novo, float):
+                            novo = json.loads(novo)
+                        else:
+                            raise ValueError("JSON != int!")    
+                    except Exception as e:
+                        print(e)
                         self.enviar_mensagem(
                             "Não entendi, tente novamente: https://argente123.github.io/Ciclos/")
                         return True
@@ -1040,6 +1045,14 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             return result
         return False
 
+    def listar_usuarios(self):
+        if os.name != "nt":
+            instancias = Control.mostrar_usuarios()
+            for instancia, usuarios in instancias.items():
+                self.enviar_mensagem(instancia, save = True)
+                for usuario in usuarios:
+                    self.enviar_mensagem(usuario, save = True)
+        
     def desligar_bot(self):
         global rodando
         if os.name != "nt":
@@ -1105,6 +1118,8 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                 self.enviar_mensagem(
                     "Deixando o bot ligado", save = True)
                 self.gerenciar()
+        elif msg['text'].capitalize() == "Listar users":
+            self.listar_usuarios()
         else:
             self.entrar()
         
