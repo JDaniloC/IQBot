@@ -34,7 +34,11 @@ class Operacao(IQ_API):
 		self.perda_total = 0
 		self.perda_atual = 0 # Para sorosgale
 
+		senha = self.config['senha']
+		del self.config['senha']
 		pprint(self.config)
+		self.config['senha'] = senha
+
 		if self.tentativas < 3:
 			try:
 				if self.verboso:
@@ -209,7 +213,7 @@ class Operacao(IQ_API):
 					mensagem += "🥵 Stop Loss 🥵"
 				placar = f"✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌"
 				self.mostrar_mensagem(f'''{mensagem}
-{placar.center(50, " ")}
+{placar.center(25, " ")}
 	Stopwin: {self.stopwin}
 	Total ganho: {round(self.ganho_total, 2)}
 	Stoploss: {-self.stoploss}
@@ -375,9 +379,13 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 					self.config['tipo_martin'] = f"ciclo {ciclo_atual+1}"
 				else:
 					max_gale = self.max_gale
+				
+				print("lucro < 0:", lucro < 0)
+				lucro = abs(lucro) * -1
 				while (max_gale > num_gales and lucro < 0
 					and self.stopwin > self.ganho_total):
-					
+					print("FAZENDO MARTINGALE")
+
 					if resultado not in ["error", "equal"]:
 						desconta_perda(resultado, lucro, True)
 						mostra_resultado()
@@ -397,11 +405,12 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 					if self.perda_total <= -(self.stoploss):
 						self.ganhos_perdas[1] += 1
 						self.mostrar_mensagem(
-							f"🥵 Stop Loss 🥵\nR$ {round(self.perda_total, 2)}!\
+							f"🥵 Stop Loss 🥵\n\
+							{f'R$ {round(self.perda_total, 2)}!'.center(30, ' ')}\n\
 							⚠️ Bot parado ⚠️")
 						sys.exit(0)
 
-					self.mostrar_mensagem(f"\n [{num_gales}° MARTINGALE] {self.config['tipo_martin']} na {paridade}|{ordem.upper()}")
+					self.mostrar_mensagem(f"\n [{num_gales + 1}° MARTINGALE] {self.config['tipo_martin']} na {paridade}|{ordem.upper()}")
 
 					if estrategia == "MSF" and num_gales == 0:
 						self.esperar_proximo_minuto()
