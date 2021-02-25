@@ -380,11 +380,9 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 				else:
 					max_gale = self.max_gale
 				
-				print("lucro < 0:", lucro < 0)
-				lucro = abs(lucro) * -1
+				lucro = abs(lucro) * -1 # Digital ficando positivo!?
 				while (max_gale > num_gales and lucro < 0
 					and self.stopwin > self.ganho_total):
-					print("FAZENDO MARTINGALE")
 
 					if resultado not in ["error", "equal"]:
 						desconta_perda(resultado, lucro, True)
