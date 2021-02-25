@@ -213,7 +213,7 @@ class Operacao(IQ_API):
 					mensagem += "🥵 Stop Loss 🥵"
 				placar = f"✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌"
 				self.mostrar_mensagem(f'''{mensagem}
-{placar.center(25, " ")}
+{placar.center(20, " ")}
 	Stopwin: {self.stopwin}
 	Total ganho: {round(self.ganho_total, 2)}
 	Stoploss: {-self.stoploss}
@@ -262,16 +262,16 @@ class Operacao(IQ_API):
 		'''
 		num_gales = 0
 		def mostra_resultado():
-			perto_win = f"R$ {round(self.ganho_total, 2)} / {self.stopwin}"
-			perto_loss = f"R$ {round(-self.perda_total, 2)} / {self.stoploss}"
+			perto_win  = f"R$ {round(self.ganho_total, 2)} | {self.stopwin}"
+			perto_loss = f"R$ {round(-self.perda_total, 2)} | {self.stoploss}"
 			threading.Thread(
 				target = self.mostrar_mensagem,
 				args = (f"""
 Saldo inicial: R$ {self.saldo_inicial}
-Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
-{f'✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌'.center(30)}
-{f'| Lucro: {perto_win} |'.center(30)}
-{f'| Perda: {perto_loss} |'.center(30)}
+Saldo atual:   R$ {round(self.saldo_inicial + self.ganho_total, 2)}
+{f'✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌'.center(40)}
+Lucro: {perto_win}
+Perda: {perto_loss}
 	""", )).start()
 
 		def desconta_perda(resultado, lucro, gale = False):
@@ -751,15 +751,14 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 			return permitir
 
 		def recebe_velas(paridade, estrategia, timeframe):
-			self.mostrar_mensagem('Verificando cores...')
 			if timeframe == 1:
 				velas = velas_por_estrategia_m1(paridade, estrategia)
 			elif timeframe == 5:
 				velas = velas_por_estrategia_m5(paridade, estrategia)
 			else:
 				velas = velas_por_estrategia_m15(paridade, estrategia)
-			self.mostrar_mensagem(" ".join(
-				velas).replace("CALL", "🟢").replace("PUT", "🔴"))
+			self.mostrar_mensagem(" ".join(velas
+				).replace("CALL", "🟢").replace("PUT", "🔴"))
 			return velas
 
 		def pegar_catalogacao():
@@ -785,7 +784,6 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 			estrategia = estrategia.replace("M5: ", "")
 
 		self.mostrar_mensagem(f"Seguindo {estrategia} pela {tipo_milhao} em {paridade}")
-		self.mostrar_mensagem("Esperando uma oportunidade")
 		while not self.verificar_stop():            
 			if verifica_entrada(estrategia, timeframe):
 				velas = recebe_velas(paridade, estrategia, timeframe)
@@ -817,7 +815,8 @@ Saldo atual: R$ {round(self.saldo_inicial + self.ganho_total, 2)}
 							direcao = "put" if direcao == "call" else "call"
 
 				if direcao:
-					self.mostrar_mensagem(f'Direção: {direcao.upper()}')
+					self.mostrar_mensagem(f'Direção: {direcao.upper()}'.replace(
+						"CALL", "⬆️").replace("PUT", "⬇️"))
 					if self.verificar_tendencia(paridade, direcao, timeframe):
 						continue
 
