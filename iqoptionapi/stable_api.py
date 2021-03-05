@@ -1601,8 +1601,10 @@ class IQ_Option:
 
         self.api.subscribe_digital_price_splitter(instrument_index, asset_id)
 
+        timing = time.time()
         while self.api.digital_payout is None:
-            pass
+            if time.time() - timing > 30:
+                return 0.8
 
         self.api.unsubscribe_digital_price_splitter(instrument_index, asset_id)
 

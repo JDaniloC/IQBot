@@ -185,7 +185,7 @@ class Assistente(amanobot.helper.ChatHandler):
             "Não se esqueça dos links importantes", reply_markup = teclado)
 
         self.enviar_mensagem(
-            f"Olá, eu sou seu assistente do {BOTNAME}.", 
+            f"❗️ BOT SOB MANUTENÇÃO DESCULPE O TRANSTORNO ❗️",
             delete = False, reply_markup = ReplyKeyboardMarkup(
                 keyboard = [[KeyboardButton(text = "Entrar")]]))
 
@@ -993,6 +993,9 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                         return True
                 elif value[2] == str and value[0] != "paridade":
                     try:
+                        novo = list(map(lambda x: list(
+                            map(float, x.strip().split(","))), 
+                        novo.strip().split("\n"))) 
                         if novo != "0" and not numerization(novo, float):
                             novo = json.loads(novo)
                         else:
@@ -1047,7 +1050,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
 
     def listar_usuarios(self):
         if os.name != "nt":
-            instancias = Control.mostrar_usuarios()
+            instancias = controlador.mostrar_usuarios()
             for instancia, usuarios in instancias.items():
                 self.enviar_mensagem(instancia, save = True)
                 for usuario in usuarios:
