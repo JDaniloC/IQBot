@@ -6,7 +6,6 @@ import time, re, amanobot
 config = RawConfigParser()
 config.read(".env")
 
-BOTNAME = config.get("TELEGRAM", "name")
 BOTTOKEN = config.get("TELEGRAM", "token")
 
 def pegar_comando_lista(texto):

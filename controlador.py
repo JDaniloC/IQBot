@@ -1,6 +1,7 @@
 from configparser import RawConfigParser
 from subprocess import check_output
 from os import system 
+import time
 
 config = RawConfigParser()
 config.read(".env")
@@ -66,6 +67,7 @@ class Control:
         self.instancias = []
         self.ao_vivo = []
         self.regiao = 0
+        self.creating = False
         self.criar_instancia()
 
     def procura_email(self, email):
@@ -94,6 +96,8 @@ class Control:
         '''
         alvo = self.procura_email(email)
         if alvo == None:
+            while self.creating:
+                time.sleep(1)
             if self.instancias[-1].is_full():
                 self.criar_instancia()
             alvo = self.instancias[-1]
@@ -112,6 +116,7 @@ class Control:
             self.regiao += 1
             print(f"Região alterada para {regions[self.regiao]}")
         
+        self.creating = True
         regiao = regions[self.regiao]
         name = "instancia" + str(len(self.instancias))
         system(f'yes "Y" | gcloud beta compute --project={project_name} instances create {name} --zone={regiao} --machine-type=e2-medium --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE --service-account={account_name} --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server,https-server --image=padrao --image-project={project_name} --boot-disk-size=10GB --boot-disk-type=pd-standard --boot-disk-device-name={name} --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any')
@@ -125,6 +130,7 @@ class Control:
                 return
         
         self.instancias.append(Instancia(name, regiao))
+        self.creating = False
 
     def iniciar_bot(self, instancia, email, senha, 
         identificador, operar_lista, ao_vivo):

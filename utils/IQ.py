@@ -162,7 +162,7 @@ class IQ_API:
     
     def ordem(self, paridade, direcao = "call", tempo = 1, 
         valor = 1, tipo = "binary", bloqueador = None, 
-        delay = False, scalper = False):
+        delay = False, scalper = False, trying = False):
         '''
         Faz uma ordem e devolve o resultado.
         Params:
@@ -176,6 +176,12 @@ class IQ_API:
         return:
             (resultado, lucro)
         '''
+        def verify_string(verifiers, string):
+            for node in verifiers:
+                if node in string:
+                    return True
+            return False
+
         direcao = direcao.lower()
         hora_atual = datetime.fromtimestamp(
             datetime.utcnow().timestamp() - 10800)
@@ -200,10 +206,18 @@ class IQ_API:
             
         if not status:
             if tipo == "digital":
-                identificador = identificador['message']
-            self.saida(str(identificador))
-            self.saida(
-    f"❌ {paridade}-{tipo} {direcao} fechada ou máximo de operações ❌")
+                identificador = str(identificador['message'])
+            else: identificador = str(identificador)
+            self.saida(identificador)
+            if verify_string(["active_suspended", "invalid"], 
+                identificador) and not trying:
+                if self.tipo != "auto": 
+                    self.tipo = ("binary" if 
+                        self.tipo == "digital" else "digital")
+                return self.ordem(paridade, direcao, tempo, valor, 
+                "binary" if tipo == "digital" else "digital", 
+                bloqueador, delay, scalper, True)
+            self.saida(f"❌ {paridade}-{tipo} {direcao.upper()} fechada ou máximo de operações ❌")
             return "error", 0
 
         self.saida(
@@ -235,15 +249,13 @@ f"{paridade}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
             resultado, lucro = self.API.check_win_v5(identificador, tipo, delay)
 
         self.saida(f"""
-{'-' * 30} 
-    Paridade: {paridade}|{tipo.capitalize()}
-    Direção: {direcao.upper()}
-    tempo: M{tempo}
+Paridade: {paridade}|{tipo.capitalize()}
+Direção:  {direcao.upper()}
+tempo:    M{tempo}
 
-    Hora: {hora_atual.strftime("%H:%M")}
-    Valor: R$ {valor}
-    {resultado.capitalize()}: R$ {round(lucro, 2)} 
-{'-' * 30} """)
+Hora: {hora_atual.strftime("%H:%M")}
+Valor: R$ {round(valor, 2)}
+{resultado.capitalize()}:  R$ {round(lucro, 2)}""")
 
         return resultado, round(lucro, 2)
 
