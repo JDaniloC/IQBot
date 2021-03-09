@@ -220,9 +220,9 @@ class Operacao(IQ_API):
 				self.fim_da_operacao = True
 				mensagem = "🔰 Placar Final 🔰"
 				if self.ganho_total >= self.stopwin:
-					mensagem += "🤑 Stop WIN batido! 🤑"
+					mensagem = "🤑 Stop WIN batido! 🤑"
 				elif -self.stoploss >= self.perda_total:
-					mensagem += "🥵 Stop LOSS batido! 🥵"
+					mensagem = "🥵 Stop LOSS batido! 🥵"
 				placar = f"✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌"
 				somatorio = sum(self.ganhos_perdas)
 				assertividade = self.ganhos_perdas[0] / somatorio * 100 if somatorio > 0 else 0
@@ -230,8 +230,8 @@ class Operacao(IQ_API):
 {placar.center(30, " ")}
 💲 Saldo: $ {round(self.ganho_total, 2)} | $ {self.stopwin}
 💰 Perca: $ {round(self.perda_total, 2)} | $ {-self.stoploss}
-✴️ Assertividade: {assertividade}%
-	⚠️ Bot parado ⚠️''')
+✴️ Assertividade: {round(assertividade, 2)}%
+		⚠️ Bot parado ⚠️''')
 				return True
 		return False
 
