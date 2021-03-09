@@ -459,7 +459,6 @@ Perda: {perto_loss}
 						self.cadeado, self.config['delay'])
 					if resultado not in ["error", "equal"]:
 						num_gales += 1
-						
 				if resultado == "win" and self.config['tipo_stop'] != "fixo":
 					self.perda_total += perda
 				if is_ciclos_gale:

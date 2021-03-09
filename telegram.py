@@ -44,7 +44,7 @@ def carregar_entradas(opcao):
     else:
         lista = opcao
     lista.sort(key = lambda x: x["timestamp"])
-    
+
     lista_entradas = []
     for linha in lista:
         if linha["tipo"] == "taxas": 
@@ -119,7 +119,6 @@ class Assistente(amanobot.helper.ChatHandler):
             "Tipo de lista": ["tipo_lista", False, tuple],
             "Lista escolhida": ["num_lista", False, tuple],
             "Valor de entrada": ["valor", False, float],
-
             "Tipo de gale": ["tipo_gale", False, tuple], 
             "Tipo de Stoploss": ["tipo_stop", False, tuple], 
             "Scalper Loss": ["scalper_loss", False, int],
