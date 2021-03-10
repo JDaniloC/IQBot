@@ -992,9 +992,9 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                         return True
                 elif value[2] == str and value[0] != "paridade":
                     try:
-                        novo = list(map(lambda x: list(
-                            map(float, x.strip().split(","))), 
-                        novo.strip().split("\n"))) 
+                        # novo = list(map(lambda x: list(
+                        #     map(float, x.strip().split(","))), 
+                        # novo.strip().split("\n"))) 
                         if novo != "0" and not numerization(novo, float):
                             novo = json.loads(novo)
                         else:
