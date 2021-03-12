@@ -78,7 +78,7 @@ class Operacao(IQ_API):
 				self.ciclos_gale = list(filter(empty, config["ciclos_gale"]))
 				if len(self.ciclos_gale) == 0 and config["tipo_gale"] == "ciclos":
 					self.mostrar_mensagem(
-						"Nenhum ciclo detectado, mudando para martingale")
+						"🌀 Nenhum ciclo detectado, mudando para martingale 🌀")
 					config["tipo_gale"] = "martingale"
 				self.ciclos_soros = list(filter(empty, config["ciclos_soros"]))
 				if len(self.ciclos_soros) == 0:
@@ -226,12 +226,13 @@ class Operacao(IQ_API):
 				placar = f"✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌"
 				somatorio = sum(self.ganhos_perdas)
 				assertividade = self.ganhos_perdas[0] / somatorio * 100 if somatorio > 0 else 0
-				self.mostrar_mensagem(f'''{mensagem.center(30, " ")}
-{placar.center(30, " ")}
-💲 Saldo: $ {round(self.ganho_total, 2)} | $ {self.stopwin}
-💰 Perca: $ {round(self.perda_total, 2)} | $ {-self.stoploss}
+				self.mostrar_mensagem(f'''
+{mensagem.center(35, " ")}
+{placar.center(35, " ")}
+💰 Saldo: $ {round(self.ganho_total, 2)} | $ {self.stopwin}
+💲 Perca: $ {round(self.perda_total, 2)} | $ {-self.stoploss}
 ✴️ Assertividade: {round(assertividade, 2)}%
-		⚠️ Bot parado ⚠️''')
+				⚠️ Bot parado ⚠️''')
 				return True
 		return False
 
@@ -275,19 +276,22 @@ class Operacao(IQ_API):
 		'''
 		num_gales = 0
 		def mostra_resultado():
+			perda_total = round(-self.perda_total, 2)
+			if perda_total < 0:
+				perda_total = 0
 			perto_win  = f"$ {round(self.ganho_total, 2)} | $ {self.stopwin}"
-			perto_loss = f"$ {round(-self.perda_total, 2)} | $ {self.stoploss}"
+			perto_loss = f"$ {perda_total} | $ {self.stoploss}"
 			threading.Thread(
 				target = self.mostrar_mensagem,
 				args = (f"""
 Saldo inicial: R$ {self.saldo_inicial}
 Saldo atual:  R$ {round(self.saldo_inicial + self.ganho_total, 2)}
-{f'✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌'.center(30)}
+{f'✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌'.center(35)}
 Lucro: {perto_win}
 Perda: {perto_loss}
 	""", )).start()
 
-		def desconta_perda(resultado, lucro, gale = False):
+		def desconta_perda(resultado, lucro, in_gale = ""):
 			with self.cadeado:
 				mensagem = "⚪️"
 				if resultado == "win":
@@ -298,20 +302,24 @@ Perda: {perto_loss}
 						self.perda_total += round(lucro, 2)
 				else:
 					if resultado == 'loose':
-						if not gale:
+						if not in_gale:
 							self.ganhos_perdas[1] += 1
-						mensagem = "❌"
+							mensagem = "❌"
+						else:
+							mensagem = "🟣"
 						lucro = abs(lucro) * -1
 					self.ganho_total -= round(abs(lucro), 2)
 					self.perda_total -= round(abs(lucro), 2)
-				
+
+				msg_lucro = f"💰 $ {round(valor, 2)} | $ {round(lucro, 2)} 💰".center(35, " ")
 				threading.Thread(target = self.mostrar_mensagem,
-					args = (f"""
-	{paridade.upper()} {ordem.upper()} M{tempo} 
-	Resultado: {mensagem}
-	Lucro: R$ {round(lucro, 2)}""", )).start()
+					args = (self.format_dir(f"""
+{mensagem} {paridade.upper()}|{tipo.capitalize()} M{tempo} {ordem.upper()}
+{msg_lucro}
+{in_gale}"""), )).start()
 		
-		is_ciclos_gale = self.config['tipo_gale'] == 'ciclos'
+		tipo_gale = self.config['tipo_gale']
+		is_ciclos_gale = tipo_gale == 'ciclos'
 
 		if valor == self.valor_inicial:
 			if is_ciclos_gale:
@@ -344,9 +352,11 @@ Perda: {perto_loss}
 		if resultado == None:
 			raise ConnectionAbortedError("Reinicie o bot.")
 		
+		texto_gale = ""
 		if resultado == "win" and (self.config['max_soros'] > 0 or 
-			(self.config["tipo_gale"] == "sorosgale" and 
-			self.perda_atual > 0) or self.config["tipo_soros"] == "ciclos"):
+			(tipo_gale == "sorosgale" and self.perda_atual > 0) 
+			or self.config["tipo_soros"] == "ciclos" 
+			or (self.gale_atual > 0 and tipo_gale == "martingale")):
 			if is_ciclos_gale:
 				self.config["ciclos"]['gales'] += 1
 			
@@ -357,18 +367,15 @@ Perda: {perto_loss}
 				if ciclo_atual < len(ciclos):
 					if soros_atual < len(ciclos[ciclo_atual]):
 						self.valor = ciclos[ciclo_atual][soros_atual]
-						self.mostrar_mensagem(
-							f"[SOROS] ciclo {ciclo_atual+1} R$ {valor} -> R$ {self.valor}")
+						texto_gale = f"🔸 Soros no {ciclo_atual+1}° ciclo $ {valor} -> $ {self.valor}"
 						soros_atual += 1
 					else:
-						self.mostrar_mensagem(
-							f"[SOROS] {ciclo_atual+1}° ciclo completo.")
+						texto_gale = f"🔸 Soros: {ciclo_atual+1}° ciclo completo."
 						self.config["ciclos"]["soros"] += 1
 						soros_atual = 1
 						self.valor = self.valor_inicial
 				else:
-					self.mostrar_mensagem(
-						"[SOROS] Voltando ao primeiro ciclo")
+					texto_gale = "🔸 Soros: Voltando ao primeiro ciclo"
 					self.config["ciclos"]["soros"] = 0
 					soros_atual = 1
 					self.valor = self.valor_inicial
@@ -384,20 +391,23 @@ Perda: {perto_loss}
 
 				if verificador:
 					novo = valor + lucro
-					self.mostrar_mensagem(
-						f"\n [SOROS] : R$ {round(valor, 2)} -> R$ {round(novo, 2)}")
+					texto_gale = f"🔸 Soros: $ {round(valor, 2)} para $ {round(novo, 2)}"
 					self.valor = novo
 					self.soros_atual += 1
 			elif fazendo_soros:
 				self.soros_atual = 0
-				self.mostrar_mensagem(
-					f" [SOROS] Preservando capital: R$ {round(valor, 2)} -> R$ {self.valor_inicial}")
+				texto_gale = f"🔸 Soros: $ {round(valor, 2)} para $ {self.valor_inicial}"
 				self.valor = self.valor_inicial
+			elif self.gale_atual > 0:
+				self.gale_atual = 0
+				self.perda_atual -= abs(valor)
+				self.valor = self.valor_inicial
+				if self.perda_atual < 0: self.perda_atual = 0
 		
 		if resultado == "loose": 
-			if (self.config['tipo_gale'] in "martingale" and 
-				self.config['vez_gale'] == "vela") or (
-				is_ciclos_gale):
+			if (is_ciclos_gale or 
+				(tipo_gale in "martingale" and 
+				self.config['vez_gale'] == "vela")):
 				perda, num_gales, ciclo_atual = 0, 0, 0
 				if is_ciclos_gale:
 					num_gales += 1
@@ -415,11 +425,14 @@ Perda: {perto_loss}
 					if resultado not in ["error", "equal"]:
 						if resultado == "loose":
 							lucro = abs(lucro) * -1
-						desconta_perda(resultado, lucro, True)
+						
+						label_gale = num_gales if is_ciclos_gale else num_gales + 1
+						desconta_perda(resultado, lucro, 
+							f"🔸 {label_gale}° Martingale: {self.config['tipo_martin'].capitalize()} 🔸")
 						mostra_resultado()
 						perda += abs(lucro)
 						lucro = valor * payout
-						if self.config['tipo_gale'] == 'ciclos':
+						if tipo_gale == 'ciclos':
 							valor = self.ciclos_gale[ciclo_atual][num_gales]
 						else:
 							valor = self.martingale(
@@ -432,14 +445,8 @@ Perda: {perto_loss}
 
 					if self.perda_total <= -(self.stoploss):
 						self.ganhos_perdas[1] += 1
-						self.mostrar_mensagem(
-							f"🥵 Stop Loss 🥵\n\
-							{f'R$ {round(self.perda_total, 2)}!'.center(30, ' ')}\n\
-							⚠️ Bot parado ⚠️")
+						self.mostrar_mensagem(f"🥵 Stop Loss 🥵\nR$ {round(self.perda_total, 2)}\n\⚠️ Bot parado ⚠️")
 						sys.exit(0)
-
-					label_gale = num_gales if is_ciclos_gale else num_gales + 1
-					self.mostrar_mensagem(f"\n [{label_gale}° MARTINGALE] {self.config['tipo_martin']} na {paridade}|{ordem.upper()}")
 						
 					lucro = valor * payout
 					if is_ciclos_gale:
@@ -463,17 +470,15 @@ Perda: {perto_loss}
 					self.perda_total += perda
 				if is_ciclos_gale:
 					if ciclo_atual == len(self.ciclos_gale) - 1:
-						self.mostrar_mensagem(
-							"[GALE] Voltando ao primeiro ciclo")
+						texto_gale = "🔸 Voltando ao primeiro ciclo"
 						self.config["ciclos"]['gales'] = 0
 					else:
 						self.config['ciclos']['gales'] += 1
-						self.mostrar_mensagem(
-							f"[GALE] Avançando para o {ciclo_atual+2}° ciclo")
+						texto_gale = f"🔸 Avançando para o {ciclo_atual+2}° ciclo"
 				
-			elif self.config['tipo_gale'] == "martingale":
+			elif tipo_gale == "martingale":
 				if self.gale_atual < self.max_gale:
-					self.mostrar_mensagem(f"\n [{self.gale_atual + 1}° MARTINGALE] {self.config['tipo_martin']} on {paridade}|{ordem.upper()}")
+					texto_gale = f"🔸 {self.gale_atual + 1}° Martingale: {self.config['tipo_martin']} para o próximo sinal"
 					self.perda_atual += abs(valor)
 					self.gale_atual += 1
 					lucro = valor * payout
@@ -485,13 +490,12 @@ Perda: {perto_loss}
 					self.valor = self.valor_inicial
 					self.gale_atual = 0
 
-			elif self.config['tipo_gale'] == 'sorosgale':
-				mensagem = f"\n [SOROSGALE] na operação {paridade}|{ordem} {valor} -> "
+			elif tipo_gale == 'sorosgale':
 				self.perda_atual += abs(valor)
 				self.soros_atual = 0
 				self.valor = self.perda_atual / 2
 				self.valor = 2 if self.valor < 2 else self.valor
-				self.mostrar_mensagem(mensagem + str(self.valor))
+				texto_gale = f"🔸 Sorosgale: {valor} para {self.valor}"
 
 			elif is_ciclos_gale:
 				ciclo_atual = self.config["ciclos"]['gales']
@@ -500,14 +504,12 @@ Perda: {perto_loss}
 						self.valor = self.ciclos_gale[ciclo_atual][self.gale_atual]
 						self.gale_atual += 1
 					else:
-						self.mostrar_mensagem(
-							f"[GALE] {ciclo_atual}° ciclo completo.")
+						texto_gale = f"🔸 Gale {ciclo_atual}° completo."
 						self.config["ciclos"]["gales"] += 1
 						self.gale_atual = 1
 						self.valor = self.valor_inicial
 				else:
-					self.mostrar_mensagem(
-						"[GALE] Voltando ao primeiro ciclo")
+					texto_gale = f"🔸 Gale: Voltando ao primeiro ciclo"
 					self.config["ciclos"]["gales"] = 0
 					self.gale_atual = 1
 					self.valor = self.valor_inicial
@@ -518,13 +520,12 @@ Perda: {perto_loss}
                 and self.soros_atual > 0 and 
                 resultado == "loose"):
 				self.soros_atual = 0
-				self.mostrar_mensagem(
-					f" [SOROS] Preservando capital: R$ {round(valor, 2)} -> R$ {self.valor_inicial}")
 				self.valor = self.valor_inicial
+				self.mostrar_mensagem(f"🔸 Soros: R$ {round(valor, 2)} para R$ {self.valor_inicial}")
 
 		if resultado != "error":
 			if resultado != "equal": 
-				desconta_perda(resultado, lucro)      
+				desconta_perda(resultado, lucro, texto_gale)      
 			time.sleep(3)          
 			mostra_resultado()
 		return resultado
@@ -545,11 +546,7 @@ Perda: {perto_loss}
 			return str(number) if len(str(number)) != 1 else "0" + str(number)
 
 		self.espera = []
-		if self.verboso:
-			mensagem = self.telegram.sendMessage(self.verboso, "Conectado com sucesso.")
-			self.message_id = mensagem['message_id']
-		
-		# Taxas
+
 		par_taxa = {}  
 		for comando in self.comandos:
 			if comando["tipo"] == "taxas":
@@ -864,8 +861,8 @@ Perda: {perto_loss}
 							direcao = "put" if direcao == "call" else "call"
 
 				if direcao:
-					self.mostrar_mensagem(f'Direção: {direcao.upper()}'.replace(
-						"CALL", "⬆️").replace("PUT", "⬇️"))
+					self.mostrar_mensagem(self.format_dir(
+						f'Direção: {direcao.upper()}'))
 					if self.verificar_tendencia(paridade, direcao, timeframe):
 						continue
 
