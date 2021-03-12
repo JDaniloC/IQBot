@@ -220,8 +220,7 @@ class IQ_API:
             self.saida(f"❌ {paridade}-{tipo} {direcao.upper()} fechada ou máximo de operações ❌")
             return "error", 0
 
-        self.saida(self.format_dir(
-            f" 🔸 {paridade}|{tipo.capitalize()} M{tempo} $ {round(valor, 2)} {direcao.upper()}"))
+        self.saida(self.format_dir(f" 🔸 {paridade} | {tipo.capitalize()} | M{tempo} | $ {round(valor, 2)} | {direcao.upper()}"))
 
         lucro = 0
         if delay == False:

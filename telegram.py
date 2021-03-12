@@ -176,7 +176,7 @@ class Assistente(amanobot.helper.ChatHandler):
             ),
             InlineKeyboardButton(
                 text = MongoDB.infos["campo2"]["titulo"],
-                url = MongoDB.infos["campo1"]["link"]
+                url = MongoDB.infos["campo2"]["link"]
             )]
         ])
         
@@ -253,7 +253,7 @@ class Assistente(amanobot.helper.ChatHandler):
                 MongoDB.adicionar_cadastro(email)
                 self.enviar_mensagem(
                     f"Seu e-mail foi colocado para analise. \
-                    Espere a confirmação do administrador e mande seu e-mail novamente para logar.",
+                    \nEspere a confirmação do administrador e mande seu e-mail novamente para logar.",
                     save = True)
             else:
                 self.enviar_mensagem("Não é um e-mail válido!", save = True)

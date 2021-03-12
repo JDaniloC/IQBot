@@ -110,10 +110,10 @@ class Operacao(IQ_API):
 				self.mostrar_mensagem(f"""
 📝Revise as suas configurações:
 👤 Conta: {config['tipo_conta'].upper()}
-💰 Banca: {self.saldo_inicial}
-💵 Valor da Entrada: {self.valor_inicial}
-❇️ Stop Gain: {self.stopwin}
-🚫 Stop Loss: {self.stoploss}
+💰 Banca: $ {self.saldo_inicial}
+💵 Valor da Entrada: $ {self.valor_inicial}
+❇️ Stop Gain: $ {self.stopwin}
+🚫 Stop Loss: $ {self.stoploss}
 				""")
 
 				if operacao_lista: 
@@ -216,16 +216,14 @@ class Operacao(IQ_API):
 		print(f"Payout de {paridade}: {tipo} {payout * 100}%")
 		return tipo, payout
 
-	def verificar_stop(self, placar_final = False):
+	def verificar_stop(self):
 		'''
 		Verifica se bateu no stopwin/loss
 		Devolve um booleano
 		'''
-		if self.fim_da_operacao:
-			placar_final = False
 		with self.cadeado:
 			if (-self.stoploss >= self.perda_total or 
-				self.ganho_total >= self.stopwin) or placar_final:
+				self.ganho_total >= self.stopwin) and not self.fim_da_operacao:
 				self.fim_da_operacao = True
 				mensagem = "🔰 Placar Final 🔰"
 				if self.ganho_total >= self.stopwin:
@@ -236,12 +234,12 @@ class Operacao(IQ_API):
 				somatorio = sum(self.ganhos_perdas)
 				assertividade = self.ganhos_perdas[0] / somatorio * 100 if somatorio > 0 else 0
 				self.mostrar_mensagem(f'''
-{mensagem.center(35, " ")}
-{placar.center(35, " ")}
+{mensagem}
+{placar.center(32, " ")}
 💰 Saldo: $ {round(self.ganho_total, 2)} | $ {self.stopwin}
 💲 Perca: $ {round(self.perda_total, 2)} | $ {-self.stoploss}
 ✴️ Assertividade: {round(assertividade, 2)}%
-				⚠️ Bot parado ⚠️''')
+					⚠️ Bot parado ⚠️''')
 				return True
 		return False
 
@@ -289,6 +287,9 @@ class Operacao(IQ_API):
 			if perda_total < 0:
 				perda_total = 0
 			perto_loss = f"🔻 Stop Móvel: $ {perda_total} | $ {self.stoploss}"
+			somatorio = sum(self.ganhos_perdas)
+			assertividade = (self.ganhos_perdas[0] / somatorio * 100 
+				if somatorio > 0 else 0)
 			threading.Thread(
 				target = self.mostrar_mensagem,
 				args = (f"""
@@ -296,7 +297,8 @@ class Operacao(IQ_API):
 ✅ Vitórias: {self.ganhos_perdas[0]}
 ❌ Derrotas: {self.ganhos_perdas[1]}
 💰 Lucro: {round(self.ganho_total, 2)}
-{perto_loss if self.config['tipo_stop'] != 'fixo' else ''}""", )).start()
+{perto_loss if self.config['tipo_stop'] != 'fixo' else ''}
+✴️ Assertividade: {round(assertividade, 2)}%""", )).start()
 
 		def desconta_perda(resultado, lucro, in_gale = "", entrada = None):
 			with self.cadeado:
@@ -310,11 +312,11 @@ class Operacao(IQ_API):
 						self.perda_total += round(lucro, 2)
 				else:
 					if resultado == 'loose':
-						if not in_gale:
+						if "♦️" in in_gale:
 							self.ganhos_perdas[1] += 1
 							mensagem = "❌"
 						else:
-							mensagem = "🟣"
+							mensagem = num_gales * "🐔"
 						lucro = abs(lucro) * -1
 					self.ganho_total -= round(abs(lucro), 2)
 					self.perda_total -= round(abs(lucro), 2)
@@ -342,7 +344,7 @@ class Operacao(IQ_API):
 				valor = self.ciclos_soros[ciclo_atual][0]
 			if valor != self.valor_inicial:
 				self.mostrar_mensagem(
-					f"{ciclo_atual + 1}° Ciclo: R$ {valor}")
+					f"🔸 Operando no {ciclo_atual + 1}° Ciclo: R$ {round(valor, 2)}")
 
 		resultado, lucro = None, 0
 		fazendo_soros = self.soros_atual > 0
@@ -407,6 +409,7 @@ class Operacao(IQ_API):
 				texto_gale = f"🔸 Soros: $ {round(valor, 2)} para $ {self.valor_inicial}"
 				self.valor = self.valor_inicial
 			elif self.gale_atual > 0:
+				num_gales = self.gale_atual
 				self.gale_atual = 0
 				self.perda_atual -= abs(valor)
 				self.valor = self.valor_inicial
@@ -453,7 +456,7 @@ class Operacao(IQ_API):
 
 					if self.perda_total <= -(self.stoploss):
 						self.ganhos_perdas[1] += 1
-						self.mostrar_mensagem(f"🥵 Stop Loss 🥵\nR$ {round(self.perda_total, 2)}\n\⚠️ Bot parado ⚠️")
+						self.mostrar_mensagem(f"🥵 Stop Loss 🥵\n💲 Perca: R$ {round(self.perda_total, 2)}\n⚠️ Bot parado ⚠️")
 						sys.exit(0)
 						
 					lucro = valor * payout
@@ -472,7 +475,7 @@ class Operacao(IQ_API):
 					resultado, lucro = self.ordem(
 						paridade, ordem, tempo, valor, tipo,
 						self.cadeado, self.config['delay'])
-					if resultado not in ["error", "equal"]:
+					if resultado == "loose":
 						num_gales += 1
 				if resultado == "win" and self.config['tipo_stop'] != "fixo":
 					self.perda_total += perda
@@ -481,10 +484,12 @@ class Operacao(IQ_API):
 					if (resultado == "win" or
 						ciclo_atual == len(self.ciclos_gale) - 1):
 						texto_gale = "🔸 Voltando ao primeiro ciclo"
+						if resultado != "win":
+							texto_gale[0] = "♦️"
 						self.config["ciclos"]['gales'] = 0
 					elif resultado == "loose":
 						self.config['ciclos']['gales'] += 1
-						texto_gale = f"🔸 Avançando para o {ciclo_atual+2}° ciclo"
+						texto_gale = f"♦️ Avançando para o {ciclo_atual+2}° ciclo"
 				
 			elif tipo_gale == "martingale":
 				if self.gale_atual < self.max_gale:
@@ -519,7 +524,7 @@ class Operacao(IQ_API):
 						self.gale_atual = 1
 						self.valor = self.valor_inicial
 				else:
-					texto_gale = f"🔸 Gale: Voltando ao primeiro ciclo"
+					texto_gale = f"♦️ Gale: Voltando ao primeiro ciclo"
 					self.config["ciclos"]["gales"] = 0
 					self.gale_atual = 1
 					self.valor = self.valor_inicial
@@ -533,7 +538,8 @@ class Operacao(IQ_API):
 				self.config["ciclos"]["soros"] = 0
 				if self.config["tipo_soros"] == "ciclos":
 					self.valor = self.ciclos_soros[0][0]
-				self.mostrar_mensagem(f"🔸 Soros: R$ {round(valor, 2)} para R$ {self.valor}")
+				self.mostrar_mensagem(
+					f"🔸 Soros: R$ {round(valor, 2)} para R$ {self.valor}")
 			
 		if resultado != "error":
 			if resultado != "equal": 
@@ -630,7 +636,7 @@ class Operacao(IQ_API):
 			thread.join()
 
 		time.sleep(1)
-		self.verificar_stop(True)
+		self.verificar_stop()
 
 	def esperar_taxa(self, par, taxas):
 		'''
@@ -913,4 +919,4 @@ class Operacao(IQ_API):
 				elif self.config["auto"]:
 					paridade, estrategia, tipo_milhao = pegar_catalogacao()
 			self.esperar_proximo_minuto()
-		self.verificar_stop(True)
+		self.verificar_stop()
