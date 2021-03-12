@@ -54,8 +54,12 @@ class Mongo:
             user['email'] = email
             if plano == "teste":
                 user['timestamp'] = time.time() + 43200
-            else:
+            elif plano == "mensal":
                 user['timestamp'] = time.time() + 2592000
+            elif plano == "trimestral":
+                user['timestamp'] = time.time() + 7776000
+            else:
+                user['timestamp'] = time.time() + 31104000
             user['plano'] = plano
             user["_id"] = time.time()
             self.Users_collection.insert_one(user)
@@ -66,8 +70,12 @@ class Mongo:
         '''
         if plano == "teste":
             data = time.time() + 43200
-        else:
+        elif plano == "mensal":
             data = time.time() + 2592000
+        elif plano == "trimestral":
+            data = time.time() + 7776000
+        else:
+            data = time.time() + 31104000
         self.Users_collection.find_one_and_update(
             {'email':email}, {'$set': {
                 'timestamp': data,
@@ -207,4 +215,5 @@ MongoDB = Mongo(
     ADMS, entrada1, entrada2, entrada3, infos
 )
 
+MongoDB.modificar_banco_users("off")
 MongoDB.modificar_banco_users("clear")

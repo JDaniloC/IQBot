@@ -1,15 +1,29 @@
 # IQBot
-Script that simplify the IQ Option API to braziliams
-
-## Download
-Click the "download" button.
+A IQ Option bot for telegram using Gcloud and MongoDB service
 
 ## Getting started
-Install Python 3.7 or higher
+Install Python 3.8 or higher
 
-Make sure the websocket is installed:
+Make sure the requirements are installed:
 ``` python
-pip install websocket-client==0.5.6
+pip install -r requirements.txt
+```
+
+To run the telegram app:
+``` bash
+python telegram.py
+```
+Make sure that have a .env file where:
+``` env
+[CLOUD]
+project = gcloud-project-name
+account = gcloud@account.gserviceaccount.com
+
+[DATABASE]
+autentication = mongodb+srv://mongoauth
+
+[TELEGRAM]
+token = 123456789:TELEGRAMTOKEN
 ```
 
 Open the terminal and run:

@@ -3,16 +3,14 @@ from datetime import datetime, timedelta
 import time, numpy, requests, json
 
 class IQ_API:
-    def __init__(self, login, senha, output):
+    def __init__(self, login, senha, output = None):
         '''
         Recebe o login, e tenta se conectar
         '''
+        if output == None:
+            output = print
         self.saida = output
         self.API = IQ_Option(login, senha)
-        if output != None:
-            self.output = output
-        else:
-            output = print
         if not self.conectar():
             raise ConnectionError(" ❌ Não conseguiu se conectar, reveja a senha ❌ ")
 
@@ -58,6 +56,7 @@ class IQ_API:
         Devolve o payout de uma paridade digital
         '''
         try:
+            print("Pegando payout digital")
             return self.API.get_digital_payout(paridade) / 100
         except:
             return False
@@ -67,6 +66,7 @@ class IQ_API:
         Devolve o payout de uma paridade binária
         caso não tem esse par, então devolve False
         '''
+        print("Pegando payout binária")
         payouts = self.API.get_all_profit()
         valor = payouts.get(par)
         if valor == None:
@@ -220,8 +220,8 @@ class IQ_API:
             self.saida(f"❌ {paridade}-{tipo} {direcao.upper()} fechada ou máximo de operações ❌")
             return "error", 0
 
-        self.saida(
-f"{paridade}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
+        self.saida(self.format_dir(
+            f" 🔸 {paridade}|{tipo.capitalize()} M{tempo} $ {round(valor, 2)} {direcao.upper()}"))
 
         lucro = 0
         if delay == False:
@@ -248,7 +248,7 @@ f"{paridade}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
             # Versão que pega na hora
             resultado, lucro = self.API.check_win_v5(identificador, tipo, delay)
 
-        self.saida(f"""
+        print(f"""
 Paridade: {paridade}|{tipo.capitalize()}
 Direção:  {direcao.upper()}
 tempo:    M{tempo}
@@ -322,6 +322,9 @@ Valor: R$ {round(valor, 2)}
             par, timeframe, quantidade, fim)
         ]
     
+    def format_dir(self, text):
+        return text.replace("CALL", "⬆️").replace("PUT", "⬇️")
+
     @staticmethod
     def catalogar(timeframe, gale):
         def traduzir(estrategia):
@@ -343,7 +346,7 @@ Valor: R$ {round(valor, 2)}
         try:
             resultado = json.loads(data.text)['Todos']
             for estrategia in resultado:
-                return estrategia[1].upper(), traduzir(estrategia[2])
+                return estrategia[0], estrategia[1].upper(), traduzir(estrategia[2])
         except: return "EURUSD", ("MHI", False)
 
     @staticmethod
@@ -372,7 +375,7 @@ Valor: R$ {round(valor, 2)}
                 alvo = alvo.fromtimestamp(
                     alvo.timestamp() + tolerancia
                 )
-                output(f"\n ⏳ Esperando para fazer a operação das {alvo.strftime('%d/%m/%Y %H:%M:%S')} ⏳")
+                output(f"\n ⏳ Próxima operação às {alvo.strftime('%d/%m/%Y %H:%M:%S')} ⏳")
             time.sleep(segundos)
             return True
         if segundos > (-10 - tolerancia):

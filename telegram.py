@@ -184,7 +184,7 @@ class Assistente(amanobot.helper.ChatHandler):
             "Não se esqueça dos links importantes", reply_markup = teclado)
 
         self.enviar_mensagem(
-            f"❗️ BOT SOB MANUTENÇÃO DESCULPE O TRANSTORNO ❗️",
+           f"Olá, eu sou seu assistente do {BOTNAME}.",
             delete = False, reply_markup = ReplyKeyboardMarkup(
                 keyboard = [[KeyboardButton(text = "Entrar")]]))
 
@@ -249,10 +249,14 @@ class Assistente(amanobot.helper.ChatHandler):
             self.close()
         else:
             # Caso o usuário não estiver na lista de espera ele adiciona
-            MongoDB.adicionar_cadastro(email)
-            self.enviar_mensagem(
-                f"Seu e-mail foi colocado para analise. Espere a confirmação do administrador e mande seu e-mail novamente para logar.",
-                save = True)
+            if len(email) > 10 and "@" in email and "." in email:
+                MongoDB.adicionar_cadastro(email)
+                self.enviar_mensagem(
+                    f"Seu e-mail foi colocado para analise. \
+                    Espere a confirmação do administrador e mande seu e-mail novamente para logar.",
+                    save = True)
+            else:
+                self.enviar_mensagem("Não é um e-mail válido!", save = True)
             self.close()
 
     def gerenciar(self):
@@ -837,6 +841,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         elif msg['text'] in [
             "Aprovar usuários", "Renovar licença", 
             "Tirar de cadastro", "Remover usuários"]:
+            self.enviar_mensagem("Carregando banco de dados...")
             # Captura todos os usuários
             if msg['text'] in ["Aprovar usuários", "Tirar de cadastro"]:
                 users = MongoDB.Users_em_aprovacao.find()
@@ -928,7 +933,9 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.enviar_mensagem("Escolha o tipo de plano",
                 reply_markup = ReplyKeyboardMarkup(keyboard = [
                     [KeyboardButton( text = "teste" ),
-                    KeyboardButton( text = "mensal" )]]))
+                    KeyboardButton( text = "mensal" )],
+                    [KeyboardButton( text = "trimestral" ),
+                    KeyboardButton( text = "anual" )]]))
             self.alteracoes_avancadas['plano'] = msg
             return None
         elif self.alteracoes_avancadas['aprovar']:
@@ -992,9 +999,9 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                         return True
                 elif value[2] == str and value[0] != "paridade":
                     try:
-                        novo = list(map(lambda x: list(
-                            map(float, x.strip().split(","))), 
-                        novo.strip().split("\n"))) 
+                        # novo = list(map(lambda x: list(
+                        #     map(float, x.strip().split(","))), 
+                        # novo.strip().split("\n"))) 
                         if novo != "0" and not numerization(novo, float):
                             novo = json.loads(novo)
                         else:
