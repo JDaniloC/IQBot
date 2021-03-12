@@ -312,7 +312,7 @@ class Operacao(IQ_API):
 						self.perda_total += round(lucro, 2)
 				else:
 					if resultado == 'loose':
-						if "♦️" in in_gale:
+						if "♦️" in in_gale or in_gale == "":
 							self.ganhos_perdas[1] += 1
 							mensagem = "❌"
 						else:
@@ -477,10 +477,11 @@ class Operacao(IQ_API):
 						self.cadeado, self.config['delay'])
 					if resultado == "loose":
 						num_gales += 1
-				if resultado == "win" and self.config['tipo_stop'] != "fixo":
+				if (resultado == "win" and 
+					self.config['tipo_stop'] != "fixo"):
 					self.perda_total += perda
+				
 				if is_ciclos_gale:
-					
 					if (resultado == "win" or
 						ciclo_atual == len(self.ciclos_gale) - 1):
 						texto_gale = "🔸 Voltando ao primeiro ciclo"
