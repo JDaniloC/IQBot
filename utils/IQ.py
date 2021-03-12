@@ -346,7 +346,7 @@ Valor: R$ {round(valor, 2)}
         try:
             resultado = json.loads(data.text)['Todos']
             for estrategia in resultado:
-                return estrategia[1].upper(), traduzir(estrategia[2])
+                return estrategia[0], estrategia[1].upper(), traduzir(estrategia[2])
         except: return "EURUSD", ("MHI", False)
 
     @staticmethod

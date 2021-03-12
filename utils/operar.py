@@ -107,6 +107,15 @@ class Operacao(IQ_API):
 				if self.ativar_noticias:
 					self.atualizar_noticias()
 
+				self.mostrar_mensagem(f"""
+📝Revise as suas configurações:
+👤 Conta: {config['tipo_conta'].upper()}
+💰 Banca: {self.saldo_inicial}
+💵 Valor da Entrada: {self.valor_inicial}
+❇️ Stop Gain: {self.stopwin}
+🚫 Stop Loss: {self.stoploss}
+				""")
+
 				if operacao_lista: 
 					self.operar_lista()
 				else: self.operar_estrategia()
@@ -279,20 +288,19 @@ class Operacao(IQ_API):
 			perda_total = round(-self.perda_total, 2)
 			if perda_total < 0:
 				perda_total = 0
-			perto_win  = f"$ {round(self.ganho_total, 2)} | $ {self.stopwin}"
-			perto_loss = f"$ {perda_total} | $ {self.stoploss}"
+			perto_loss = f"🔻 Stop Móvel: $ {perda_total} | $ {self.stoploss}"
 			threading.Thread(
 				target = self.mostrar_mensagem,
 				args = (f"""
-Saldo inicial: R$ {self.saldo_inicial}
-Saldo atual:  R$ {round(self.saldo_inicial + self.ganho_total, 2)}
-{f'✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌'.center(35)}
-Lucro: {perto_win}
-Perda: {perto_loss}
-	""", )).start()
+💎 Saldo atual:  R$ {round(self.saldo_inicial + self.ganho_total, 2)}
+✅ Vitórias: {self.ganhos_perdas[0]}
+❌ Derrotas: {self.ganhos_perdas[1]}
+💰 Lucro: {round(self.ganho_total, 2)}
+{perto_loss if self.config['tipo_stop'] != 'fixo' else ''}""", )).start()
 
-		def desconta_perda(resultado, lucro, in_gale = ""):
+		def desconta_perda(resultado, lucro, in_gale = "", entrada = None):
 			with self.cadeado:
+				if entrada == None: entrada = valor
 				mensagem = "⚪️"
 				if resultado == "win":
 					self.ganho_total += round(lucro, 2)
@@ -311,11 +319,11 @@ Perda: {perto_loss}
 					self.ganho_total -= round(abs(lucro), 2)
 					self.perda_total -= round(abs(lucro), 2)
 
-				msg_lucro = f"💰 $ {round(valor, 2)} | $ {round(lucro, 2)} 💰".center(35, " ")
 				threading.Thread(target = self.mostrar_mensagem,
 					args = (self.format_dir(f"""
-{mensagem} {paridade.upper()}|{tipo.capitalize()} M{tempo} {ordem.upper()}
-{msg_lucro}
+{paridade.upper()}|{tipo.capitalize()} M{tempo} {ordem.upper()}
+💠Valor: $ {round(entrada, 2)} 
+💰Resultado: $ {round(lucro, 2)} {mensagem}   
 {in_gale}"""), )).start()
 		
 		tipo_gale = self.config['tipo_gale']
@@ -358,7 +366,7 @@ Perda: {perto_loss}
 			or self.config["tipo_soros"] == "ciclos" 
 			or (self.gale_atual > 0 and tipo_gale == "martingale")):
 			if is_ciclos_gale:
-				self.config["ciclos"]['gales'] += 1
+				self.config["ciclos"]['gales'] = 0
 			
 			if self.config["tipo_soros"] == "ciclos":
 				ciclo_atual = self.config["ciclos"]["soros"]
@@ -428,7 +436,7 @@ Perda: {perto_loss}
 						
 						label_gale = num_gales if is_ciclos_gale else num_gales + 1
 						desconta_perda(resultado, lucro, 
-							f"🔸 {label_gale}° Martingale: {self.config['tipo_martin'].capitalize()} 🔸")
+							f"🔸 Iniciando {label_gale}° Martingale: {self.config['tipo_martin'].capitalize()} 🔸", valor)
 						mostra_resultado()
 						perda += abs(lucro)
 						lucro = valor * payout
@@ -469,10 +477,12 @@ Perda: {perto_loss}
 				if resultado == "win" and self.config['tipo_stop'] != "fixo":
 					self.perda_total += perda
 				if is_ciclos_gale:
-					if ciclo_atual == len(self.ciclos_gale) - 1:
+					
+					if (resultado == "win" or
+						ciclo_atual == len(self.ciclos_gale) - 1):
 						texto_gale = "🔸 Voltando ao primeiro ciclo"
 						self.config["ciclos"]['gales'] = 0
-					else:
+					elif resultado == "loose":
 						self.config['ciclos']['gales'] += 1
 						texto_gale = f"🔸 Avançando para o {ciclo_atual+2}° ciclo"
 				
@@ -514,18 +524,24 @@ Perda: {perto_loss}
 					self.gale_atual = 1
 					self.valor = self.valor_inicial
 
-			if (((self.config['max_soros'] > 0 and 
-                fazendo_soros) or 
+			if (((self.config['max_soros'] > 0 and fazendo_soros) or 
                 self.config["tipo_soros"] == "ciclos") 
                 and self.soros_atual > 0 and 
                 resultado == "loose"):
 				self.soros_atual = 0
 				self.valor = self.valor_inicial
-				self.mostrar_mensagem(f"🔸 Soros: R$ {round(valor, 2)} para R$ {self.valor_inicial}")
-
+				self.config["ciclos"]["soros"] = 0
+				if self.config["tipo_soros"] == "ciclos":
+					self.valor = self.ciclos_soros[0][0]
+				self.mostrar_mensagem(f"🔸 Soros: R$ {round(valor, 2)} para R$ {self.valor}")
+			
 		if resultado != "error":
 			if resultado != "equal": 
 				desconta_perda(resultado, lucro, texto_gale)      
+			else:
+				self.mostrar_mensagem(self.format_dir(f"""
+⚪️ {paridade.upper()}|{tipo.capitalize()} M{tempo} {ordem.upper()}
+	💰 $ {round(valor, 2)} | $ 0,00 💰"""))
 			time.sleep(3)          
 			mostra_resultado()
 		return resultado
@@ -807,11 +823,14 @@ Perda: {perto_loss}
 			return velas
 
 		def pegar_catalogacao():
-			paridade, estramilhao = self.catalogar(
+			porcentagem, paridade, estramilhao = self.catalogar(
 				self.config["autotime"], 
 				self.config["autogale"])
 			estrategia, tipo_milhao = estramilhao
-			self.mostrar_mensagem(f"Seguindo {estrategia} pela {tipo_milhao} em {paridade}")
+			payout = 100 * self.recebe_payout(paridade, self.config["autotime"])[1]
+			self.mostrar_mensagem(f"""
+🔹 Estratégia: {estrategia} pela {tipo_milhao.capitalize()} | Paridade: {paridade} ♦️
+🎯 Assertividade: {porcentagem}% | Payout: {payout}% ❇️""")
 			return paridade, estrategia, tipo_milhao
 
 		if self.config["auto"]:
@@ -828,14 +847,18 @@ Perda: {perto_loss}
 			"Half hour", "Primeiros trocados", "Hora do equilibrio"
 			] else 1
 			estrategia = estrategia.replace("M5: ", "")
-			self.mostrar_mensagem(f"Seguindo {estrategia} pela {tipo_milhao} em {paridade}")
+			payout = 100 * self.recebe_payout(paridade, self.config["autotime"])[1]
+			self.mostrar_mensagem(f"""
+🔹 Estratégia: {estrategia} pela {tipo_milhao.capitalize()} | Paridade: {paridade} ♦️
+❇️ Payout: {payout}%""")
 
 		while not self.verificar_stop():            
 			if verifica_entrada(estrategia, timeframe):
 				velas = recebe_velas(paridade, estrategia, timeframe)
 
 				direcao = False
-				if velas.count("DOJI") == 0 and not (estrategia == "Milhão" and timeframe == 5):
+				if velas.count("DOJI") == 0 and not (
+					estrategia == "Milhão" and timeframe == 5):
 					if estrategia in ["MSF", "Power",
 						"Super 5", "Super 3", "Last of five",
 						"Milhão", "MHI", "MHI2", "MHI3",
@@ -853,12 +876,15 @@ Perda: {perto_loss}
 					else:
 						if estrategia != "HOPE" or velas[0] == velas[1]:
 							direcao = velas[0].lower()
-				elif velas.count("DOJI") > 2 and estrategia == "Milhão" and timeframe == 5:
+				elif (velas.count("DOJI") > 2 and 
+					estrategia == "Milhão" and timeframe == 5):
 					if velas.count("CALL") != velas.count("PUT"):
 						direcao = velas.count('CALL') > velas.count('PUT')
 						direcao = "call" if direcao else "put"
 						if tipo_milhao == "Minoria": 
 							direcao = "put" if direcao == "call" else "call"
+				else:
+					self.mostrar_mensagem("⏰ A entrada foi cancelada: DOJI")
 
 				if direcao:
 					self.mostrar_mensagem(self.format_dir(
