@@ -13,11 +13,12 @@ from amanobot.delegate import (
 from bot import pegar_comando, escreve_erros
 from utils.catalogador import Catalogador
 from controlador import Control
-from database import *
+from database import Mongo
 
 
 config = RawConfigParser()
 config.read(".env")
+MongoDB = Mongo()
 
 TOKEN = config.get("TELEGRAM", "token")
 BOTNAME = MongoDB.infos["nome"]
@@ -226,10 +227,10 @@ class Assistente(amanobot.helper.ChatHandler):
         self.enviar_mensagem("Carregado...")
         email = msg['text'].lower()
 
-        if MongoDB.Users_collection.find_one({"email": email}): 
+        usuario = MongoDB.get_user(email)
+        if usuario: 
             # Verifica se está no banco de dados e entra na conta
-            self.email = msg["text"].lower()
-            self.informacoes = MongoDB.get_user(self.email)
+            self.email, self.informacoes = email, usuario
             restante = self.informacoes['timestamp'] - time.time()
             if restante > 0:
                 self.entrada = False
@@ -569,8 +570,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         Apenas para linux, dá kill na operação através do e-mail
         '''
         self.enviar_mensagem("Parando operação...")
-        MongoDB.Users_collection.find_one_and_update(
-            {'email': self.email}, {'$set' : {'operando': False}})
+        MongoDB.parar_operacao(self.email)
         if os.name != "nt":
             controlador.parar_operacao(self.email)
         self.enviar_mensagem("Operação cancelada.")
@@ -844,9 +844,9 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.enviar_mensagem("Carregando banco de dados...")
             # Captura todos os usuários
             if msg['text'] in ["Aprovar usuários", "Tirar de cadastro"]:
-                users = MongoDB.Users_em_aprovacao.find()
+                users = MongoDB.usuarios_em_cadastro()
             else:
-                users = MongoDB.Users_collection.find()
+                users = MongoDB.usuarios_cadastrados()
             # Faz um botão para cada e-mail
             lista_usuarios = [] 
             for user in users:
@@ -1068,9 +1068,9 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.enviar_mensagem("Deletando todas as instâncias...")
             usuarios = controlador.deletar_instancias()
             self.enviar_mensagem("Resetando o banco de dados...")
+            MongoDB.modificar_banco_users("off")
             for email in usuarios:
-                MongoDB.Users_collection.find_one_and_update(
-                    {'email': email}, {'$set' : {'operando': False}})
+                print(email)
         self.enviar_mensagem("Desligando o bot...")
         rodando = False
         self.close()
@@ -1191,6 +1191,8 @@ if __name__ == "__main__":
     except Exception as e:	
         escreve_erros(e)
         problema = True
+
+    MongoDB.close()
 
     if problema:
         print("\nAconteceu um erro, tentando se reconectar...")

@@ -5,7 +5,8 @@ from sys import argv
 import re, logging
 
 if argv[1:] and argv[1] == "-o":
-    from database import MongoDB
+    from database import Mongo
+    MongoDB = Mongo()
 
 logging.disable(level = (logging.DEBUG))
 
@@ -305,6 +306,7 @@ if __name__ == "__main__":
                 dados = MongoDB.get_user(email)
                 dados["operando"] = False
                 MongoDB.modifica_usuario(dados, email)
+                MongoDB.close()
             except Exception as e:
                 print(e)
                 input()
