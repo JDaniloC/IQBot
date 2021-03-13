@@ -458,14 +458,6 @@ class Operacao(IQ_API):
 						self.ganhos_perdas[1] += 1
 						self.mostrar_mensagem(f"🥵 Stop Loss 🥵\n💲 Perca: R$ {round(self.perda_total, 2)}\n⚠️ Bot parado ⚠️")
 						sys.exit(0)
-						
-					lucro = valor * payout
-					if is_ciclos_gale:
-						valor = self.ciclos_gale[ciclo_atual][num_gales]
-					else:
-						valor = self.martingale(self.config['tipo_martin'], 
-							payout, perda, valor, lucro)
-						valor = 2 if valor < 2 else valor # Caso der doji
 
 					if estrategia == "MSF" and num_gales == 0:
 						self.esperar_proximo_minuto()
