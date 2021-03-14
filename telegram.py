@@ -762,18 +762,21 @@ EURJPY 31/12/2000 CALL M5 02:30
                         "medias móveis simples", "velas"],
                     "tipo_martin": [
                         "seguro", "leve", "agressivo", "individual"],
-                    "estrategia": ["Milhão", "Vituxo", "MHI", 
-                        "MHI2", "MHI3", 'C3', "MSF", "HOPE", 
+                    "estrategia": ["Milhão", "MHI", "MHI2", 
+                        "MHI3", 'C3', "MSF", "HOPE", "R7", 
+                        "Vituxo", "Três Mosqueteiros",
                         "Padrão Impar", 'Três Vizinhos', 
-                        'Torres Gêmeas', "Três Mosqueteiros", 
+                        'Torres Gêmeas', "Last of five",
                         "DAKA", "Padrão 23", "Power", 
-                        "Melhor de 3", "Super 5", "Super 3", 
-                        "Last of five", "Five Flip", "R7",
-                        "M5: Três Mosqueteiros", "M5: Milhão",
-                        "M5: Torres Gêmeas", "M5: MHI", 
-                        "M5: MHI2", "M5: MHI3", "Half hour", 
-                        "Primeiros trocados", "Turn Over",
-                        "Hora do equilibrio"]
+                        "Melhor de 3", "Triplicação", 
+                        "M5: Três Mosqueteiros", "GABA", 
+                        "M5: Três Vizinhos", "Five Flip",
+                        "M5: MHI", "M5: MHI2", "M5: MHI3", 
+                        "M5: Torres Gêmeas", "M5: Milhão", 
+                        "Primeiros trocados", "Half hour", 
+                        "Hora do equilibrio", "Turn Over",
+                        "M15: Torres Gêmeas", "M15: MHI",
+                        "M15: MHI2", "M15: MHI3"]
                 }
                 if value[0] in ["tipo_gale", "tempo",
                     "tipo_martin", "tipo_par", "estrategia"]:

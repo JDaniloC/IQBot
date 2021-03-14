@@ -478,7 +478,7 @@ class Operacao(IQ_API):
 						ciclo_atual == len(self.ciclos_gale) - 1):
 						texto_gale = "🔸 Voltando ao primeiro ciclo"
 						if resultado != "win":
-							texto_gale[0] = "♦️"
+							texto_gale = "♦️" + texto_gale[1:]
 						self.config["ciclos"]['gales'] = 0
 					elif resultado == "loose":
 						self.config['ciclos']['gales'] += 1
@@ -621,9 +621,7 @@ class Operacao(IQ_API):
 				else:
 					self.mostrar_mensagem(f"{par} não atende o payout mínimo {payout * 100}% < {self.config['minimo']}%")
 			else:
-				momento = datetime.utcnow().timestamp() - 10800 # -3Horas
-				self.mostrar_mensagem(
-	f" - {datetime.fromtimestamp(momento).strftime('dia %d - %H:%M')} | {comando['par']} - {formatHour(horas)}:{formatHour(minutos)} passou da hora - ")
+				self.mostrar_mensagem(f" ⏰ {comando['par']} - {formatHour(horas)}:{formatHour(minutos)} passou da hora ⏰ ")
         
 		for thread in self.espera:
 			thread.join()
@@ -703,25 +701,57 @@ class Operacao(IQ_API):
 
 			return resultado
 
-		def entrada_estrategias_m1(estrategia, minutos):
+		def proxima_entrada(min_list, estrategia, timeframe, isM1 = False):
+			minutos = str(datetime.now().minute).zfill(2)
+			for i in range(len(min_list)):
+				if isM1:
+					option = int(f"{minutos[0]}{min_list[i]}"
+						) if estrategia != "DAKA" else min_list[i]
+				else:
+					option = min_list[i]
+				
+				if option > int(minutos):
+					entrar = option
+					break
+				elif i == len(min_list) - 1:
+					entrar = min_list[0]
+
+			maisUm = timeframe * 60 if estrategia not in [
+				"MHI2", "MHI3", "Vituxo"
+			] else timeframe * 60 * 2 + 60 if (
+				estrategia == "MHI2"
+			) else timeframe * 60 * 3 + 60
+
+			agora = datetime.now().replace(
+				minute = entrar, second = 0) + timedelta(seconds = maisUm)
+			if agora.timestamp() - time.time() < 0:
+				agora += timedelta(hours = 1)
+			horario = agora.strftime(f'%H:%M')
+			self.mostrar_mensagem(f"⏰ Próxima verificação às {horario} ⏰")
+
+		def entrada_estrategias_m1(estrategia, minutos, proxima = False):
 			if estrategia == "DAKA":
-				entrar = (minutos + 1) % 4 == 0
+				entrada = [3, 7, 11, 15, 19, 23, 
+					27, 31, 35, 39, 43, 47, 51, 59]
 			else:
 				if minutos >= 10: minutos = int(str(minutos)[1])
-				if estrategia == "R7":
-					entrar = minutos == 5 # Quadrante de 10 velas
-				elif estrategia in [
-					"MSF", "HOPE", "Torres Gêmeas", 'Três Vizinhos']:
-					entrar = minutos == 3 or minutos == 8 # 5° vela
-				elif estrategia in ["Três Mosqueteiros"]:
-					entrar = minutos == 2 or minutos == 7 # 4° vela
-				elif estrategia in ["Melhor de 3"]:
-					entrar = minutos == 1 or minutos == 6 # 3° vela
-				elif estrategia in ["Padrão 23"]:
-					entrar = minutos == 0 or minutos == 5 # 2° vela
-				else:
-					entrar = minutos == 4 or minutos == 9 # 1° vela
-			return entrar
+			
+			if estrategia == "R7":
+				entrada = [5] # Quadrante de 10 velas
+			elif estrategia in [
+				"MSF", "HOPE", "Torres Gêmeas", 'Três Vizinhos']:
+				entrada = [3, 8] # 5° vela
+			elif estrategia in ["Três Mosqueteiros"]:
+				entrada = [2, 7] # 4° vela
+			elif estrategia in ["Melhor de 3"]:
+				entrada = [1, 6] # 3° vela
+			elif estrategia in ["Padrão 23"]:
+				entrada = [0, 5] # 2° vela
+			else:
+				entrada = [4, 9] # 1° vela
+
+			if proxima: proxima_entrada(entrada, estrategia, proxima)
+			return minutos in entrada
 
 		def velas_por_estrategia_m1(par, estrategia):
 			if estrategia in ["MHI", "MHI2", "MHI3"]:
@@ -746,46 +776,50 @@ class Operacao(IQ_API):
 				velas = pegar_velas(par, 1)
 			return velas
 
-		def entrada_estrategias_m5(estrategia, minutos):
-			if estrategia == "Super 3":
-				entrar = minutos == 14 or minutos == 44
-			elif estrategia == "Três Mosqueteiros":
-				entrar = minutos in [9, 24, 39, 54]
-			elif estrategia in ["Torres Gêmeas", 
-				"MHI", "MHI2", "MHI3", "Milhão"]:
-				entrar = minutos == 59
-			elif estrategia in ["Five Flip"]:
-				entrar = minutos == 54
-			elif estrategia == "Power": 
-				entrar = minutos in [59, 14, 29, 44]
+		def entrada_estrategias_m5(estrategia, minutos, proxima = False):
+			if estrategia in ["Três Mosqueteiros", "Triplicação"]:
+				entrada = [9, 24, 39, 54]
+			elif estrategia == "Milhão":
+				entrada = [59]
+			elif estrategia in ["Torres Gêmeas", "Five Flip"]:
+				entrada = [24, 54]
+			elif estrategia in ["Power", "GABA"]: 
+				entrada = [14, 29, 44, 59]
+			elif estrategia == 'Três Vizinhos':
+				entrada = [19, 49]
 			else:
-				entrar = minutos == 29 or minutos == 59
-			return entrar
+				entrada = [29, 59]
+
+			if proxima: proxima_entrada(entrada, estrategia, proxima)
+			return minutos in entrada
 
 		def velas_por_estrategia_m5(par, estrategia):
 			if estrategia == "Last of five":
 				velas = pegar_velas(par, 5, 5)
-			elif estrategia == "Três Mosqueteiros":
+			elif estrategia in ["Três Mosqueteiros", "Triplicação"]:
 				velas = pegar_velas(par, 2, 5)
-			elif estrategia in ["MHI", "MHI2", "MHI3"]:
-				velas = pegar_velas(par, 3, 5)
 			elif estrategia in ["Milhão"]:
 				velas = pegar_velas(par, 6, 5)
 			elif estrategia in ["Torres Gêmeas"]:
-				velas = [pegar_velas(par, 5, 5)[0]]
-			elif estrategia in ["Five Flip"]:
+				velas = [pegar_velas(par, 6, 5)[0]]
+			elif estrategia in ["Five Flip", 'Três Vizinhos']:
 				velas = [pegar_velas(par, 1, 5)[0]]
 			else:
 				velas = pegar_velas(par, 3, 5)
 			return velas
 
-		def entrada_estrategias_m15(estrategia, minutos):
-			if estrategia in [
-				"Hora do equilibrio", "Turn Over"]:
-				entrar = minutos == 59
+		def entrada_estrategias_m15(estrategia, minutos, proxima = False):
+			if estrategia in ["MHI", "MHI2", "MHI3", 
+				"Torres Gêmeas", "Hora do equilibrio", 
+				"Turn Over"]:
+				entrada = [59]
+			elif estrategia == "Torres Gêmeas":
+				entrada = [44]
 			else:
-				entrar = minutos == 29
-			return entrar
+				entrada = [29]
+
+			if proxima: proxima_entrada(entrada, estrategia, proxima)
+			return minutos in entrada
 
 		def velas_por_estrategia_m15(par, estrategia):
 			if estrategia == "Half hour":
@@ -796,18 +830,27 @@ class Operacao(IQ_API):
 			elif estrategia == "Turn Over":
 				velas = pegar_velas(par, 1, 15)[0]
 				velas = ["call"] if velas == "put" else ["put"]
+			elif estrategia in ["MHI", "MHI2", "MHI3"]:
+				velas = pegar_velas(par, 3, 15)
+			elif estrategia == "Torres Gêmeas":
+				velas = [pegar_velas(par, 4, 15)[0]]
 			else:
 				velas = pegar_velas(par, 4, 15)
 			return velas
 		
-		def verifica_entrada(estrategia, timeframe):
+		def verifica_entrada(estrategia, timeframe, proxima = False):
 			minutos = datetime.now().minute
+			if proxima: proxima = timeframe
+
 			if timeframe == 1:
-				permitir = entrada_estrategias_m1(estrategia, minutos)
+				permitir = entrada_estrategias_m1(
+					estrategia, minutos, proxima)
 			elif timeframe == 5:
-				permitir = entrada_estrategias_m5(estrategia, minutos)
+				permitir = entrada_estrategias_m5(
+					estrategia, minutos, proxima)
 			else:
-				permitir = entrada_estrategias_m15(estrategia, minutos)
+				permitir = entrada_estrategias_m15(
+					estrategia, minutos, proxima)
 			return permitir
 
 		def recebe_velas(paridade, estrategia, timeframe):
@@ -828,7 +871,7 @@ class Operacao(IQ_API):
 			estrategia, tipo_milhao = estramilhao
 			payout = 100 * self.recebe_payout(paridade, self.config["autotime"])[1]
 			self.mostrar_mensagem(f"""
-🔹 Estratégia: {estrategia} pela {tipo_milhao.capitalize()} | Paridade: {paridade} ♦️
+🔹 {estrategia} pela {tipo_milhao.capitalize()} | Paridade: {paridade} ♦️
 🎯 Assertividade: {porcentagem}% | Payout: {payout}% ❇️""")
 			return paridade, estrategia, tipo_milhao
 
@@ -840,17 +883,20 @@ class Operacao(IQ_API):
 			paridade = self.config['paridade']
 			estrategia = self.config['estrategia']
 			timeframe = 5 if (estrategia in [
-				"Super 5", "Super 3", "Power",
-				"Last of five", "Five Flip"
-			] or "M5" in estrategia) else 15 if estrategia in [
-			"Half hour", "Primeiros trocados", "Hora do equilibrio"
-			] else 1
-			estrategia = estrategia.replace("M5: ", "")
+				"Power", "Last of five", 
+				"Five Flip", "Triplicação"
+			] or "M5" in estrategia) else 15 if (
+			estrategia in [
+				"Half hour", "Primeiros trocados", 
+				"Hora do equilibrio"
+			] or "M15" in estrategia) else 1
+			estrategia = estrategia.replace("M5: ", "").replace("M15: ", "")
 			payout = 100 * self.recebe_payout(paridade, self.config["autotime"])[1]
 			self.mostrar_mensagem(f"""
-🔹 Estratégia: {estrategia} pela {tipo_milhao.capitalize()} | Paridade: {paridade} ♦️
+🔹 {estrategia} pela {tipo_milhao.capitalize()} | Paridade: {paridade} ♦️
 ❇️ Payout: {payout}%""")
 
+		verifica_entrada(estrategia, timeframe, True)
 		while not self.verificar_stop():            
 			if verifica_entrada(estrategia, timeframe):
 				velas = recebe_velas(paridade, estrategia, timeframe)
@@ -858,20 +904,22 @@ class Operacao(IQ_API):
 				direcao = False
 				if velas.count("DOJI") == 0 and not (
 					estrategia == "Milhão" and timeframe == 5):
-					if estrategia in ["MSF", "Power",
-						"Super 5", "Super 3", "Last of five",
+					if estrategia in ["MSF",  
+						"Last of five", "GABA", "Power",
 						"Milhão", "MHI", "MHI2", "MHI3",
 						"Vituxo", "Hora do equilibrio"]:	
 						direcao = velas.count('CALL') > velas.count('PUT')
 						direcao = "call" if direcao else "put"
 						if tipo_milhao == "Minoria" or estrategia in [
-							"Hora do equilibrio", "MSF", "Power"]:
+							"Hora do equilibrio", "MSF", "Power", "GABA"]:
 							direcao = "put" if direcao == "call" else "call"
 							if (estrategia == "Power" and 
 								direcao.upper() != velas[1]):
 								direcao = False
 					elif timeframe == 5 and estrategia == "Três Mosqueteiros":
 						if velas[0] != velas[1]: direcao = velas[0].lower()
+					elif timeframe == 5 and estrategia == "Triplicação":
+						if velas[0] == velas[1]: direcao = velas[0].lower()
 					else:
 						if estrategia != "HOPE" or velas[0] == velas[1]:
 							direcao = velas[0].lower()
@@ -911,5 +959,6 @@ class Operacao(IQ_API):
 						self.mostrar_mensagem(f"{paridade} não atende o payout mínimo {payout * 100}% < {self.config['minimo']}%")
 				elif self.config["auto"]:
 					paridade, estrategia, tipo_milhao = pegar_catalogacao()
+				verifica_entrada(estrategia, timeframe, True)
 			self.esperar_proximo_minuto()
 		self.verificar_stop()

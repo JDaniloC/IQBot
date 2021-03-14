@@ -374,7 +374,7 @@ Valor: R$ {round(valor, 2)}
                 alvo = alvo.fromtimestamp(
                     alvo.timestamp() + tolerancia
                 )
-                output(f"\n ⏳ Próxima operação às {alvo.strftime('%d/%m/%Y %H:%M:%S')} ⏳")
+                output(f"\n ⏳ Próxima operação às {alvo.strftime('%H:%M:%S')} ⏳")
             time.sleep(segundos)
             return True
         if segundos > (-10 - tolerancia):
