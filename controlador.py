@@ -151,7 +151,10 @@ class Control:
             self.ao_vivo.append(email)
             comando = f"@{email} -L -Logfile @{email}.log {caminho_python} -a"
 
-        system(f"gcloud compute ssh {instancia.name} --zone {instancia.region} --command='screen -dmS {comando} {email} {senha} {identificador} {operar_lista}'")
+        try:
+            check_output(f"gcloud compute ssh {instancia.name} --zone {instancia.region} --command='screen -ls | grep {email}'")
+        except:
+            system(f"gcloud compute ssh {instancia.name} --zone {instancia.region} --command='screen -dmS {comando} {email} {senha} {identificador} {operar_lista}'")
 
     def parar_operacao(self, email):
         '''

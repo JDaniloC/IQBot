@@ -220,8 +220,7 @@ class IQ_API:
             self.saida(f"❌ {paridade}-{tipo} {direcao.upper()} fechada ou máximo de operações ❌")
             return "error", 0
 
-        self.saida(self.format_dir(
-            f" 🔸 {paridade}|{tipo.capitalize()} M{tempo} $ {round(valor, 2)} {direcao.upper()}"))
+        self.saida(self.format_dir(f" 🔸 {paridade} | {tipo.capitalize()} | M{tempo} | $ {round(valor, 2)} | {direcao.upper()}"))
 
         lucro = 0
         if delay == False:
@@ -375,7 +374,7 @@ Valor: R$ {round(valor, 2)}
                 alvo = alvo.fromtimestamp(
                     alvo.timestamp() + tolerancia
                 )
-                output(f"\n ⏳ Próxima operação às {alvo.strftime('%d/%m/%Y %H:%M:%S')} ⏳")
+                output(f"\n ⏳ Próxima operação às {alvo.strftime('%H:%M:%S')} ⏳")
             time.sleep(segundos)
             return True
         if segundos > (-10 - tolerancia):

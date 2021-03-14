@@ -13,11 +13,12 @@ from amanobot.delegate import (
 from bot import pegar_comando, escreve_erros
 from utils.catalogador import Catalogador
 from controlador import Control
-from database import *
+from database import Mongo
 
 
 config = RawConfigParser()
 config.read(".env")
+MongoDB = Mongo()
 
 TOKEN = config.get("TELEGRAM", "token")
 BOTNAME = MongoDB.infos["nome"]
@@ -176,7 +177,7 @@ class Assistente(amanobot.helper.ChatHandler):
             ),
             InlineKeyboardButton(
                 text = MongoDB.infos["campo2"]["titulo"],
-                url = MongoDB.infos["campo1"]["link"]
+                url = MongoDB.infos["campo2"]["link"]
             )]
         ])
         
@@ -226,10 +227,10 @@ class Assistente(amanobot.helper.ChatHandler):
         self.enviar_mensagem("Carregado...")
         email = msg['text'].lower()
 
-        if MongoDB.Users_collection.find_one({"email": email}): 
+        usuario = MongoDB.get_user(email)
+        if usuario: 
             # Verifica se está no banco de dados e entra na conta
-            self.email = msg["text"].lower()
-            self.informacoes = MongoDB.get_user(self.email)
+            self.email, self.informacoes = email, usuario
             restante = self.informacoes['timestamp'] - time.time()
             if restante > 0:
                 self.entrada = False
@@ -253,7 +254,7 @@ class Assistente(amanobot.helper.ChatHandler):
                 MongoDB.adicionar_cadastro(email)
                 self.enviar_mensagem(
                     f"Seu e-mail foi colocado para analise. \
-                    Espere a confirmação do administrador e mande seu e-mail novamente para logar.",
+                    \nEspere a confirmação do administrador e mande seu e-mail novamente para logar.",
                     save = True)
             else:
                 self.enviar_mensagem("Não é um e-mail válido!", save = True)
@@ -569,8 +570,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         Apenas para linux, dá kill na operação através do e-mail
         '''
         self.enviar_mensagem("Parando operação...")
-        MongoDB.Users_collection.find_one_and_update(
-            {'email': self.email}, {'$set' : {'operando': False}})
+        MongoDB.parar_operacao(self.email)
         if os.name != "nt":
             controlador.parar_operacao(self.email)
         self.enviar_mensagem("Operação cancelada.")
@@ -762,18 +762,21 @@ EURJPY 31/12/2000 CALL M5 02:30
                         "medias móveis simples", "velas"],
                     "tipo_martin": [
                         "seguro", "leve", "agressivo", "individual"],
-                    "estrategia": ["Milhão", "Vituxo", "MHI", 
-                        "MHI2", "MHI3", 'C3', "MSF", "HOPE", 
+                    "estrategia": ["Milhão", "MHI", "MHI2", 
+                        "MHI3", 'C3', "MSF", "HOPE", "R7", 
+                        "Vituxo", "Três Mosqueteiros",
                         "Padrão Impar", 'Três Vizinhos', 
-                        'Torres Gêmeas', "Três Mosqueteiros", 
+                        'Torres Gêmeas', "Last of five",
                         "DAKA", "Padrão 23", "Power", 
-                        "Melhor de 3", "Super 5", "Super 3", 
-                        "Last of five", "Five Flip", "R7",
-                        "M5: Três Mosqueteiros", "M5: Milhão",
-                        "M5: Torres Gêmeas", "M5: MHI", 
-                        "M5: MHI2", "M5: MHI3", "Half hour", 
-                        "Primeiros trocados", "Turn Over",
-                        "Hora do equilibrio"]
+                        "Melhor de 3", "Triplicação", 
+                        "M5: Três Mosqueteiros", "GABA", 
+                        "M5: Três Vizinhos", "Five Flip",
+                        "M5: MHI", "M5: MHI2", "M5: MHI3", 
+                        "M5: Torres Gêmeas", "M5: Milhão", 
+                        "Primeiros trocados", "Half hour", 
+                        "Hora do equilibrio", "Turn Over",
+                        "M15: Torres Gêmeas", "M15: MHI",
+                        "M15: MHI2", "M15: MHI3"]
                 }
                 if value[0] in ["tipo_gale", "tempo",
                     "tipo_martin", "tipo_par", "estrategia"]:
@@ -844,9 +847,9 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.enviar_mensagem("Carregando banco de dados...")
             # Captura todos os usuários
             if msg['text'] in ["Aprovar usuários", "Tirar de cadastro"]:
-                users = MongoDB.Users_em_aprovacao.find()
+                users = MongoDB.usuarios_em_cadastro()
             else:
-                users = MongoDB.Users_collection.find()
+                users = MongoDB.usuarios_cadastrados()
             # Faz um botão para cada e-mail
             lista_usuarios = [] 
             for user in users:
@@ -1068,9 +1071,9 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.enviar_mensagem("Deletando todas as instâncias...")
             usuarios = controlador.deletar_instancias()
             self.enviar_mensagem("Resetando o banco de dados...")
+            MongoDB.modificar_banco_users("off")
             for email in usuarios:
-                MongoDB.Users_collection.find_one_and_update(
-                    {'email': email}, {'$set' : {'operando': False}})
+                print(email)
         self.enviar_mensagem("Desligando o bot...")
         rodando = False
         self.close()
@@ -1191,6 +1194,8 @@ if __name__ == "__main__":
     except Exception as e:	
         escreve_erros(e)
         problema = True
+
+    MongoDB.close()
 
     if problema:
         print("\nAconteceu um erro, tentando se reconectar...")

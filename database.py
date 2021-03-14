@@ -12,34 +12,43 @@ config.read(".env")
 autenticacao = config.get("DATABASE", "autentication")
 
 class Mongo:
-    def __init__(self, database, users_collection, 
-        users_em_aprovacao, default_infos, adms, 
-        entrada1, entrada2, entrada3, infos):
-        self.database = database
-        self.Users_collection = users_collection
-        self.Users_em_aprovacao = users_em_aprovacao
-        self.Default = default_infos
-        self.ADMS = adms
-        self.entradas01 = entrada1
-        self.entradas02 = entrada2
-        self.entradas03 = entrada3
-        self.infos_collection = infos
-        self.infos = infos.find_one()
+    def __init__(self):        
+        self.client   =  MongoClient(autenticacao)
+        self.database = self.client.iqbot 
+
+        self.users_collection = self.database.user
+        self.users_em_aprovacao = self.database.queue
+        self.default_config = self.database.default
+        self.ADMS_collection = self.database.ADMS
+        self.entradas01 = self.database.entradas1
+        self.entradas02 = self.database.entradas2
+        self.entradas03 = self.database.entradas3
+        self.infos = {}
+        
+        self.atualizar_infos()
+        self.modificar_banco_users("off")
+        self.modificar_banco_users("clear")
 
     def atualizar_infos(self):
-        self.infos = infos.find_one()
+        self.infos = self.database.infos.find_one()
 
     def adicionar_cadastro(self, email):
         '''
         Adiciona o e-mail na fila de aprovação
         '''
-        self.Users_em_aprovacao.insert_one({"email": email})
+        self.users_em_aprovacao.insert_one({"email": email})
 
     def verifica_cadastro(self, email):
         '''
         Verifica se o e-mail está em aprovação
         '''
-        objct = self.Users_em_aprovacao.find_one({'email':email})
+        objct = self.users_em_aprovacao.find_one({'email':email})
+        if not objct:
+            return False
+        return True
+
+    def verifica_licenca(self, email):
+        objct = self.users_collection.find_one({'email':email})
         if not objct:
             return False
         return True
@@ -62,7 +71,7 @@ class Mongo:
                 user['timestamp'] = time.time() + 31104000
             user['plano'] = plano
             user["_id"] = time.time()
-            self.Users_collection.insert_one(user)
+            self.users_collection.insert_one(user)
 
     def renovar_licenca(self, email, plano):
         '''
@@ -76,7 +85,7 @@ class Mongo:
             data = time.time() + 7776000
         else:
             data = time.time() + 31104000
-        self.Users_collection.find_one_and_update(
+        self.users_collection.find_one_and_update(
             {'email':email}, {'$set': {
                 'timestamp': data,
                 'plano': plano
@@ -88,7 +97,7 @@ class Mongo:
         '''
         adm = adms_schema.ADMS
         adm['_id'] = _id
-        self.ADMS.insert_one(adm)
+        self.ADMS_collection.insert_one(adm)
 
     def modifica_usuario(self, info, email):
         '''
@@ -96,24 +105,25 @@ class Mongo:
         '''
         user = self.remover_usuario(email)
         user.update(info)
-        self.Users_collection.insert_one(user)
+        self.users_collection.insert_one(user)
 
     def modifica_avancadas(self, info, valor):
         '''
         Modifica alguma informação das configurações avançadas
         '''
         # Pega o ID do documento para deleta-lo depois
-        object_id = self.Default.find_one()['_id'] 
-        default = self.Default.find_one_and_delete({'_id': object_id}) 
+        object_id = self.default_config.find_one()['_id'] 
+        default = self.default_config.find_one_and_delete(
+            {'_id': object_id}) 
         default[info] = valor
-        self.Default.insert_one(default) #Insere o doc alterado no banco
+        self.default_config.insert_one(default) #Insere o doc alterado no banco
 
     def remover_usuario(self, email):
         '''
         Remove o usuário de determinado e-mail
         Devolve o usuário removido
         '''
-        return self.Users_collection.find_one_and_delete(
+        return self.users_collection.find_one_and_delete(
             {'email': email})
 
     def apagar_cadastro(self, email):
@@ -121,33 +131,38 @@ class Mongo:
         Tira o e-mail da fila de cadastro
         Devolve o objeto removido
         '''
-        return self.Users_em_aprovacao.find_one_and_delete(
+        return self.users_em_aprovacao.find_one_and_delete(
             {"email": email})
 
     def get_avancadas(self):
         '''
         Devolve as configurações avançadas
         '''
-        return self.Default.find_one()
+        return self.default_config.find_one()
 
     def get_user(self, email):
         '''
         Devolve as informações do usuário a partir do e-mail
         '''
-        return self.Users_collection.find_one({'email': email})
+        return self.users_collection.find_one({'email': email})
+
+    def usuarios_cadastrados(self):
+        return self.users_collection.find()
+    def usuarios_em_cadastro(self):
+        return self.users_em_aprovacao.find()
 
     def get_adms(self):
         '''
         Devolve a lista do ID dos ADMS
         '''
         return [x[0] for x in [list(value.values()) 
-            for value in list(self.ADMS.find())]]
+            for value in list(self.ADMS_collection.find())]]
 
     def remover_adm(self, id):
         '''
         Remove um ADM com certo ID da lista de ADMS
         '''
-        return self.ADMS.find_one_and_delete({"_id": id})
+        return self.ADMS_collection.find_one_and_delete({"_id": id})
 
     def get_entradas(self, modo):
         '''
@@ -182,38 +197,38 @@ class Mongo:
             self.entradas03.insert_many(entradas)
 
     def modificar_banco_users(self, opcao):
+        '''
+        Modifica a tabela de usuários onde:
+            delete: Deleta todos os usuários
+            off: Seta operando como falso em todos
+            time: Renova todas as licenças
+            clear: Limpa todos os que passaram as licença
+        '''
         if opcao == "delete":
-            self.Users_collection.delete_many({})
+            self.users_collection.delete_many({})
         elif opcao == "off":
-            self.Users_collection.update_many(
+            self.users_collection.update_many(
                 {}, {'$set': {'operando': False}})
         elif opcao == "time":
             data = time.time() + 2592000
-            self.Users_collection.update_many(
+            self.users_collection.update_many(
                 {}, {'$set': {'timestamp': data}})
         elif opcao == "clear":
-            users = self.Users_collection.find(
+            users = self.users_collection.find(
                 {"timestamp": {"$lt": time.time()}})
             for user in users:
                 print("Removing:", user["email"])
                 self.remover_usuario(user["email"])
 
-client =  MongoClient(autenticacao)
-database = client.iqbot 
-users_list = database.user
-queue_list = database.queue
-default = database.default
-ADMS = database.ADMS
-aprovacao = waiting_schema.queue
-entrada1 = database.entradas1
-entrada2 = database.entradas2
-entrada3 = database.entradas3
-infos = database.infos
+    def parar_operacao(self, email):
+        self.users_collection.find_one_and_update(
+            {'email': email}, 
+            {'$set' : {'operando': False}}
+        )
 
-MongoDB = Mongo(
-    database, users_list, queue_list, default, 
-    ADMS, entrada1, entrada2, entrada3, infos
-)
-
-MongoDB.modificar_banco_users("off")
-MongoDB.modificar_banco_users("clear")
+    def close(self):
+        '''
+        Fecha a conexão com o banco de dados
+        Não esqueça de fazer após as operações.
+        '''
+        self.client.close()
