@@ -79,6 +79,8 @@ class Mongo:
         '''
         if plano == "teste":
             data = time.time() + 43200
+        if plano == "semanal":
+            data = time.time() + 604800
         elif plano == "mensal":
             data = time.time() + 2592000
         elif plano == "trimestral":
