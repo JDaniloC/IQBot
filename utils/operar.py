@@ -752,7 +752,7 @@ class Operacao(IQ_API):
 			else:
 				entrada = [4, 9] # 1° vela
 
-			if proxima: proxima_entrada(entrada, estrategia, proxima)
+			if proxima: proxima_entrada(entrada, estrategia, proxima, True)
 			return minutos in entrada
 
 		def velas_por_estrategia_m1(par, estrategia):
