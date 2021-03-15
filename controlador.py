@@ -154,6 +154,7 @@ class Control:
         try:
             check_output(f"gcloud compute ssh {instancia.name} --zone {instancia.region} --command='screen -ls | grep {email}'")
         except:
+            self.parar_operacao(email)
             system(f"gcloud compute ssh {instancia.name} --zone {instancia.region} --command='screen -dmS {comando} {email} {senha} {identificador} {operar_lista}'")
 
     def parar_operacao(self, email):

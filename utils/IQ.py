@@ -41,14 +41,12 @@ class IQ_API:
         '''
         Muda para a conta treino
         '''
-        self.saida(" - Usando a conta treino -\n")
         self.API.change_balance("PRACTICE")
     
     def mudar_real(self):
         '''
         Muda para a conta real
         '''
-        self.saida(" - Usando a conta real -\n")
         self.API.change_balance("REAL")
 
     def payout_digital(self, paridade):
@@ -346,7 +344,9 @@ Valor: R$ {round(valor, 2)}
             resultado = json.loads(data.text)['Todos']
             for estrategia in resultado:
                 return estrategia[0], estrategia[1].upper(), traduzir(estrategia[2])
-        except: return "EURUSD", ("MHI", False)
+        except Exception as e:
+            print("Catalogar:", e) 
+            return 50, "EURUSD", ("MHI", "maioria")
 
     @staticmethod
     def esperarAte(horas, minutos, segundos = 0, data = (), tolerancia = 0, output = False):

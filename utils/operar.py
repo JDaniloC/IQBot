@@ -722,8 +722,10 @@ class Operacao(IQ_API):
 				estrategia == "MHI2"
 			) else timeframe * 60 * 3 + 60
 
-			agora = datetime.now().replace(
+			agora = datetime.fromtimestamp(
+        		datetime.utcnow().timestamp() - 10800).replace(
 				minute = entrar, second = 0) + timedelta(seconds = maisUm)
+			
 			if agora.timestamp() - time.time() < 0:
 				agora += timedelta(hours = 1)
 			horario = agora.strftime(f'%H:%M')
