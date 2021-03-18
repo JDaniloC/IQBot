@@ -62,7 +62,7 @@ class Operacao(IQ_API):
 				# Para soros
 				self.valor_inicial = config['valor']
 				self.ganhos_perdas = [0, 0]
-				self.soros_atual = 1
+				self.soros_atual = 0
 				self.gale_atual = 0
 
 				self.valor = config['valor']
@@ -416,6 +416,7 @@ class Operacao(IQ_API):
 				if self.perda_atual < 0: self.perda_atual = 0
 		
 		if resultado == "loose": 
+			tipo_martin = self.config['tipo_martin']
 			if (is_ciclos_gale or 
 				(tipo_gale in "martingale" and 
 				self.config['vez_gale'] == "vela")):
@@ -426,7 +427,7 @@ class Operacao(IQ_API):
 					if ciclo_atual >= len(self.ciclos_gale):
 						ciclo_atual = 0
 					max_gale = len(self.ciclos_gale[ciclo_atual])
-					self.config['tipo_martin'] = f"ciclo {ciclo_atual+1}"
+					tipo_martin = f"ciclo {ciclo_atual+1}"
 				else:
 					max_gale = self.max_gale
 				
@@ -439,7 +440,7 @@ class Operacao(IQ_API):
 						
 						label_gale = num_gales if is_ciclos_gale else num_gales + 1
 						desconta_perda(resultado, lucro, 
-							f"🔸 Iniciando {label_gale}° Martingale: {self.config['tipo_martin'].capitalize()} 🔸", valor)
+							f"🔸 Iniciando {label_gale}° Martingale: {str(tipo_martin).capitalize()} 🔸", valor)
 						mostra_resultado()
 						perda += abs(lucro)
 						lucro = valor * payout
@@ -447,7 +448,7 @@ class Operacao(IQ_API):
 							valor = self.ciclos_gale[ciclo_atual][num_gales]
 						else:
 							valor = self.martingale(
-								self.config['tipo_martin'], 
+								tipo_martin, 
 								payout, perda, valor, lucro)
 						valor = 2 if valor < 2 else valor # Caso der doji
 
@@ -486,12 +487,12 @@ class Operacao(IQ_API):
 				
 			elif tipo_gale == "martingale":
 				if self.gale_atual < self.max_gale:
-					texto_gale = f"🔸 {self.gale_atual + 1}° Martingale: {self.config['tipo_martin']} para o próximo sinal"
+					texto_gale = f"🔸 {self.gale_atual + 1}° Martingale: {tipo_martin} para o próximo sinal"
 					self.perda_atual += abs(valor)
 					self.gale_atual += 1
 					lucro = valor * payout
 					self.valor = self.martingale(
-						self.config['tipo_martin'], payout, 
+						tipo_martin, payout, 
 						self.perda_atual, valor, lucro)
 					self.valor = 2 if self.valor < 2 else self.valor
 				else:
