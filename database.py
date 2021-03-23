@@ -63,6 +63,8 @@ class Mongo:
             user['email'] = email
             if plano == "teste":
                 user['timestamp'] = time.time() + 43200
+            elif plano == "semanal":
+                user['timestamp'] = time.time() + 604800
             elif plano == "mensal":
                 user['timestamp'] = time.time() + 2592000
             elif plano == "trimestral":
@@ -79,6 +81,8 @@ class Mongo:
         '''
         if plano == "teste":
             data = time.time() + 43200
+        elif plano == "semanal":
+            data = time.time() + 604800
         elif plano == "mensal":
             data = time.time() + 2592000
         elif plano == "trimestral":

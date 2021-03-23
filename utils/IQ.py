@@ -41,15 +41,17 @@ class IQ_API:
         '''
         Muda para a conta treino
         '''
-        self.saida(" - Usando a conta treino -\n")
-        self.API.change_balance("PRACTICE")
+        if self.API.get_balance_mode() != "PRACTICE":
+            self.saida(" - Usando a conta treino -\n")
+            self.API.change_balance("PRACTICE")
     
     def mudar_real(self):
         '''
         Muda para a conta real
         '''
-        self.saida(" - Usando a conta real -\n")
-        self.API.change_balance("REAL")
+        if self.API.get_balance_mode() != "REAL":
+            self.saida(" - Usando a conta real -\n")
+            self.API.change_balance("REAL")
 
     def payout_digital(self, paridade):
         '''
@@ -195,28 +197,32 @@ class IQ_API:
         if bloqueador != None:
             with bloqueador:
                 if tipo == "binary":
-                    status, identificador = self.API.buy(valor, paridade, direcao, tempo)
+                    status, identificador = self.API.buy(
+                        valor, paridade, direcao, tempo)
                 else:
-                    status, identificador = self.API.buy_digital_spot(paridade, valor, direcao, tempo)
+                    status, identificador = self.API.buy_digital_spot(
+                        paridade, valor, direcao, tempo)
         else:
             if tipo == "binary":
-                status, identificador = self.API.buy(valor, paridade, direcao, tempo)
+                status, identificador = self.API.buy(
+                    valor, paridade, direcao, tempo)
             else:
-                status, identificador = self.API.buy_digital_spot(paridade, valor, direcao, tempo)
+                status, identificador = self.API.buy_digital_spot(
+                    paridade, valor, direcao, tempo)
             
         if not status:
             if tipo == "digital":
                 identificador = str(identificador['message'])
             else: identificador = str(identificador)
             self.saida(identificador)
-            if verify_string(["active_suspended", "invalid"], 
+            if verify_string(["active_suspended", "invalid", "available"], 
                 identificador) and not trying:
                 if self.tipo != "auto": 
                     self.tipo = ("binary" if 
                         self.tipo == "digital" else "digital")
                 return self.ordem(paridade, direcao, tempo, valor, 
-                "binary" if tipo == "digital" else "digital", 
-                bloqueador, delay, scalper, True)
+                    "binary" if tipo == "digital" else "digital", 
+                    bloqueador, delay, scalper, True)
             self.saida(f"❌ {paridade}-{tipo} {direcao.upper()} fechada ou máximo de operações ❌")
             return "error", 0
 
@@ -226,7 +232,7 @@ class IQ_API:
         if delay == False:
             # Versão que pega no histórico
             if tipo == "binary":
-                resultado, lucro = self.API.check_win_v4(identificador) # binary
+                resultado, lucro = self.API.check_win_v4(identificador) 
             else:
                 if scalper:
                     self.API.subscribe_strike_list(paridade, 1)
@@ -245,7 +251,8 @@ class IQ_API:
                     resultado = "equal"
         else:
             # Versão que pega na hora
-            resultado, lucro = self.API.check_win_v5(identificador, tipo, delay)
+            resultado, lucro = self.API.check_win_v5(
+                identificador, tipo, delay)
 
         print(f"""
 Paridade: {paridade}|{tipo.capitalize()}
@@ -312,7 +319,7 @@ Valor: R$ {round(valor, 2)}
             and diferenca > 0) or (
             direcao.lower() == "put" 
             and diferenca < 0) else False
-    
+
     def pegar_velas(self, par, timeframe, quantidade, fim = None):
         if fim == None:
             fim = time.time()
@@ -325,7 +332,7 @@ Valor: R$ {round(valor, 2)}
         return text.replace("CALL", "⬆️").replace("PUT", "⬇️")
 
     @staticmethod
-    def catalogar(timeframe, gale):
+    def catalogar_estrategia(timeframe, gale):
         def traduzir(estrategia):
             maioria = "Minoria"
             pedaco = estrategia.capitalize().split()
@@ -346,7 +353,9 @@ Valor: R$ {round(valor, 2)}
             resultado = json.loads(data.text)['Todos']
             for estrategia in resultado:
                 return estrategia[0], estrategia[1].upper(), traduzir(estrategia[2])
-        except: return "EURUSD", ("MHI", False)
+        except Exception as e:
+            print("Catalogar:", e) 
+            return 50, "EURUSD", ("MHI", "maioria")
 
     @staticmethod
     def esperarAte(horas, minutos, segundos = 0, data = (), tolerancia = 0, output = False):
