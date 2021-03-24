@@ -233,11 +233,14 @@ class Operacao(IQ_API):
 				placar = f"✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌"
 				somatorio = sum(self.ganhos_perdas)
 				assertividade = self.ganhos_perdas[0] / somatorio * 100 if somatorio > 0 else 0
+				
+				perda_total = self.perda_total
+				if perda_total > 0: perda_total = 0
 				self.mostrar_mensagem(f'''
 {mensagem}
 {placar.center(32, " ")}
 💰 Saldo: $ {round(self.ganho_total, 2)} | $ {self.stopwin}
-💲 Perca: $ {round(self.perda_total, 2)} | $ {-self.stoploss}
+💲 Perca: $ {round(perda_total, 2)} | $ {-self.stoploss}
 ✴️ Assertividade: {round(assertividade, 2)}%
 					⚠️ Bot parado ⚠️''')
 				return True
