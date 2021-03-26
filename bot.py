@@ -1,10 +1,12 @@
 from utils.operar import Operacao, escreve_erros, IQ_API
 from configparser import RawConfigParser
+from datetime import datetime
 from sys import argv
-import re, logging, json, datetime
+import re, logging
 
 if argv[1:] and argv[1] == "-o":
-    from database import MongoDB
+    from database import Mongo
+    MongoDB = Mongo()
 
 logging.disable(level = (logging.DEBUG))
 
@@ -12,6 +14,10 @@ LOCALAJUDA = "misc/ajuda.txt"
 LOCALCONFIG = "config/config.txt"
 
 print("\n[Comando para parar: Ctrl + C]\n")
+
+def datetime_brazil():
+    return datetime.fromtimestamp(
+        datetime.utcnow().timestamp() - 10800)
 
 def pegar_comando_lista(texto):
     '''
@@ -27,7 +33,7 @@ def pegar_comando_lista(texto):
     No qual o conteúdo das listas são inteiros
     '''
     def timestamp(data, hora):
-        return datetime.datetime(
+        return datetime(
             data[2], data[1], data[0], hora[0], hora[1]
         ).timestamp()
     try:
@@ -35,7 +41,7 @@ def pegar_comando_lista(texto):
         if data:
             data = [int(x) for x in re.split(r"\W", data[0])]
         else:
-            hoje = datetime.datetime.now()
+            hoje = datetime_brazil()
             data = [hoje.day, hoje.month, hoje.year]
         hora = re.search(r'\d{2}:\d{2}', texto)[0]
         hora = [int(x) for x in re.split(r'\W', hora)]
@@ -91,7 +97,7 @@ def pegar_comando_taxas(texto):
         "par": par, 
         "taxa": taxa, 
         "tipo": "taxas",
-        "timestamp": datetime.datetime.now()
+        "timestamp": datetime_brazil()
     }
 
 def pegar_comando(texto):
@@ -300,6 +306,7 @@ if __name__ == "__main__":
                 dados = MongoDB.get_user(email)
                 dados["operando"] = False
                 MongoDB.modifica_usuario(dados, email)
+                MongoDB.close()
             except Exception as e:
                 print(e)
                 input()

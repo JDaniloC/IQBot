@@ -1,5 +1,4 @@
-config.txt
-entradas.txt
+config/
 .vscode
 .env
 

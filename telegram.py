@@ -13,11 +13,12 @@ from amanobot.delegate import (
 from bot import pegar_comando, escreve_erros
 from utils.catalogador import Catalogador
 from controlador import Control
-from database import *
+from database import Mongo
 
 
 config = RawConfigParser()
 config.read(".env")
+MongoDB = Mongo()
 
 TOKEN = config.get("TELEGRAM", "token")
 BOTNAME = MongoDB.infos["nome"]
@@ -73,6 +74,7 @@ ADMS = MongoDB.get_adms()
 entrada_01 = carregar_entradas(1)
 entrada_02 = carregar_entradas(2)
 entrada_03 = carregar_entradas(3)
+cache_catalogador = ()
 
 if os.name != "nt":
     controlador = Control()
@@ -114,30 +116,22 @@ class Assistente(amanobot.helper.ChatHandler):
 
         self.mapeamento = {
             "Adicionar lista": ["lista", False, list],
-            "Catalogar sinais": ["catalogar", False, list],
-
             "Tipo de conta": ["tipo_conta", False, tuple], 
             "Tipo de lista": ["tipo_lista", False, tuple],
             "Lista escolhida": ["num_lista", False, tuple],
             "Valor de entrada": ["valor", False, float],
-            
-            "Tipo par": ["tipo_par", False, tuple],
-            "Timeframe": ["tempo", False, tuple],
-            "Correção": ["correcao", False, int],
-            "Delay": ["delay", False, float],
-
-            "Gerenciamento": ["tipo_gale", False, tuple], 
+            "Tipo de gale": ["tipo_gale", False, tuple], 
             "Tipo de Stoploss": ["tipo_stop", False, tuple], 
-            "Scalper Loss": ["scalper_loss", False, int],
-            "Scalper Win": ["scalper_win", False, int],
+            # "Scalper Loss": ["scalper_loss", False, int],
+            # "Scalper Win": ["scalper_win", False, int],
             "Payout mínimo": ["minimo", False, int], 
             "StopLoss": ["stoploss", False, float],
             "StopWin": ["stopwin", False, float],
 
             "Tipo de martingale": ["tipo_martin", False, tuple],
             "Martingale na próxima": ["vez_gale", False, tuple],
-            "Ciclos de soros": ["ciclos_soros", False, str],
-            "Ciclos de gales": ["ciclos_gale", False, str],
+            # "Ciclos de soros": ["ciclos_soros", False, str],
+            # "Ciclos de gales": ["ciclos_gale", False, str],
             "Máximo de soros": ["max_soros", False, int],
             "Máximo de gales": ["max_gale", False, int],
             "Tipo soros": ["tipo_soros", False, tuple],
@@ -149,12 +143,16 @@ class Assistente(amanobot.helper.ChatHandler):
             "Tipo de tendência": ["tipo_tendencia", False, tuple],
             "Período da tendência": ["periodo_tendencia", False, int],
 
-            "Paridade": ["paridade", False, str],
-            "Estratégia": ["estrategia", False, tuple],
-            "Tipo milhão": ["tipo_milhao", False, tuple],
-            "Auto: Timeframe": ["autotime", False, tuple],
-            "Auto: Gales": ["autogale", False, tuple],
-            "Auto: Ativar": ["auto", False, bool],
+            # "Paridade": ["paridade", False, str],
+            # "Estratégia": ["estrategia", False, tuple],
+            # "Tipo milhão": ["tipo_milhao", False, tuple],
+            # "Auto VIP: Timeframe": ["autotime", False, tuple],
+            # "Auto VIP: Gales": ["autogale", False, tuple],
+
+            "Tipo par": ["tipo_par", False, tuple],
+            "Timeframe": ["tempo", False, tuple],
+            "Correção": ["correcao", False, int],
+            "Delay": ["delay", False, float],
         }
 
         self.informacoes = {}
@@ -179,7 +177,7 @@ class Assistente(amanobot.helper.ChatHandler):
             ),
             InlineKeyboardButton(
                 text = MongoDB.infos["campo2"]["titulo"],
-                url = MongoDB.infos["campo1"]["link"]
+                url = MongoDB.infos["campo2"]["link"]
             )]
         ])
         
@@ -187,7 +185,7 @@ class Assistente(amanobot.helper.ChatHandler):
             "Não se esqueça dos links importantes", reply_markup = teclado)
 
         self.enviar_mensagem(
-            f"Olá, eu sou seu assistente do {BOTNAME}.", 
+           f"Olá, eu sou seu assistente do {BOTNAME}.",
             delete = False, reply_markup = ReplyKeyboardMarkup(
                 keyboard = [[KeyboardButton(text = "Entrar")]]))
 
@@ -229,10 +227,10 @@ class Assistente(amanobot.helper.ChatHandler):
         self.enviar_mensagem("Carregado...")
         email = msg['text'].lower()
 
-        if MongoDB.Users_collection.find_one({"email": email}): 
+        usuario = MongoDB.get_user(email)
+        if usuario: 
             # Verifica se está no banco de dados e entra na conta
-            self.email = msg["text"].lower()
-            self.informacoes = MongoDB.get_user(self.email)
+            self.email, self.informacoes = email, usuario
             restante = self.informacoes['timestamp'] - time.time()
             if restante > 0:
                 self.entrada = False
@@ -252,10 +250,14 @@ class Assistente(amanobot.helper.ChatHandler):
             self.close()
         else:
             # Caso o usuário não estiver na lista de espera ele adiciona
-            MongoDB.adicionar_cadastro(email)
-            self.enviar_mensagem(
-                f"Seu e-mail foi colocado para analise. Espere a confirmação do administrador e mande seu e-mail novamente para logar.",
-                save = True)
+            if len(email) > 10 and "@" in email and "." in email:
+                MongoDB.adicionar_cadastro(email)
+                self.enviar_mensagem(
+                    f"Seu e-mail foi colocado para analise. \
+                    \nEspere a confirmação do administrador e mande seu e-mail novamente para logar.",
+                    save = True)
+            else:
+                self.enviar_mensagem("Não é um e-mail válido!", save = True)
             self.close()
 
     def gerenciar(self):
@@ -270,7 +272,7 @@ class Assistente(amanobot.helper.ChatHandler):
             [KeyboardButton( text = "Configurações avançadas" ),
              KeyboardButton( text = "Administração" )],
             [KeyboardButton( text = "Catalogação"),
-             KeyboardButton( text = "Parar bot" )],
+             KeyboardButton( text = "Desligar VPS" )],
             [KeyboardButton( text = "Voltar ao menu" )]
         ])
 
@@ -287,12 +289,11 @@ class Assistente(amanobot.helper.ChatHandler):
         if msg['text'] == "Configurações avançadas":
             mensagem = self.ver_avancadas()
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Adicionar entradas" ),
-                 KeyboardButton( text = "Tipo de paridade" )],
+                [KeyboardButton( text = "Tipo de paridade" ),
+                 KeyboardButton( text = "Mudar timeframe" )],
                 [KeyboardButton( text = "Mudar a correção" ),
                  KeyboardButton( text = "Mudar o delay" )],
-                [KeyboardButton( text = "Mudar timeframe" ),
-                 KeyboardButton( text = "Gerenciar" )]
+                [KeyboardButton( text = "Gerenciar" )]
             ])
             verificador = True
         elif msg['text'] == "Administração":
@@ -316,7 +317,6 @@ class Assistente(amanobot.helper.ChatHandler):
             Martingale: até 0-2 gales
             """
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Catalogar")],
                 [KeyboardButton( text = "Catalogar: Timeframe" ),
                  KeyboardButton( text = "Catalogar: Dias" )],
                 [KeyboardButton( text = "Catalogar: Porcentagem" ),
@@ -442,11 +442,13 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         if self.autenticacao:
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Operar Lista/Taxas" ),
-                 KeyboardButton( text = "Operar Estratégias" )],
-                [KeyboardButton( text = "Ver configurações" ),
-                 KeyboardButton( text = "Ver lista de sinais" )],
+                [KeyboardButton( text = "Operar Lista" )],
+                #  KeyboardButton( text = "Operar Estratégias" )],
+                # [KeyboardButton( text = "Catalogar sinais"),
+                #  KeyboardButton( text = "Operar Auto VIP")],
                 [KeyboardButton( text = "Editar configurações" ),
+                 KeyboardButton( text = "Ver lista de sinais" )],
+                [KeyboardButton( text = "Parar Bot" ),
                  KeyboardButton( text = "Sair da conta" )]
             ])
 
@@ -461,12 +463,34 @@ EURJPY 31/12/2000 CALL M5 02:30
         do menu principal, devolvendo um boolean
         '''
         texto = msg['text']
-        if texto == "Operar Lista/Taxas":
+        if texto == "Operar Lista":
             self.operar_lista = True
             return self.operar(msg)
         elif texto == "Operar Estratégias":
+            self.informacoes["auto"] = False
             self.operar_lista = False
             return self.operar(msg)
+        elif texto == "Operar Auto VIP":
+            self.informacoes["auto"] = True
+            self.operar_lista = False
+            return self.operar(msg)
+        elif texto == "Catalogar sinais":
+            self.enviar_mensagem("Carregando...")
+            sinais = MongoDB.get_entradas(3)
+            conf = MongoDB.get_avancadas()
+            conf_catalogador = (
+                conf["cat_time"], conf["cat_days"], 
+                conf["cat_perct"], conf["cat_mg"])
+            if len(sinais) == 0 or (len(sinais) > 0 and 
+                (datetime.now() - datetime.fromtimestamp(
+                    sinais[0]["timestamp"])).days > 0 or 
+                cache_catalogador != conf_catalogador):
+                self.catalogar_sinais()
+            self.informacoes["lista"] = MongoDB.get_entradas(3)
+            self.enviar_mensagem(
+                "Sinais catalogados adicionados à sua lista.", save = True)
+            self.comandos()
+            return True
         elif texto == "Ver configurações":
             self.enviar_mensagem(
                 self.ver_configuracoes(), save = True)
@@ -516,9 +540,9 @@ EURJPY 31/12/2000 CALL M5 02:30
                         reply_markup = ReplyKeyboardMarkup(
                             keyboard = [
                                 [KeyboardButton( 
-                                    text = "Ver relatório" )],
+                                    text = "Ver relatório da operação" )],
                                 [KeyboardButton( 
-                                    text = "Parar operação" )]
+                                    text = "Parar Bot/Clique se não foi iniciada" )]
                             ]
                         ))
             return True
@@ -546,8 +570,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         Apenas para linux, dá kill na operação através do e-mail
         '''
         self.enviar_mensagem("Parando operação...")
-        MongoDB.Users_collection.find_one_and_update(
-            {'email': self.email}, {'$set' : {'operando': False}})
+        MongoDB.parar_operacao(self.email)
         if os.name != "nt":
             controlador.parar_operacao(self.email)
         self.enviar_mensagem("Operação cancelada.")
@@ -600,7 +623,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             
             headers = {
                 "Tipo de conta": "Conta e listas",
-                "Gerenciamento": "Gerenciamento",
+                "Tipo de gale": "Gerenciamento",
                 "Tipo de martingale": "Martingale e Soros",
                 "Seguir tendência": "Tendência e notícias",
                 "Tipo par": "Ajustes",
@@ -608,7 +631,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             }
             mensagem = ""
             for key, value in self.mapeamento.items():
-                if value[0] not in ["lista", "catalogar"]:
+                if value[0] not in ["lista", "tipo_lista", "num_lista"]:
                     if key in headers:
                         mensagem += f"\n⚙️ {headers[key]} ⚙️\n"
                     mensagem += f"{key}: {str(self.informacoes[value[0]]).replace('True', 'Sim').replace('False', 'Não')}\n"
@@ -630,9 +653,10 @@ EURJPY 31/12/2000 CALL M5 02:30
                      KeyboardButton( text = "Ajustes" )],
                     [KeyboardButton( text = "Gerenciamento" ),
                      KeyboardButton( text = "Martingale e Soros" )],
-                    [KeyboardButton( text = "Tendência e notícias" ),
-                     KeyboardButton( text = "Estratégias")],
-                    [KeyboardButton( text = "Voltar ao menu" )]
+                    [KeyboardButton( text = "Tendência e notícias" )],
+                    #  KeyboardButton( text = "Estratégias")],
+                    [KeyboardButton( text = "Ver configurações" ), 
+                     KeyboardButton( text = "Voltar ao menu" )]
             ], resize_keyboard = True))
             return True
         else:
@@ -644,21 +668,18 @@ EURJPY 31/12/2000 CALL M5 02:30
         if msg['text'] == 'Conta e listas':
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Tipo de conta" ),
-                 KeyboardButton( text = "Tipo de lista" )],
-                [KeyboardButton( text = "Adicionar lista" ),
-                 KeyboardButton( text = "Catalogar sinais")],
-                [KeyboardButton( text = "Valor de entrada" ),
-                 KeyboardButton( text = "Editar configurações" )]
-                ])
+                 KeyboardButton( text = "Valor de entrada" )],
+                [KeyboardButton( text = "Adicionar lista" )],
+                [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == 'Gerenciamento':
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Tipo de Stoploss" ),
-                 KeyboardButton( text = "Gerenciamento" )],
+                 KeyboardButton( text = "Tipo de gale" )],
                 [KeyboardButton( text = "StopWin" ),
                  KeyboardButton( text = "StopLoss" )],
-                [KeyboardButton( text = "Scalper Win"),
-                 KeyboardButton( text = "Scalper Loss")],
+                # [KeyboardButton( text = "Scalper Win"),
+                #  KeyboardButton( text = "Scalper Loss")],
                 [KeyboardButton( text = "Payout mínimo" ),
                  KeyboardButton( text = "Editar configurações" )]
                 ])
@@ -669,10 +690,10 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Martingale na próxima" )],
                 [KeyboardButton( text = "Máximo de gales" ),
                  KeyboardButton( text = "Máximo de soros" )],
-                [KeyboardButton( text = "Ciclos de soros" ),
-                 KeyboardButton( text = "Ciclos de gales" )],
-                [KeyboardButton( text = "Tipo soros" ),
-                 KeyboardButton( text = "Editar configurações" )]])
+                # [KeyboardButton( text = "Ciclos de soros" ),
+                #  KeyboardButton( text = "Ciclos de gales" )],
+                # [KeyboardButton( text = "Tipo soros" ),
+                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == 'Tendência e notícias':
             teclado = ReplyKeyboardMarkup(keyboard = [
@@ -698,9 +719,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "Paridade" ),
                  KeyboardButton( text = "Estratégia" ),
                  KeyboardButton( text = "Tipo milhão" )],
-                [KeyboardButton( text = "Auto: Ativar" ),
-                 KeyboardButton( text = "Auto: Gales" ),
-                 KeyboardButton( text = "Auto: Timeframe")],
+                [KeyboardButton( text = "Auto VIP: Gales" ),
+                 KeyboardButton( text = "Auto VIP: Timeframe")],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         if verificador:
@@ -720,18 +740,6 @@ EURJPY 31/12/2000 CALL M5 02:30
                     keyboard = [
                     [KeyboardButton( text = "Sim" ),
                     KeyboardButton( text = "Não" )]])
-            elif value[0] == "catalogar":
-                sinais = MongoDB.get_entradas(3)
-                if len(sinais) == 0 or (len(sinais) > 0 and 
-                    (datetime.now() - datetime.fromtimestamp(
-                        sinais[0]["timestamp"])
-                    ).days > 0):
-                    self.catalogar_sinais()
-                self.informacoes["lista"] = MongoDB.get_entradas(3)
-                
-                self.enviar_mensagem(
-                    "Sinais catalogados adicionados à sua lista particular.")
-                return self.editar_configuracoes()
             elif (value[0] == "tipo_lista" and 
                 self.informacoes['plano'] == "teste"):
                 self.enviar_mensagem(
@@ -749,23 +757,27 @@ EURJPY 31/12/2000 CALL M5 02:30
                     "tipo_stop": ["movel", "fixo"],
                     "tipo_milhao": ["Minoria", "Maioria"],
                     "tipo_gale": [
-                        "martingale", "sorosgale", "ciclos", "nenhum"],
+                        "martingale", "sorosgale", "nenhum"],  
+                        # "ciclos",
                     "tipo_tendencia": [
                         "medias móveis simples", "velas"],
                     "tipo_martin": [
                         "seguro", "leve", "agressivo", "individual"],
-                    "estrategia": ["Milhão", "Vituxo", "MHI", 
-                        "MHI2", "MHI3", 'C3', "MSF", "HOPE", 
+                    "estrategia": ["Milhão", "MHI", "MHI2", 
+                        "MHI3", 'C3', "MSF", "HOPE", "R7", 
+                        "Vituxo", "Três Mosqueteiros",
                         "Padrão Impar", 'Três Vizinhos', 
-                        'Torres Gêmeas', "Três Mosqueteiros", 
+                        'Torres Gêmeas', "Last of five",
                         "DAKA", "Padrão 23", "Power", 
-                        "Melhor de 3", "Super 5", "Super 3", 
-                        "Last of five", "Five Flip", "R7",
-                        "M5: Três Mosqueteiros", "M5: Milhão",
-                        "M5: Torres Gêmeas", "M5: MHI", 
-                        "M5: MHI2", "M5: MHI3", "Half hour", 
-                        "Primeiros trocados", "Turn Over",
-                        "Hora do equilibrio"]
+                        "Melhor de 3", "Triplicação", 
+                        "M5: Três Mosqueteiros", "GABA", 
+                        "M5: Três Vizinhos", "Five Flip",
+                        "M5: MHI", "M5: MHI2", "M5: MHI3", 
+                        "M5: Torres Gêmeas", "M5: Milhão", 
+                        "Primeiros trocados", "Half hour", 
+                        "Hora do equilibrio", "Turn Over",
+                        "M15: Torres Gêmeas", "M15: MHI",
+                        "M15: MHI2", "M15: MHI3"]
                 }
                 if value[0] in ["tipo_gale", "tempo",
                     "tipo_martin", "tipo_par", "estrategia"]:
@@ -833,11 +845,12 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         elif msg['text'] in [
             "Aprovar usuários", "Renovar licença", 
             "Tirar de cadastro", "Remover usuários"]:
+            self.enviar_mensagem("Carregando banco de dados...")
             # Captura todos os usuários
             if msg['text'] in ["Aprovar usuários", "Tirar de cadastro"]:
-                users = MongoDB.Users_em_aprovacao.find()
+                users = MongoDB.usuarios_em_cadastro()
             else:
-                users = MongoDB.Users_collection.find()
+                users = MongoDB.usuarios_cadastrados()
             # Faz um botão para cada e-mail
             lista_usuarios = [] 
             for user in users:
@@ -858,13 +871,14 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                     self.alteracoes_avancadas['plano'] = True
                 return True
             else:
-                self.enviar_mensagem(
-                    "Nenhum usuário no banco", save = True)
+                self.enviar_mensagem("Nenhum usuário no banco", save = True)
         elif msg['text'] == "Catalogar":
             self.catalogar_sinais()
-        elif msg['text'] == "Parar bot":
+        elif msg['text'] == "Desligar VPS":
             self.parar_bot = True
-            self.enviar_mensagem("Tem certeza?",
+            self.enviar_mensagem("Tem certeza? Isso irá desligar a VPS\n\
+                Cancelando as operações dos clientes\n\
+                Até o suporte ligar novamente",
                 reply_markup = ReplyKeyboardMarkup(keyboard = [
                     [KeyboardButton( text = "Sim" ),
                     KeyboardButton( text = "Não" )]]))
@@ -873,14 +887,20 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         return True
 
     def catalogar_sinais(self):
-        global entrada_03
+        global entrada_03, cache_catalogador
         catalogador = Catalogador(self.chat_id)
         conf = MongoDB.get_avancadas()
-        lista = catalogador.catalogar(
+        cache_catalogador = (
             conf["cat_time"], conf["cat_days"], 
             conf["cat_perct"], conf["cat_mg"])
-        MongoDB.set_entradas(3, lista)
-        entrada_03 = carregar_entradas(3)
+        lista = catalogador.catalogar(*cache_catalogador)
+
+        if lista != []:
+            MongoDB.set_entradas(3, lista)
+            entrada_03 = carregar_entradas(3)
+        else:
+            self.enviar_mensagem(
+                "Nenhum sinal encontrado...")
 
     def habilitar_alteracao(self, msg):
         '''
@@ -917,7 +937,10 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.enviar_mensagem("Escolha o tipo de plano",
                 reply_markup = ReplyKeyboardMarkup(keyboard = [
                     [KeyboardButton( text = "teste" ),
-                    KeyboardButton( text = "mensal" )]]))
+                    KeyboardButton( text = "semanal" )],
+                    [KeyboardButton( text = "mensal" ),
+                    KeyboardButton( text = "trimestral" )],
+                    [KeyboardButton( text = "anual" )]]))
             self.alteracoes_avancadas['plano'] = msg
             return None
         elif self.alteracoes_avancadas['aprovar']:
@@ -952,19 +975,20 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         Se houver verifica se o novo valor está correto
         Devolve um bool, usado para confirmar_alteracao/avancado
         '''
+        def numerization(valor, func):
+            try:
+                return func(valor.strip().replace(",", "."))
+            except: return False
+
         for key, value in dicionario.items():
             if value[1]:
                 if value[2] in [int, float]:
-                    try:
-                        novo = value[2](
-                            novo.strip().replace(",", ".").replace("%", ""))
-                    except Exception as e:
+                    novo = numerization(novo, value[2])
+                    if novo != 0 and not novo:
                         if value[0] == "delay":
                             novo = False
                         else:
-                            print(e)
-                            self.enviar_mensagem(
-                                "Deve ser um número! Tente novamente", save = True)
+                            self.enviar_mensagem("Deve ser um número! Tente novamente", save = True)
                             return True
                 elif value[2] == list:
                     novo = self.pegar_entrada(novo.split("\n"))
@@ -980,8 +1004,15 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                         return True
                 elif value[2] == str and value[0] != "paridade":
                     try:
-                        novo = json.loads(novo)
-                    except:
+                        # novo = list(map(lambda x: list(
+                        #     map(float, x.strip().split(","))), 
+                        # novo.strip().split("\n"))) 
+                        if novo != "0" and not numerization(novo, float):
+                            novo = json.loads(novo)
+                        else:
+                            raise ValueError("JSON != int!")    
+                    except Exception as e:
+                        print(e)
                         self.enviar_mensagem(
                             "Não entendi, tente novamente: https://argente123.github.io/Ciclos/")
                         return True
@@ -1028,15 +1059,23 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             return result
         return False
 
+    def listar_usuarios(self):
+        if os.name != "nt":
+            instancias = controlador.mostrar_usuarios()
+            for instancia, usuarios in instancias.items():
+                self.enviar_mensagem(instancia, save = True)
+                for usuario in usuarios:
+                    self.enviar_mensagem(usuario, save = True)
+        
     def desligar_bot(self):
         global rodando
         if os.name != "nt":
             self.enviar_mensagem("Deletando todas as instâncias...")
             usuarios = controlador.deletar_instancias()
             self.enviar_mensagem("Resetando o banco de dados...")
+            MongoDB.modificar_banco_users("off")
             for email in usuarios:
-                MongoDB.Users_collection.find_one_and_update(
-                    {'email': email}, {'$set' : {'operando': False}})
+                print(email)
         self.enviar_mensagem("Desligando o bot...")
         rodando = False
         self.close()
@@ -1054,9 +1093,9 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         elif self.salvar_alteracoes_avancadas(msg) in [True, None]:
             if not self.alteracoes_avancadas['plano']:
                 self.gerenciar()    # [4] Avançadas (ADM)
-        elif msg['text'] == "Parar operação":
+        elif "Parar Bot" in msg['text']:
             self.parar_operar(msg)  # [4] Opções
-        elif msg['text'] == "Ver relatório":
+        elif msg['text'] == "Ver relatório da operação":
             self.ver_relatorio(msg) # [4] Opções
         elif msg['text'].capitalize() in ["Entrar", "/start"]:
             self.entrar()           # [1] Login
@@ -1090,6 +1129,11 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                 self.desligar_bot()
             else:
                 self.parar_bot = False
+                self.enviar_mensagem(
+                    "Deixando o bot ligado", save = True)
+                self.gerenciar()
+        elif msg['text'].capitalize() == "Listar users":
+            self.listar_usuarios()
         else:
             self.entrar()
         
@@ -1152,6 +1196,8 @@ if __name__ == "__main__":
     except Exception as e:	
         escreve_erros(e)
         problema = True
+
+    MongoDB.close()
 
     if problema:
         print("\nAconteceu um erro, tentando se reconectar...")

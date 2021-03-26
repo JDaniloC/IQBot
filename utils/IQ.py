@@ -3,16 +3,14 @@ from datetime import datetime, timedelta
 import time, numpy, requests, json
 
 class IQ_API:
-    def __init__(self, login, senha, output):
+    def __init__(self, login, senha, output = None):
         '''
         Recebe o login, e tenta se conectar
         '''
+        if output == None:
+            output = print
         self.saida = output
         self.API = IQ_Option(login, senha)
-        if output != None:
-            self.output = output
-        else:
-            output = print
         if not self.conectar():
             raise ConnectionError(" ❌ Não conseguiu se conectar, reveja a senha ❌ ")
 
@@ -43,21 +41,24 @@ class IQ_API:
         '''
         Muda para a conta treino
         '''
-        self.saida(" - Usando a conta treino -\n")
-        self.API.change_balance("PRACTICE")
+        if self.API.get_balance_mode() != "PRACTICE":
+            self.saida(" - Usando a conta treino -\n")
+            self.API.change_balance("PRACTICE")
     
     def mudar_real(self):
         '''
         Muda para a conta real
         '''
-        self.saida(" - Usando a conta real -\n")
-        self.API.change_balance("REAL")
+        if self.API.get_balance_mode() != "REAL":
+            self.saida(" - Usando a conta real -\n")
+            self.API.change_balance("REAL")
 
     def payout_digital(self, paridade):
         '''
         Devolve o payout de uma paridade digital
         '''
         try:
+            print("Pegando payout digital")
             return self.API.get_digital_payout(paridade) / 100
         except:
             return False
@@ -67,6 +68,7 @@ class IQ_API:
         Devolve o payout de uma paridade binária
         caso não tem esse par, então devolve False
         '''
+        print("Pegando payout binária")
         payouts = self.API.get_all_profit()
         valor = payouts.get(par)
         if valor == None:
@@ -162,7 +164,7 @@ class IQ_API:
     
     def ordem(self, paridade, direcao = "call", tempo = 1, 
         valor = 1, tipo = "binary", bloqueador = None, 
-        delay = False, scalper = False):
+        delay = False, scalper = False, trying = False):
         '''
         Faz uma ordem e devolve o resultado.
         Params:
@@ -176,6 +178,12 @@ class IQ_API:
         return:
             (resultado, lucro)
         '''
+        def verify_string(verifiers, string):
+            for node in verifiers:
+                if node in string:
+                    return True
+            return False
+
         direcao = direcao.lower()
         hora_atual = datetime.fromtimestamp(
             datetime.utcnow().timestamp() - 10800)
@@ -189,31 +197,42 @@ class IQ_API:
         if bloqueador != None:
             with bloqueador:
                 if tipo == "binary":
-                    status, identificador = self.API.buy(valor, paridade, direcao, tempo)
+                    status, identificador = self.API.buy(
+                        valor, paridade, direcao, tempo)
                 else:
-                    status, identificador = self.API.buy_digital_spot(paridade, valor, direcao, tempo)
+                    status, identificador = self.API.buy_digital_spot(
+                        paridade, valor, direcao, tempo)
         else:
             if tipo == "binary":
-                status, identificador = self.API.buy(valor, paridade, direcao, tempo)
+                status, identificador = self.API.buy(
+                    valor, paridade, direcao, tempo)
             else:
-                status, identificador = self.API.buy_digital_spot(paridade, valor, direcao, tempo)
+                status, identificador = self.API.buy_digital_spot(
+                    paridade, valor, direcao, tempo)
             
         if not status:
             if tipo == "digital":
-                identificador = identificador['message']
-            self.saida(str(identificador))
-            self.saida(
-    f"❌ {paridade}-{tipo} {direcao} fechada ou máximo de operações ❌")
+                identificador = str(identificador['message'])
+            else: identificador = str(identificador)
+            self.saida(identificador)
+            if verify_string(["active_suspended", "invalid", "available"], 
+                identificador) and not trying:
+                if self.tipo != "auto": 
+                    self.tipo = ("binary" if 
+                        self.tipo == "digital" else "digital")
+                return self.ordem(paridade, direcao, tempo, valor, 
+                    "binary" if tipo == "digital" else "digital", 
+                    bloqueador, delay, scalper, True)
+            self.saida(f"❌ {paridade}-{tipo} {direcao.upper()} fechada ou máximo de operações ❌")
             return "error", 0
 
-        self.saida(
-f"{paridade}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
+        self.saida(self.format_dir(f" 🔸 {paridade} | {tipo.capitalize()} | M{tempo} | $ {round(valor, 2)} | {direcao.upper()}"))
 
         lucro = 0
         if delay == False:
             # Versão que pega no histórico
             if tipo == "binary":
-                resultado, lucro = self.API.check_win_v4(identificador) # binary
+                resultado, lucro = self.API.check_win_v4(identificador) 
             else:
                 if scalper:
                     self.API.subscribe_strike_list(paridade, 1)
@@ -232,18 +251,17 @@ f"{paridade}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
                     resultado = "equal"
         else:
             # Versão que pega na hora
-            resultado, lucro = self.API.check_win_v5(identificador, tipo, delay)
+            resultado, lucro = self.API.check_win_v5(
+                identificador, tipo, delay)
 
-        self.saida(f"""
-{'-' * 30} 
-    Paridade: {paridade}|{tipo.capitalize()}
-    Direção: {direcao.upper()}
-    tempo: M{tempo}
+        print(f"""
+Paridade: {paridade}|{tipo.capitalize()}
+Direção:  {direcao.upper()}
+tempo:    M{tempo}
 
-    Hora: {hora_atual.strftime("%H:%M")}
-    Valor: R$ {valor}
-    {resultado.capitalize()}: R$ {round(lucro, 2)} 
-{'-' * 30} """)
+Hora: {hora_atual.strftime("%H:%M")}
+Valor: R$ {round(valor, 2)}
+{resultado.capitalize()}:  R$ {round(lucro, 2)}""")
 
         return resultado, round(lucro, 2)
 
@@ -301,7 +319,7 @@ f"{paridade}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
             and diferenca > 0) or (
             direcao.lower() == "put" 
             and diferenca < 0) else False
-    
+
     def pegar_velas(self, par, timeframe, quantidade, fim = None):
         if fim == None:
             fim = time.time()
@@ -310,8 +328,11 @@ f"{paridade}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
             par, timeframe, quantidade, fim)
         ]
     
+    def format_dir(self, text):
+        return text.replace("CALL", "⬆️").replace("PUT", "⬇️")
+
     @staticmethod
-    def catalogar(timeframe, gale):
+    def catalogar_estrategia(timeframe, gale):
         def traduzir(estrategia):
             maioria = "Minoria"
             pedaco = estrategia.capitalize().split()
@@ -331,8 +352,10 @@ f"{paridade}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
         try:
             resultado = json.loads(data.text)['Todos']
             for estrategia in resultado:
-                return estrategia[1].upper(), traduzir(estrategia[2])
-        except: return "EURUSD", ("MHI", False)
+                return estrategia[0], estrategia[1].upper(), traduzir(estrategia[2])
+        except Exception as e:
+            print("Catalogar:", e) 
+            return 50, "EURUSD", ("MHI", "maioria")
 
     @staticmethod
     def esperarAte(horas, minutos, segundos = 0, data = (), tolerancia = 0, output = False):
@@ -360,7 +383,7 @@ f"{paridade}-{tipo} {direcao.upper()} ${round(valor, 2)} M{tempo}")
                 alvo = alvo.fromtimestamp(
                     alvo.timestamp() + tolerancia
                 )
-                output(f"\n ⏳ Esperando para fazer a operação das {alvo.strftime('%d/%m/%Y %H:%M:%S')} ⏳")
+                output(f"\n ⏳ Próxima operação às {alvo.strftime('%H:%M:%S')} ⏳")
             time.sleep(segundos)
             return True
         if segundos > (-10 - tolerancia):

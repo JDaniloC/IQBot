@@ -1597,14 +1597,22 @@ class IQ_Option:
 
     def get_digital_payout(self, active):
         asset_id = OP_code.ACTIVES[active]
-        instrument_index = self.get_digital_instrument_index(active)
+        try:
+            instrument_index = self.get_digital_instrument_index(active)
+        except Exception as err:
+            print(err)
+            return 0.1
 
-        self.api.subscribe_digital_price_splitter(instrument_index, asset_id)
+        self.api.subscribe_digital_price_splitter(
+            instrument_index, asset_id)
 
+        timing = time.time()
         while self.api.digital_payout is None:
-            pass
+            if time.time() - timing > 15:
+                return 0.8
 
-        self.api.unsubscribe_digital_price_splitter(instrument_index, asset_id)
+        self.api.unsubscribe_digital_price_splitter(
+            instrument_index, asset_id)
 
         return self.api.digital_payout
 
@@ -1613,8 +1621,10 @@ class IQ_Option:
         time.sleep(self.suspend)
         self.api.get_digital_instruments(asset_id)
 
+        timing = time.time()
         while self.api.instruments_index is None:
-            pass
+            if time.time() - timing > 5:
+                raise IndexError('Não consegui pegar a paridade digital')
 
         instruments = self.api.instruments_index["instruments"]
         instrument = sorted(instruments, key=lambda k: k['index'])[-1]
