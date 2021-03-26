@@ -233,11 +233,14 @@ class Operacao(IQ_API):
 				placar = f"✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌"
 				somatorio = sum(self.ganhos_perdas)
 				assertividade = self.ganhos_perdas[0] / somatorio * 100 if somatorio > 0 else 0
+				
+				perda_total = self.perda_total
+				if perda_total > 0: perda_total = 0
 				self.mostrar_mensagem(f'''
 {mensagem}
 {placar.center(32, " ")}
 💰 Saldo: $ {round(self.ganho_total, 2)} | $ {self.stopwin}
-💲 Perca: $ {round(self.perda_total, 2)} | $ {-self.stoploss}
+💲 Perca: $ {round(perda_total, 2)} | $ {-self.stoploss}
 ✴️ Assertividade: {round(assertividade, 2)}%
 					⚠️ Bot parado ⚠️''')
 				return True
@@ -441,10 +444,10 @@ class Operacao(IQ_API):
 				else:
 					max_gale = self.max_gale
 				
-				while (max_gale > num_gales and resultado == "loose"
+				while (max_gale > num_gales and resultado != "win"
 					and self.stopwin > self.ganho_total):
 
-					if resultado not in ["error", "equal"]:
+					if resultado != "error":
 						if resultado == "loose":
 							lucro = abs(lucro) * -1
 						
@@ -475,7 +478,7 @@ class Operacao(IQ_API):
 					resultado, lucro = self.ordem(
 						paridade, ordem, tempo, valor, tipo,
 						self.cadeado, self.config['delay'])
-					if resultado == "loose":
+					if resultado != "win":
 						num_gales += 1
 				if (resultado == "win" and 
 					self.config['tipo_stop'] != "fixo"):
@@ -554,7 +557,7 @@ class Operacao(IQ_API):
 				desconta_perda(resultado, lucro, texto_gale)      
 			else:
 				self.mostrar_mensagem(self.format_dir(f"""
-⚪️ {paridade.upper()}|{tipo.capitalize()} M{tempo} {ordem.upper()}
+{paridade.upper()}|{tipo.capitalize()} M{tempo} {ordem.upper()}
 	💰 $ {round(valor, 2)} | $ 0,00 💰"""))
 			time.sleep(3)          
 			mostra_resultado()
