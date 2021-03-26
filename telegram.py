@@ -122,16 +122,16 @@ class Assistente(amanobot.helper.ChatHandler):
             "Valor de entrada": ["valor", False, float],
             "Tipo de gale": ["tipo_gale", False, tuple], 
             "Tipo de Stoploss": ["tipo_stop", False, tuple], 
-            "Scalper Loss": ["scalper_loss", False, int],
-            "Scalper Win": ["scalper_win", False, int],
+            # "Scalper Loss": ["scalper_loss", False, int],
+            # "Scalper Win": ["scalper_win", False, int],
             "Payout mínimo": ["minimo", False, int], 
             "StopLoss": ["stoploss", False, float],
             "StopWin": ["stopwin", False, float],
 
             "Tipo de martingale": ["tipo_martin", False, tuple],
             "Martingale na próxima": ["vez_gale", False, tuple],
-            "Ciclos de soros": ["ciclos_soros", False, str],
-            "Ciclos de gales": ["ciclos_gale", False, str],
+            # "Ciclos de soros": ["ciclos_soros", False, str],
+            # "Ciclos de gales": ["ciclos_gale", False, str],
             "Máximo de soros": ["max_soros", False, int],
             "Máximo de gales": ["max_gale", False, int],
             "Tipo soros": ["tipo_soros", False, tuple],
@@ -143,11 +143,11 @@ class Assistente(amanobot.helper.ChatHandler):
             "Tipo de tendência": ["tipo_tendencia", False, tuple],
             "Período da tendência": ["periodo_tendencia", False, int],
 
-            "Paridade": ["paridade", False, str],
-            "Estratégia": ["estrategia", False, tuple],
-            "Tipo milhão": ["tipo_milhao", False, tuple],
-            "Auto VIP: Timeframe": ["autotime", False, tuple],
-            "Auto VIP: Gales": ["autogale", False, tuple],
+            # "Paridade": ["paridade", False, str],
+            # "Estratégia": ["estrategia", False, tuple],
+            # "Tipo milhão": ["tipo_milhao", False, tuple],
+            # "Auto VIP: Timeframe": ["autotime", False, tuple],
+            # "Auto VIP: Gales": ["autogale", False, tuple],
 
             "Tipo par": ["tipo_par", False, tuple],
             "Timeframe": ["tempo", False, tuple],
@@ -442,10 +442,10 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         if self.autenticacao:
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Operar Lista/Taxas" ),
-                 KeyboardButton( text = "Operar Estratégias" )],
-                [KeyboardButton( text = "Catalogar sinais"),
-                 KeyboardButton( text = "Operar Auto VIP")],
+                [KeyboardButton( text = "Operar Lista" )],
+                #  KeyboardButton( text = "Operar Estratégias" )],
+                # [KeyboardButton( text = "Catalogar sinais"),
+                #  KeyboardButton( text = "Operar Auto VIP")],
                 [KeyboardButton( text = "Editar configurações" ),
                  KeyboardButton( text = "Ver lista de sinais" )],
                 [KeyboardButton( text = "Parar Bot" ),
@@ -463,7 +463,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         do menu principal, devolvendo um boolean
         '''
         texto = msg['text']
-        if texto == "Operar Lista/Taxas":
+        if texto == "Operar Lista":
             self.operar_lista = True
             return self.operar(msg)
         elif texto == "Operar Estratégias":
@@ -653,8 +653,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                      KeyboardButton( text = "Ajustes" )],
                     [KeyboardButton( text = "Gerenciamento" ),
                      KeyboardButton( text = "Martingale e Soros" )],
-                    [KeyboardButton( text = "Tendência e notícias" ),
-                     KeyboardButton( text = "Estratégias")],
+                    [KeyboardButton( text = "Tendência e notícias" )],
+                    #  KeyboardButton( text = "Estratégias")],
                     [KeyboardButton( text = "Ver configurações" ), 
                      KeyboardButton( text = "Voltar ao menu" )]
             ], resize_keyboard = True))
@@ -678,8 +678,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Tipo de gale" )],
                 [KeyboardButton( text = "StopWin" ),
                  KeyboardButton( text = "StopLoss" )],
-                [KeyboardButton( text = "Scalper Win"),
-                 KeyboardButton( text = "Scalper Loss")],
+                # [KeyboardButton( text = "Scalper Win"),
+                #  KeyboardButton( text = "Scalper Loss")],
                 [KeyboardButton( text = "Payout mínimo" ),
                  KeyboardButton( text = "Editar configurações" )]
                 ])
@@ -690,10 +690,10 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Martingale na próxima" )],
                 [KeyboardButton( text = "Máximo de gales" ),
                  KeyboardButton( text = "Máximo de soros" )],
-                [KeyboardButton( text = "Ciclos de soros" ),
-                 KeyboardButton( text = "Ciclos de gales" )],
-                [KeyboardButton( text = "Tipo soros" ),
-                 KeyboardButton( text = "Editar configurações" )]])
+                # [KeyboardButton( text = "Ciclos de soros" ),
+                #  KeyboardButton( text = "Ciclos de gales" )],
+                # [KeyboardButton( text = "Tipo soros" ),
+                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == 'Tendência e notícias':
             teclado = ReplyKeyboardMarkup(keyboard = [
@@ -757,7 +757,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                     "tipo_stop": ["movel", "fixo"],
                     "tipo_milhao": ["Minoria", "Maioria"],
                     "tipo_gale": [
-                        "martingale", "sorosgale", "ciclos", "nenhum"],
+                        "martingale", "sorosgale", "nenhum"],  
+                        # "ciclos",
                     "tipo_tendencia": [
                         "medias móveis simples", "velas"],
                     "tipo_martin": [
