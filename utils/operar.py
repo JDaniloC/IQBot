@@ -444,10 +444,10 @@ class Operacao(IQ_API):
 				else:
 					max_gale = self.max_gale
 				
-				while (max_gale > num_gales and resultado == "loose"
+				while (max_gale > num_gales and resultado != "win"
 					and self.stopwin > self.ganho_total):
 
-					if resultado not in ["error", "equal"]:
+					if resultado != "error":
 						if resultado == "loose":
 							lucro = abs(lucro) * -1
 						
@@ -478,7 +478,7 @@ class Operacao(IQ_API):
 					resultado, lucro = self.ordem(
 						paridade, ordem, tempo, valor, tipo,
 						self.cadeado, self.config['delay'])
-					if resultado == "loose":
+					if resultado != "win":
 						num_gales += 1
 				if (resultado == "win" and 
 					self.config['tipo_stop'] != "fixo"):
@@ -557,7 +557,7 @@ class Operacao(IQ_API):
 				desconta_perda(resultado, lucro, texto_gale)      
 			else:
 				self.mostrar_mensagem(self.format_dir(f"""
-⚪️ {paridade.upper()}|{tipo.capitalize()} M{tempo} {ordem.upper()}
+{paridade.upper()}|{tipo.capitalize()} M{tempo} {ordem.upper()}
 	💰 $ {round(valor, 2)} | $ 0,00 💰"""))
 			time.sleep(3)          
 			mostra_resultado()
