@@ -198,7 +198,9 @@ class Assistente(amanobot.helper.ChatHandler):
                 self.bot.deleteMessage((self.chat_id, mensagem['message_id']))
         else:
             if delete and not save:
-                self.bot.deleteMessage(self.message_id)
+                try:
+                    self.bot.deleteMessage(self.message_id)
+                except: pass
      
             mensagem = self.sender.sendMessage(message,
                 reply_markup = reply_markup)
@@ -943,9 +945,14 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.alteracoes_avancadas['plano'] = msg
             return None
         elif self.alteracoes_avancadas['aprovar']:
-            MongoDB.aprovar(
+            aprovado = MongoDB.aprovar(
                 self.alteracoes_avancadas['plano'], msg)
-            self.enviar_mensagem("Usuário aprovado.")
+            if aprovado:
+                self.enviar_mensagem("Usuário aprovado.")
+            else:
+                self.enviar_mensagem(
+                    "Você já atingiu o limite de usuários!", 
+                    save = True)
             self.alteracoes_avancadas["aprovar"] = False
             self.alteracoes_avancadas['plano'] = False
             return True
