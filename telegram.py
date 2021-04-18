@@ -487,6 +487,10 @@ EURJPY 31/12/2000 CALL M5 02:30
                 (datetime.now() - datetime.fromtimestamp(
                     sinais[0]["timestamp"])).days > 0 or 
                 cache_catalogador != conf_catalogador):
+                if self.id not in ADMS:
+                    self.enviar_mensagem(
+                        "Peça para o admnistrador catalogar os sinais de hoje!")
+                    return True
                 self.catalogar_sinais()
             self.informacoes["lista"] = MongoDB.get_entradas(3)
             self.enviar_mensagem(
@@ -901,7 +905,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             entrada_03 = carregar_entradas(3)
         else:
             self.enviar_mensagem(
-                "Nenhum sinal encontrado...")
+                "Nenhum sinal encontrado...", save = True)
 
     def habilitar_alteracao(self, msg):
         '''
@@ -951,8 +955,8 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                 self.enviar_mensagem("Usuário aprovado.")
             else:
                 self.enviar_mensagem(
-                    "Você já atingiu o limite de usuários!", 
-                    save = True)
+                    "Você já atingiu o limite de usuários. \
+                        Sua VPS já não suporta.", save = True)
             self.alteracoes_avancadas["aprovar"] = False
             self.alteracoes_avancadas['plano'] = False
             return True

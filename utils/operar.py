@@ -491,6 +491,7 @@ class Operacao(IQ_API):
 						texto_gale = "🔸 Voltando ao primeiro ciclo"
 						if resultado != "win":
 							texto_gale = "♦️" + texto_gale[1:]
+							self.config['ciclos']['gales'] = 0
 						else:
 							texto_gale, num_gales = self.win_case(
 								is_ciclos_gale, fazendo_soros, 
