@@ -82,7 +82,7 @@ class Operacao(IQ_API):
 					config["tipo_gale"] = "martingale"
 				self.ciclos_soros = list(filter(empty, config["ciclos_soros"]))
 				if len(self.ciclos_soros) == 0:
-					self.config['on_ciclos_soros'] = False
+					self.config['tipo_soros'] = "normal"
 
 				self.stopwin = 0.1 if (
 					self.stopwin == 0
