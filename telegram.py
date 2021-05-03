@@ -489,7 +489,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                 cache_catalogador != conf_catalogador):
                 if self.id not in ADMS:
                     self.enviar_mensagem(
-                        "Peça para o admnistrador catalogar os sinais de hoje!")
+                        "Peça para o admnistrador catalogar os sinais de hoje!", save = True)
                     return True
                 self.catalogar_sinais()
             self.informacoes["lista"] = MongoDB.get_entradas(3)
@@ -612,8 +612,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                     enviar_lista("Lista própria", carregar_entradas(
                             self.informacoes['lista']))
                 else:
-                    self.enviar_mensagem(
-                        "Nenhuma lista registrada. Para adicionar: Conta > Adicionar lista.")
+                    self.enviar_mensagem("Nenhuma lista registrada. Para adicionar: Conta > Adicionar lista.", save = True)
             self.comandos()
             return True
         else:

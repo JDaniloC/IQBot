@@ -176,21 +176,12 @@ class Catalogador(IQ_API):
                             ok = True
                             break
                 
-                if ok == True:
-                    msg = par + ' ' + horario + ' ' + catalogacao[par][horario]['dir'] + ' ' + str(catalogacao[par][horario]['%']) + '% '
-                    
-                    for i in range(int(martingale)):
-                        porcentagem_sinal = catalogacao[par][horario]['mg'+str(i+1)]['%']
-                        if str(porcentagem_sinal) != 'N/A':
-                            msg += f'{i+1} | MG ' + str(porcentagem_sinal) + '% '
-                        else:
-                            msg += ' | MG ' + str(i+1) + ' N/A N/A' 
-                                
-                    entrada = pegar_comando_lista(
-                        f"{datetime.now().strftime('%d/%m/%Y')} {horario} {par} {catalogacao[par][horario]['dir'].strip()} M{timeframe}\n")
+                if ok == True:                    
+                    texto_entrada = f"{datetime.now().strftime('%d/%m/%Y')} {horario} {par} {catalogacao[par][horario]['dir'].strip()} M{timeframe}\n"
+                    entrada = pegar_comando_lista(texto_entrada)
                     if entrada != {}:
                         resultado.append(entrada)
-                        texto_entradas += msg + "\n"
+                        texto_entradas += texto_entrada + "\n"
                         conta_texto += 1
                         if conta_texto % 50 == 0:
                             self.mostrar_mensagem(texto_entradas)	
