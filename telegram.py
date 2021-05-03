@@ -1024,7 +1024,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                     except Exception as e:
                         print(e)
                         self.enviar_mensagem(
-                            "Não entendi, tente novamente: https://argente123.github.io/Ciclos/")
+                            "Não entendi, tente novamente: https://jdaniielc.github.io/Ciclos/")
                         return True
                 elif novo == "individual":
                     self.enviar_mensagem(
