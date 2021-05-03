@@ -800,7 +800,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             else:
                 mensagem = f"Digite a nova informação para {text}: "
                 if value[2] == str and value[0] != "paridade":
-                    mensagem = "Pegue os ciclos no site: https://argente123.github.io/Ciclos/"
+                    mensagem = "Pegue os ciclos no site: https://jdaniielc.github.io/Ciclos/"
                 elif value[2] == list:
                     mensagem = """Envie a lista no formato:
     01/01/2000 13:00 EURUSD-OTC PUT M1
