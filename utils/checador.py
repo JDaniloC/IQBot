@@ -78,7 +78,7 @@ class IQ_BOT(IQ_API):
         print(resposta)
 
     def pegar_cores(self, paridade, timestamp, timeframe):
-        velas = self.pegar_velas(paridade, timeframe * 60, 3, timestamp)
+        velas = self.API.get_candles(paridade, timeframe * 60, 3, timestamp)
         # for vela in velas:
         #     print(datetime.fromtimestamp(vela['at']/1000000000))
         return [
@@ -111,7 +111,14 @@ def checa_sinais(sinais, timeframe_padrao):
     api = IQ_BOT("hiyivo1180@tmail7.com", "senha123")
     resultado = []
     for entrada in sinais:
-        timeframe = entrada["timeframe"]
-        if timeframe == 0: timeframe = timeframe_padrao
-        resultado.append(api.ver_resultado(entrada, timeframe))
+        if entrada["timestamp"] < time.time():
+            timeframe = entrada["timeframe"]
+            if timeframe == 0: timeframe = timeframe_padrao
+            resultado.append(api.ver_resultado(entrada, timeframe))
+        else:
+            format_hour = lambda x: "0" + str(x) if len(str(x)) == 1 else str(x)
+            paridade, hora = entrada["par"], entrada['hora']
+
+            identificador = f'{paridade} {":".join(map(format_hour, hora))} '
+            resultado.append(identificador + "❔")
     return resultado

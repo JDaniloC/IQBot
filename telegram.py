@@ -89,6 +89,7 @@ mapeamento_avancado = {
     "Catalogar: Dias": ["cat_days", False, int],
     "Catalogar: Porcentagem": ["cat_perct", False, int],
     "Catalogar: Martingale": ["cat_mg", False, int],
+    "Catalogar: Limite": ["cat_max", False, int],
 }
 
 # O bot
@@ -318,13 +319,15 @@ class Assistente(amanobot.helper.ChatHandler):
             Dias: analisar últimos 1-30 dias
             Porcentagem: mínimo 0-100%
             Martingale: até 0-2 gales
+            Limite: máximo de sinais
             """
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Catalogar: Timeframe" ),
                  KeyboardButton( text = "Catalogar: Dias" )],
                 [KeyboardButton( text = "Catalogar: Porcentagem" ),
                  KeyboardButton( text = "Catalogar: Martingale" )],
-                [KeyboardButton( text = "Gerenciar" )]
+                [KeyboardButton( text = "Catalogar: Limite" ),
+                 KeyboardButton( text = "Gerenciar" )]
             ])
             verificador = True
         if verificador:
@@ -340,11 +343,25 @@ class Assistente(amanobot.helper.ChatHandler):
         if self.id not in ADMS:
             self.enviar_mensagem("Usuário não tem permissão")
             return False
+        def traduz_key(key):
+            tradutor = {
+                "tipo_par": "Tipo de modalidade",
+                "tempo": "Timeframe",
+                "correcao": "Antecipar entrada",
+                "delay": "Antecipar resultado",
+                "cat_perct": "Catalogação - Porcentagem",
+                "cat_days": "Catalogação - Dias",
+                "cat_mg": "Catalogação - Gales",
+                "cat_time": "Catalogação - Timeframe",
+                "cat_max": "Catalogação - Limite"
+            }
+            return tradutor.get(key)
+
         default = MongoDB.get_avancadas()
         resultado = ""
         for key, value in default.items():
             if key not in ["_id"]:
-                resultado += f"{key}: {value}\n"
+                resultado += f"{traduz_key(key)}: {value}\n"
         return resultado
 
     def adicionar_entrada(self, msg):
@@ -480,26 +497,9 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.operar_lista = False
             return self.operar(msg)
         elif texto == "Catalogar sinais":
-            self.enviar_mensagem("Carregando...")
-            sinais = MongoDB.get_entradas(3)
-            conf = MongoDB.get_avancadas()
-            conf_catalogador = (
-                conf["cat_time"], conf["cat_days"], 
-                conf["cat_perct"], conf["cat_mg"])
-            if len(sinais) == 0 or (len(sinais) > 0 and 
-                (datetime.now() - datetime.fromtimestamp(
-                    sinais[0]["timestamp"])).days > 0 or 
-                cache_catalogador != conf_catalogador):
-                if self.id not in ADMS:
-                    self.enviar_mensagem(
-                        "Peça para o admnistrador catalogar os sinais de hoje!", save = True)
-                    return True
-                self.catalogar_sinais()
-            self.informacoes["lista"] = MongoDB.get_entradas(3)
-            self.enviar_mensagem(
-                "Sinais catalogados adicionados à sua lista.", save = True)
-            self.comandos()
-            return True
+            return self.adicionar_catalogados()
+        elif texto == "Verificar lista":
+            return self.verificar_sinais()
         elif texto == "Ver configurações":
             self.enviar_mensagem(
                 self.ver_configuracoes(), save = True)
@@ -899,6 +899,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         '''
         Verifica os sinais da lista própria
         '''
+        self.enviar_mensagem("Carregando...")
         resultados = checa_sinais(
             self.informacoes['lista'], 
             self.informacoes["tempo"])
@@ -910,17 +911,49 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
 
         for msg in mensagens:
             self.enviar_mensagem(msg, save = True)
+        self.comandos()
+        return True
+    
+    def adicionar_catalogados(self):
+        ''' 
+        Verifica se os sinais são atuais ou foi modificado 
+        '''
+        self.enviar_mensagem("Carregando...")
+        sinais = MongoDB.get_entradas(3)
+        conf = MongoDB.get_avancadas()
+        conf_catalogador = (conf["cat_time"], 
+            conf["cat_days"], conf["cat_perct"], 
+            conf["cat_mg"], conf["cat_max"])
+
+        sinais_antigos = (len(sinais) > 0 and 
+            (datetime.now() - datetime.fromtimestamp(
+                sinais[0]["timestamp"])).days > 0)
+        conf_alterada = cache_catalogador != conf_catalogador
+        
+        if len(sinais) == 0 or (sinais_antigos or conf_alterada):
+            if self.id not in ADMS:
+                self.enviar_mensagem(
+                    "Peça para o admnistrador catalogar os sinais de hoje!", save = True)
+                return True
+            self.catalogar_sinais()
+        
+        self.informacoes["lista"] = MongoDB.get_entradas(3)
+        self.enviar_mensagem(
+            "Sinais catalogados adicionados à sua lista.", save = True)
+        self.comandos()
+        return True
 
     def catalogar_sinais(self):
         '''
         Cataloga os sinais e adiciona a lista 3
         '''
         global entrada_03, cache_catalogador
+        self.enviar_mensagem("Carregando...")
         catalogador = Catalogador(self.chat_id)
         conf = MongoDB.get_avancadas()
-        cache_catalogador = (
-            conf["cat_time"], conf["cat_days"], 
-            conf["cat_perct"], conf["cat_mg"])
+        cache_catalogador = (conf["cat_time"], 
+            conf["cat_days"], conf["cat_perct"], 
+            conf["cat_mg"], conf["cat_max"])
         lista = catalogador.catalogar(*cache_catalogador)
 
         if lista != []:
@@ -929,6 +962,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         else:
             self.enviar_mensagem(
                 "Nenhum sinal encontrado...", save = True)
+
 
     def habilitar_alteracao(self, msg):
         '''
