@@ -12,6 +12,7 @@ from amanobot.delegate import (
 
 from bot import pegar_comando, escreve_erros
 from utils.catalogador import Catalogador
+from utils.checador import checa_sinais
 from controlador import Control
 from database import Mongo
 
@@ -442,10 +443,12 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         if self.autenticacao:
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Operar Lista" )],
-                #  KeyboardButton( text = "Operar Estratégias" )],
-                # [KeyboardButton( text = "Catalogar sinais"),
-                #  KeyboardButton( text = "Operar Auto VIP")],
+                [KeyboardButton( text = "Operar Lista" ),
+                 KeyboardButton( text = "Adicionar lista" )],
+                [KeyboardButton( text = "Catalogar sinais"),
+                 KeyboardButton( text = "Verificar lista")],
+                #  [KeyboardButton( text = "Operar Estratégias" ),
+                #   KeyboardButton( text = "Operar Auto VIP")],
                 [KeyboardButton( text = "Editar configurações" ),
                  KeyboardButton( text = "Ver lista de sinais" )],
                 [KeyboardButton( text = "Parar Bot" ),
@@ -669,7 +672,8 @@ EURJPY 31/12/2000 CALL M5 02:30
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Tipo de conta" ),
                  KeyboardButton( text = "Valor de entrada" )],
-                [KeyboardButton( text = "Adicionar lista" )],
+                [KeyboardButton( text = "Adicionar lista" ),
+                 KeyboardButton( text = "Verificar lista")],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == 'Gerenciamento':
@@ -886,7 +890,26 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             return self.mapear(mapeamento_avancado, msg['text'])
         return True
 
+    def verificar_sinais(self):
+        '''
+        Verifica os sinais da lista própria
+        '''
+        resultados = checa_sinais(
+            self.informacoes['lista'], 
+            self.informacoes["tempo"])
+        resultado = "\n".join(resultados)
+        if len(resultado) > 4000:
+            mensagens  = [resultado[x:x+4000] 
+                for x in range(0, len(resultado), 4000)]
+        else: mensagens = [resultado]
+
+        for msg in mensagens:
+            self.enviar_mensagem(msg, save = True)
+
     def catalogar_sinais(self):
+        '''
+        Cataloga os sinais e adiciona a lista 3
+        '''
         global entrada_03, cache_catalogador
         catalogador = Catalogador(self.chat_id)
         conf = MongoDB.get_avancadas()
