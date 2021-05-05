@@ -93,6 +93,7 @@ def pegar_comando_taxas(texto):
         print(type(e), e)
         print(f"Revise o comando {texto}")
         return {}
+        
     return {
         "par": par, 
         "taxa": taxa, 

@@ -10,7 +10,7 @@ project_name = config.get("CLOUD", "project")
 account_name = config.get("CLOUD", "account")
 regions = [
     "us-east1-b", "us-east4-c", "us-west1-b", 
-    "us-west2-a", "us-west4-a", "us-central1-a",
+    "us-west2-a", "us-west4-a", "us-central1-b",
 ]
 
 class Instancia:
@@ -21,10 +21,10 @@ class Instancia:
         
     def is_full(self):
         '''
-        Devolve se a instância já tem 7 pessoas alocadas
+        Devolve se a instância já tem 10 pessoas alocadas
         return: boolean
         '''
-        return len(self.people) >= 7
+        return len(self.people) >= 10
     
     def on_instance(self, email):
         '''
