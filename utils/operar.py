@@ -82,7 +82,7 @@ class Operacao(IQ_API):
 					config["tipo_gale"] = "martingale"
 				self.ciclos_soros = list(filter(empty, config["ciclos_soros"]))
 				if len(self.ciclos_soros) == 0:
-					self.config['on_ciclos_soros'] = False
+					self.config['tipo_soros'] = "normal"
 
 				self.stopwin = 0.1 if (
 					self.stopwin == 0
@@ -101,6 +101,7 @@ class Operacao(IQ_API):
 				}
 
 				self.saldo_inicial = self.API.get_balance()
+				self.ocorreu_gale = False
 				self.fim_da_operacao = False
 				if config['tendencia']:
 					self.config['correcao'] += 3
@@ -118,7 +119,7 @@ class Operacao(IQ_API):
 
 				if operacao_lista: 
 					self.operar_lista()
-				else: self.operar_estrategia()
+				# else: self.operar_estrategia()
 			except KeyboardInterrupt:
 				sys.exit(0)
 			except Exception as e:
@@ -429,6 +430,7 @@ class Operacao(IQ_API):
 				is_ciclos_gale, fazendo_soros, valor, lucro)
 			
 		if resultado == "loose": 
+			self.ocorreu_gale = True
 			tipo_martin = self.config['tipo_martin']
 			if (is_ciclos_gale or 
 				(tipo_gale in "martingale" and 
@@ -491,6 +493,7 @@ class Operacao(IQ_API):
 						texto_gale = "🔸 Voltando ao primeiro ciclo"
 						if resultado != "win":
 							texto_gale = "♦️" + texto_gale[1:]
+							self.config['ciclos']['gales'] = 0
 						else:
 							texto_gale, num_gales = self.win_case(
 								is_ciclos_gale, fazendo_soros, 
@@ -626,6 +629,12 @@ class Operacao(IQ_API):
 
 				if self.verificar_stop():
 					break
+
+				if self.ocorreu_gale and self.config.get("no_posgale", False):
+					self.ocorreu_gale = False
+					self.mostrar_mensagem(
+						"Cancelando entrada devido gale na última operação.")
+					continue
 				
 				if self.config["minimo"] / 100 <= payout:
 					thread = threading.Thread(
@@ -680,6 +689,10 @@ class Operacao(IQ_API):
 
 					if self.config["minimo"] / 100 <= payout:
 						self.mostrar_mensagem(f"Taxas: {par} {taxa} ")
+
+						if self.config.get("taxas_vela", "atual") != "atual":
+							self.esperar_proximo_minuto()
+
 						thread = threading.Thread(
 							target = self.operar, 
 							name = f"{time.time()}", 

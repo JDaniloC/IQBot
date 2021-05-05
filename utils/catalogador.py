@@ -37,8 +37,7 @@ def pegar_comando_lista(texto):
         par = re.search(r'[A-Za-z]{6}(-OTC)?', 
             texto.upper().replace("/", ""))[0]
         ordem = re.search(r'CALL|PUT', texto.upper())[0].lower()
-        timeframe = re.search(
-            r'[MH][1-6]?[0-5]', texto.upper())
+        timeframe = re.search(r'[MH][1-6]?[0-5]', texto.upper())
         if timeframe: 
             if "M" in timeframe[0].upper(): 
                 timeframe = int(timeframe[0].strip("M"))
@@ -46,6 +45,7 @@ def pegar_comando_lista(texto):
                 timeframe = int(timeframe[0].strip("H")) * 60
         else: timeframe = 0
     except Exception as e:
+        print(f"Erro na catalogação: {texto}", type(e), e)
         return {}
 
     return {
@@ -84,7 +84,7 @@ class Catalogador(IQ_API):
                 except Exception as e:
                     print("O erro:", type(e), e)
 
-    def catalogar(self, timeframe, dias, porcentagem, martingale):
+    def catalogar(self, timeframe, dias, porcentagem, martingale, limite):
         def cataloga(par, dias, timeframe):
             data = []
             datas_testadas = []
@@ -131,7 +131,7 @@ class Catalogador(IQ_API):
         for par in P['digital']:
             if P['digital'][par]['open'] == True:
                 timer = int(time.time())
-                self.mostrar_mensagem(' CATALOGANDO - ' + par + '.. ')
+                self.mostrar_mensagem(f' CATALOGANDO - {par}...')
                 
                 catalogacao.update({par: cataloga(par, dias, timeframe)})	
                 
@@ -159,9 +159,12 @@ class Catalogador(IQ_API):
                             else:						
                                 catalogacao[par][horario]['mg'+str(i+1)]['%'] = 'N/A'
                 
-                self.mostrar_mensagem('finalizado em ' + str(int(time.time()) - timer) + ' segundos')
+                self.mostrar_mensagem(
+                    f'Finalizado em {int(time.time()) - timer} segundos.')
         
-        resultado = []
+        entradas, resultado = [], []
+        texto_entradas, conta_texto = "", 0
+        hoje = datetime.now().strftime('%d/%m/%Y')
         for par in catalogacao:
             for horario in sorted(catalogacao[par]):
                 ok = False		
@@ -174,17 +177,29 @@ class Catalogador(IQ_API):
                             ok = True
                             break
                 
-                if ok == True:
-                    msg = par + ' ' + horario + ' ' + catalogacao[par][horario]['dir'] + ' ' + str(catalogacao[par][horario]['%']) + '% '
-                    
-                    for i in range(int(martingale)):
-                        porcentagem_sinal = catalogacao[par][horario]['mg'+str(i+1)]['%']
-                        if str(porcentagem_sinal) != 'N/A':
-                            msg += f'{i+1} | MG ' + str(porcentagem_sinal) + '% '
-                        else:
-                            msg += ' | MG ' + str(i+1) + ' N/A N/A' 
-                                
-                    self.mostrar_mensagem(msg)	
-                    resultado.append(pegar_comando_lista(f"{datetime.now().strftime('%d/%m/%Y')} {horario} {par} {catalogacao[par][horario]['dir'].strip()} M{timeframe}\n"))
-        self.mostrar_mensagem("Catalogação finalizada")	
+                if ok == True:   
+                    direction = catalogacao[par][horario]['dir'].strip()
+                    texto_entrada = f"{hoje} {horario} {par} {direction} M{timeframe}\n"
+                    entrada = pegar_comando_lista(texto_entrada)
+                    if entrada != {}:
+                        entradas.append(entrada)
+
+                        texto_entradas += texto_entrada + "\n"
+                        conta_texto += 1
+                        if conta_texto % 50 == 0:
+                            self.mostrar_mensagem(texto_entradas)	
+                            texto_entradas = ""
+        self.mostrar_mensagem(texto_entradas)	        
+        
+        self.mostrar_mensagem("Ordenando e removendo entradas antigas.")
+        entradas.sort(key = lambda x: x["timestamp"])
+        contagem = 0
+        for entrada in entradas:
+            if entrada["timestamp"] > time.time():
+                contagem += 1
+                if contagem < limite:
+                    resultado.append(entrada)
+                else: break
+        self.mostrar_mensagem(f"Fim da catalogação: {contagem} computadas.")	
+
         return resultado
