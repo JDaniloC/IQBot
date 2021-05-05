@@ -122,6 +122,7 @@ class Assistente(amanobot.helper.ChatHandler):
             "Tipo de lista": ["tipo_lista", False, tuple],
             "Lista escolhida": ["num_lista", False, tuple],
             "Valor de entrada": ["valor", False, float],
+
             "Tipo de gale": ["tipo_gale", False, tuple], 
             "Tipo de Stoploss": ["tipo_stop", False, tuple], 
             # "Scalper Loss": ["scalper_loss", False, int],
@@ -139,11 +140,14 @@ class Assistente(amanobot.helper.ChatHandler):
             "Tipo soros": ["tipo_soros", False, tuple],
 
             "Seguir tendência": ["tendencia", False, bool],
-            "Notícias: toros": ["toros", False, tuple],
-            "Notícias: horas": ['noticias_hora', False, int],
-            "Notícias: minutos": ['noticias_minuto', False, int],
             "Tipo de tendência": ["tipo_tendencia", False, tuple],
             "Período da tendência": ["periodo_tendencia", False, int],
+            "Notícias: minutos": ['noticias_minuto', False, int],
+            "Notícias: horas": ['noticias_hora', False, int],
+            "Notícias: toros": ["toros", False, tuple],
+
+            "Taxas: próxima vela": ["taxas_vela", False, tuple],
+            "Segurança pós-gale": ["no_posgale", False, bool],
 
             # "Paridade": ["paridade", False, str],
             # "Estratégia": ["estrategia", False, tuple],
@@ -635,14 +639,16 @@ EURJPY 31/12/2000 CALL M5 02:30
                 "Tipo de martingale": "Martingale e Soros",
                 "Seguir tendência": "Tendência e notícias",
                 "Tipo par": "Ajustes",
-                "Paridade": "Auto Trade"
+                "Paridade": "Auto Trade",
+                "Taxas: próxima vela": "Outras opções"
             }
             mensagem = ""
             for key, value in self.mapeamento.items():
                 if value[0] not in ["lista", "tipo_lista", "num_lista"]:
                     if key in headers:
                         mensagem += f"\n⚙️ {headers[key]} ⚙️\n"
-                    mensagem += f"{key}: {str(self.informacoes[value[0]]).replace('True', 'Sim').replace('False', 'Não')}\n"
+                    valor = str(self.informacoes.get(value[0], 'Não configurado'))
+                    mensagem += f"{key}: {valor.replace('True', 'Sim').replace('False', 'Não')}\n"
             return mensagem
         else:
             self.enviar_mensagem("Usuário não autenticado")
@@ -661,9 +667,9 @@ EURJPY 31/12/2000 CALL M5 02:30
                      KeyboardButton( text = "Ajustes" )],
                     [KeyboardButton( text = "Gerenciamento" ),
                      KeyboardButton( text = "Martingale e Soros" )],
-                    [KeyboardButton( text = "Tendência e notícias" )],
                     #  KeyboardButton( text = "Estratégias")],
-                    [KeyboardButton( text = "Ver configurações" ), 
+                    [KeyboardButton( text = "Tendência e notícias" )],
+                    [KeyboardButton( text = "Outras opções" ), 
                      KeyboardButton( text = "Voltar ao menu" )]
             ], resize_keyboard = True))
             return True
@@ -732,6 +738,12 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Auto VIP: Timeframe")],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
+        elif msg['text'] == "Outras opções":
+            teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "Taxas: próxima vela" ),
+                 KeyboardButton( text = "Segurança pós-gale" )],
+                [KeyboardButton( text = "Editar configurações" )]])
+            verificador = True
         if verificador:
             self.enviar_mensagem("Qual das opções?", reply_markup = teclado)
             return True
@@ -764,6 +776,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                     "tipo_conta": ["treino", "real"],
                     "tipo_soros": ["normal", "ciclos"],
                     "tipo_stop": ["movel", "fixo"],
+                    "taxas_vela": ["atual", "próxima"],
                     "tipo_milhao": ["Minoria", "Maioria"],
                     "tipo_gale": [
                         "martingale", "sorosgale", "nenhum"],  

@@ -111,6 +111,8 @@ def checa_sinais(sinais, timeframe_padrao):
     api = IQ_BOT("hiyivo1180@tmail7.com", "senha123")
     resultado = []
     for entrada in sinais:
+        if entrada["tipo"] == "taxas": continue
+        
         if entrada["timestamp"] < time.time():
             timeframe = entrada["timeframe"]
             if timeframe == 0: timeframe = timeframe_padrao

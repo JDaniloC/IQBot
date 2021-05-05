@@ -422,10 +422,10 @@ Valor: R$ {round(valor, 2)}
             return round((abs(perca) + abs(perca) * lucro)/payout, 2)
 
     @staticmethod
-    def esperar_proximo_minuto(minutos = 1):
+    def esperar_proximo_minuto(minutos = 1, segundos = 58):
         time.sleep((datetime.now() + timedelta(
             seconds = 50 * minutos)
-        ).replace(second = 58).timestamp() - time.time())
+        ).replace(second = segundos).timestamp() - time.time())
 
     def istime(self, string):
         '''
