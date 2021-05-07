@@ -33,7 +33,7 @@ class Operacao(IQ_API):
 		# Mostra a configuração sem a senha
 		senha = self.config['senha']
 		del self.config['senha']
-		# pprint(self.config)
+		pprint(self.config)
 		self.config['senha'] = senha
 
 		self.mostrar_mensagem(f"Entrando na {config['email']}")

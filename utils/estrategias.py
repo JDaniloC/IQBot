@@ -123,7 +123,6 @@ class Estrategias(Operacao):
             velas = self.pegar_velas(par, 1, velas = preset)
 
         velas, horarios = zip(*velas)
-        self.chart_control("analise", horarios)
 
         return list(velas)
 
@@ -165,7 +164,6 @@ class Estrategias(Operacao):
             velas = self.pegar_velas(par, 3, 5, velas = preset)
         
         velas, horarios = zip(*velas)
-        self.chart_control("analise", horarios)
 
         return list(velas)
 
@@ -196,7 +194,6 @@ class Estrategias(Operacao):
             velas = self.pegar_velas(par, 4, 15)
         
         velas, horarios = zip(*velas)
-        self.chart_control("analise", horarios)
 
         return list(velas)
 
@@ -414,7 +411,7 @@ class Estrategias(Operacao):
     def mudar_estrategia(self, paridade, estrategia, 
         timeframe, result = False, force = False):
         self.num_operacoes += 1
-        if (self.num_operacoes == self.config['max_trades'] 
+        if (self.num_operacoes == self.config.get('max_trades', 3)
             or result == "error" or force): 
             if self.config["auto"]:
                 paridade, estrategia = self.pegar_catalogacao()
