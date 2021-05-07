@@ -424,10 +424,10 @@ class Estrategias(Operacao):
         return paridade, estrategia
 
     def operar(self):
-        self.placar(round(self.saldo_inicial, 2), 
-            round(self.saldo_inicial, 2), 
-            self.stopwin, self.stoploss, 0, 0)
         self.valor = self.valor_inicial
+        self.config["autotime"] = f"M{self.config['autotime']}" if (
+            type(self.config["autotime"]) == int
+        ) else self.config["autotime"]
 
         timeframe = int(self.config["autotime"][1:])
         if self.config["auto"]:
@@ -445,7 +445,7 @@ class Estrategias(Operacao):
         self.mostrar_mensagem("🔹 Iniciando... Esperando próximo minuto...")
         self.esperar_proximo_minuto()
         
-        if not self.config["auto"] and self.config['poshit']:
+        if not self.config["auto"] and self.config.get('poshit', False):
             self.esperar_poshit(paridade, estrategia, timeframe)
         
         self.verifica_entrada(estrategia, timeframe, 
@@ -461,18 +461,15 @@ class Estrategias(Operacao):
                 if direcao:
                     self.mostrar_mensagem(self.format_dir(
                         f'Direção: {direcao.upper()}'))
-                    dados = [time.time(), paridade, self.valor,
-                        direcao.upper(), f"M{timeframe}"]
                     if self.verificar_tendencia(
-                        paridade, direcao, timeframe, dados
-                        ) or (self.ativar_noticias and 
-                        not self.verificar_noticias(paridade)):
+                        paridade, direcao, timeframe) or (
+                            self.ativar_noticias and not 
+                            self.verificar_noticias(paridade)):
                         self.esperar_proximo_minuto()
                         continue
 
                     tipo, payout = self.recebe_payout(
                         paridade, timeframe)
-                    dados[4] = tipo.capitalize() + f" {dados[4]}"
 
                     gale = False
                     if estrategia in ["msf", "padrão impar"]: 
@@ -482,11 +479,10 @@ class Estrategias(Operacao):
                     if self.config['minimo'] <= payout * 100:
                         result = self.realizar_trade(
                             self.valor, paridade, direcao, 
-                            timeframe, payout, tipo, dados, gale)
+                            timeframe, payout, tipo, gale)
                         paridade, estrategia = self.mudar_estrategia(
                             paridade, estrategia, timeframe, result)
                     else:
-                        self.gravar_resultado("trend", 0, dados = dados)
                         self.mostrar_mensagem(f"{paridade} não atende o payout mínimo {payout * 100}% < {self.config['minimo']}%")
                         paridade, estrategia = self.mudar_estrategia(
                             paridade, estrategia, timeframe, force = True)
