@@ -1,5 +1,7 @@
-from utils.operar import Operacao, escreve_erros, IQ_API
+from utils.operar import escreve_erros, IQ_API
+from utils.estrategias import Estrategias
 from configparser import RawConfigParser
+from utils.lista_taxa import ListaTaxa
 from datetime import datetime
 from sys import argv
 import re, logging
@@ -251,7 +253,7 @@ def recebe_comandos(comandos):
         elif comandos[0] in ['-c', 'config'] and len(comandos[0:]) != 1:
             config = configuracoes(comandos[1])
             comandos = abrir_arquivo(config["arquivo"])
-            Operacao(config, comandos)
+            ListaTaxa(config, comandos).operar_lista()
         elif comandos[0] in ["-h", "ajuda"]:
             with open(LOCALAJUDA, "r+") as file:
                 for i in file:
@@ -273,7 +275,11 @@ def recebe_comandos(comandos):
                 entradas = MongoDB.get_entradas(maximo)
             else:
                 entradas = config['lista']
-            Operacao(config, entradas, int(comandos[3]), comandos[4] == "True")
+            
+            params = config, entradas, int(comandos[3])
+            if comandos[4] == "True": bot = ListaTaxa(*params)
+            else: bot = Estrategias(*params)
+            bot.operar()
         else:
             print('''
             [COMANDOS]
@@ -286,7 +292,7 @@ def recebe_comandos(comandos):
     else:
         config = configuracoes()
         comandos = abrir_arquivo(config["arquivo"])
-        Operacao(config, comandos)
+        ListaTaxa(config, comandos).operar_lista()
         
 if __name__ == "__main__":
     try:

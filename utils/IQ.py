@@ -57,6 +57,7 @@ class IQ_API:
             self.payout_cache[paridade] = {
                 "binary": 0, "digital": 0
             }
+        paridade = paridade.upper()
         self.payout_cache[paridade][modalidade] = payout
 
     def payout_digital(self, paridade):
@@ -228,13 +229,13 @@ class IQ_API:
             if not trying:
                 if self.tipo != "auto": 
                     self.tipo = "binary" if self.tipo == "digital" else "digital"
-                self.mostrar_mensagem(
-                    "❌ Erro na operação, tentando operar na " + 
+                self.mostrar_mensagem("❌ Erro na operação, tentando operar na " + 
                     ("binária" if tipo == "digital" else "digital"))
                 tipo = "binary" if tipo == "digital" else "digital"
                 
-                payout_atual = (round(self.payout_cache[tipo] * 100)
-                    if self.payout_cache[tipo] else -1)
+                paridade = paridade.upper()
+                payout_atual = (round(self.payout_cache[paridade][tipo] * 100)
+                    if self.payout_cache[paridade][tipo] else -1)
                 if payout_atual >= self.config['minimo']:
                     return self.ordem(paridade, direcao, tempo, valor, 
                         tipo, bloqueador, delay, scalper, True)
