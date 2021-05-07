@@ -393,9 +393,12 @@ class WebsocketClient(object):
             self.api.users_availability = message["msg"]
         elif message["name"] == "instruments":
             self.api.instruments = message["msg"]
-            for instrument in range(len(message["msg"]["instruments"])):
-                message["msg"]["instruments"][instrument].pop("data")
-            self.api.instruments_index = message["msg"]
+            try:
+                for instrument in range(len(message["msg"]["instruments"])): # OCORRENDO ERRO AQUI!!!
+                    message["msg"]["instruments"][instrument].pop("data")
+                self.api.instruments_index = message["msg"]
+            except:
+                print(message['msg'])
         elif message["name"] == "client-price-generated":
             ask_price = [d for d in message["msg"]["prices"] if d['strike'] == 'SPT'][0]['call']['ask']
             self.api.digital_payout = int(((100-ask_price)*100)/ask_price)
