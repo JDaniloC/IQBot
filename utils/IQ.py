@@ -3,17 +3,16 @@ from datetime import datetime, timedelta
 import time, numpy, requests, json
 
 class IQ_API:
-    def __init__(self, login, senha, output = None):
+    def __init__(self, login, senha):
         '''
         Recebe o login, e tenta se conectar
         '''
-        if output == None:
-            output = print
-        self.saida = output
+        self.asset, self.timeframe, self.payout_cache = False, False, {}
         self.API = IQ_Option(login, senha)
         if not self.conectar():
             raise ConnectionError(" ❌ Não conseguiu se conectar, reveja a senha ❌ ")
 
+    def mostrar_mensagem(self, msg): print(msg)
     def conectar(self, tentativas = 5):
         '''
         Método para se conectar a plataforma.
@@ -29,10 +28,10 @@ class IQ_API:
         self.API.connect()
         for tentativas in range(tentativas):
             if self.API.check_connect():
-                self.saida("✅ Conectado com sucesso ✅")
+                self.mostrar_mensagem("✅ Conectado com sucesso ✅")
                 return True
             else:
-                self.saida(" ⏱ Tentando se conectar ⏱")
+                self.mostrar_mensagem(" ⏱ Tentando se conectar ⏱")
                 self.API.connect()
                 time.sleep(1)
         return False
@@ -42,7 +41,7 @@ class IQ_API:
         Muda para a conta treino
         '''
         if self.API.get_balance_mode() != "PRACTICE":
-            self.saida(" - Usando a conta treino -\n")
+            self.mostrar_mensagem(" - Usando a conta treino -\n")
             self.API.change_balance("PRACTICE")
     
     def mudar_real(self):
@@ -50,8 +49,15 @@ class IQ_API:
         Muda para a conta real
         '''
         if self.API.get_balance_mode() != "REAL":
-            self.saida(" - Usando a conta real -\n")
+            self.mostrar_mensagem(" - Usando a conta real -\n")
             self.API.change_balance("REAL")
+
+    def add_payout_cache(self, paridade, modalidade, payout):
+        if paridade not in self.payout_cache:
+            self.payout_cache[paridade] = {
+                "binary": 0, "digital": 0
+            }
+        self.payout_cache[paridade][modalidade] = payout
 
     def payout_digital(self, paridade):
         '''
@@ -59,28 +65,32 @@ class IQ_API:
         '''
         try:
             print("Pegando payout digital")
-            return self.API.get_digital_payout(paridade) / 100
+            payout = self.API.get_digital_payout(paridade) / 100
+            self.add_payout_cache(paridade, "digital", payout)
+            return payout
         except:
             return False
 
-    def payout_binaria(self, par, tempo = 1):
+    def payout_binaria(self, paridade, tempo = 1):
         '''
         Devolve o payout de uma paridade binária
-        caso não tem esse par, então devolve False
+        caso não tiver este par, então devolve False
         '''
         print("Pegando payout binária")
         payouts = self.API.get_all_profit()
-        valor = payouts.get(par)
+        valor = payouts.get(paridade)
         if valor == None:
-            return False
+            result = False
         if tempo > 5:
-            return valor['binary'] if valor.get(
+            result = valor['binary'] if valor.get(
                 "binary"
             ) else False
         else:
-            return valor['turbo'] if valor.get(
+            result = valor['turbo'] if valor.get(
                 "turbo"
             ) else False
+        self.add_payout_cache(paridade, "binary", result)
+        return result
 
     def abertas(self, paridades = False):
         '''
@@ -115,12 +125,13 @@ class IQ_API:
                 paridades = list(abertas["binary"].keys())
             todos_binary = self.API.get_all_profit()
             if abertas == None or todos_binary == None:
-                self.saida(" ❌ Algo deu errado, se conectando novamente. ❌")
+                self.mostrar_mensagem(
+                    " ❌ Algo deu errado, se conectando novamente. ❌")
                 self.conectar()
             else:
                 break
         if abertas == None or todos_binary == None:
-            self.saida(" ❌❌ Reinicie o bot ❌❌")
+            self.mostrar_mensagem(" ❌❌ Reinicie o bot ❌❌")
             return None
 
         for tipo_binaria in ['turbo', 'binary']:
@@ -148,7 +159,7 @@ class IQ_API:
                     payouts["digital"][par] = [
                         True, round(payout_digital / 100, 2)]
                 else:
-                    self.saida(
+                    self.mostrar_mensagem(
         f" [ ❗️] Não consegui pegar o payout de {par} [ ❗️]")
                     payouts['digital'][par] = [True, 0.7]
             else:
@@ -178,15 +189,21 @@ class IQ_API:
         return:
             (resultado, lucro)
         '''
-        def verify_string(verifiers, string):
-            for node in verifiers:
-                if node in string:
-                    return True
-            return False
-
         direcao = direcao.lower()
         hora_atual = datetime.fromtimestamp(
             datetime.utcnow().timestamp() - 10800)
+
+        if self.config.get('prestoploss', False) and (
+            self.perda_total - valor <= -self.stoploss):
+            self.mostrar_mensagem("❌ Pré-stoploss: Fim da operação ❌")
+            self.verificar_stop(True)
+            return 'error', 0, tipo
+        elif self.config.get('prestopwin', 0) > 0:
+            missing = (100 - self.config['prestopwin']) / 100
+            if self.ganho_total >= self.stopwin * missing:
+                self.mostrar_mensagem("✅ Pré-stopwin: Fim da operação ✅")
+                self.verificar_stop(True)
+                return 'error', 0, tipo
 
         if tipo == "binary" and tempo == 5:
             atual = datetime.utcnow()
@@ -194,40 +211,40 @@ class IQ_API:
                 or atual.minute % 5 < 4): 
                 tempo = 5 - (atual.minute % 5)
 
-        if bloqueador != None:
-            with bloqueador:
-                if tipo == "binary":
-                    status, identificador = self.API.buy(
-                        valor, paridade, direcao, tempo)
-                else:
-                    status, identificador = self.API.buy_digital_spot(
-                        paridade, valor, direcao, tempo)
-        else:
+        with bloqueador:
             if tipo == "binary":
                 status, identificador = self.API.buy(
                     valor, paridade, direcao, tempo)
             else:
                 status, identificador = self.API.buy_digital_spot(
                     paridade, valor, direcao, tempo)
-            
+
         if not status:
             if tipo == "digital":
                 identificador = str(identificador['message'])
             else: identificador = str(identificador)
-            self.saida(identificador)
-            if verify_string(["active_suspended", "invalid", "available"], 
-                identificador) and not trying:
+            self.mostrar_mensagem("❌ Não consegui operar: " + identificador)
+            
+            if not trying:
                 if self.tipo != "auto": 
-                    self.tipo = ("binary" if 
-                        self.tipo == "digital" else "digital")
-                return self.ordem(paridade, direcao, tempo, valor, 
-                    "binary" if tipo == "digital" else "digital", 
-                    bloqueador, delay, scalper, True)
-            self.saida(f"❌ {paridade}-{tipo} {direcao.upper()} fechada ou máximo de operações ❌")
-            return "error", 0
+                    self.tipo = "binary" if self.tipo == "digital" else "digital"
+                self.mostrar_mensagem(
+                    "❌ Erro na operação, tentando operar na " + 
+                    ("binária" if tipo == "digital" else "digital"))
+                tipo = "binary" if tipo == "digital" else "digital"
+                
+                payout_atual = (round(self.payout_cache[tipo] * 100)
+                    if self.payout_cache[tipo] else -1)
+                if payout_atual >= self.config['minimo']:
+                    return self.ordem(paridade, direcao, tempo, valor, 
+                        tipo, bloqueador, delay, scalper, True)
+                else:
+                    self.mostrar_mensagem(f"Payout na {tipo} está abaixo do aceitável {payout_atual}% < {self.config['minimo']}%")
+            return "error", 0, tipo
 
-        self.saida(self.format_dir(f" 🔸 {paridade} | {tipo.capitalize()} | M{tempo} | $ {round(valor, 2)} | {direcao.upper()}"))
-
+        self.mostrar_mensagem(self.format_dir(
+            f" 🔸 {paridade} | {tipo.capitalize()} | M{tempo} | $ {round(valor, 2)} | {direcao.upper()}"))
+        
         lucro = 0
         if delay == False:
             # Versão que pega no histórico
@@ -263,7 +280,7 @@ Hora: {hora_atual.strftime("%H:%M")}
 Valor: R$ {round(valor, 2)}
 {resultado.capitalize()}:  R$ {round(lucro, 2)}""")
 
-        return resultado, round(lucro, 2)
+        return resultado, round(lucro, 2), tipo
 
     def scalper(self, identificador, valor, infos):
         aberto = True
@@ -319,43 +336,53 @@ Valor: R$ {round(valor, 2)}
             and diferenca > 0) or (
             direcao.lower() == "put" 
             and diferenca < 0) else False
-
-    def pegar_velas(self, par, timeframe, quantidade, fim = None):
-        if fim == None:
-            fim = time.time()
-        return [
-            x['close'] for x in self.API.get_candles(
-            par, timeframe, quantidade, fim)
-        ]
     
     def format_dir(self, text):
         return text.replace("CALL", "⬆️").replace("PUT", "⬇️")
 
-    @staticmethod
-    def catalogar_estrategia(timeframe, gale):
-        def traduzir(estrategia):
-            maioria = "Minoria"
-            pedaco = estrategia.capitalize().split()
-            if len(pedaco) == 2 and pedaco[1] == "maioria":
-                estrategia = pedaco[0]
-                maioria = "Maioria"
-            if pedaco[0] == "Milhão":
-                estrategia = "Milhão"
-            elif "Mhi" == estrategia[:3]:
-                estrategia = estrategia.upper()
-            return estrategia, maioria
+    def format_candles(self, text):
+        return text.replace("CALL", "🟢"
+            ).replace("PUT", "🔴").replace("DOJI", "⚪️")
 
-        if   gale == 2:   gale = "porcentagemGale2"
-        elif gale == 1:   gale = "porcentagemGale1"
-        else:             gale = "porcentagemWinDePrimeira"
-        data = requests.get(f"https://catalogador.ml/api/{gale}/M{timeframe}")
+    @staticmethod
+    def catalogar_estrategia(timeframe, gale, poshit):
+        def is_hit(res):
+            hit = False
+            if res == "H":
+                hit = True 
+            elif res == "G2" and gale != "2":
+                hit = True
+            elif res == "G1" and gale == "0":
+                hit = True
+            return hit
+
+        def verify_minoria(response):
+            pct, par, estrategia = response
+
+            estrategia = estrategia.lower()
+            if ("mhi" in estrategia and
+                "maioria" not in estrategia):
+                estrategia = f"{estrategia} minoria"
+
+            return pct, par, estrategia
+
+        if   gale == "2": gName = "porcentagemGale2"
+        elif gale == "1": gName = "porcentagemGale1"
+        else:             gName = "porcentagemWinDePrimeira"
+        data = requests.get(f"https://ocatalogador.com/api/{gName}/{timeframe}")
         try:
             resultado = json.loads(data.text)['Todos']
-            for estrategia in resultado:
-                return estrategia[0], estrategia[1].upper(), traduzir(estrategia[2])
+            for analise in resultado:
+                candle = analise[3][0][-1]
+                print(analise[1:3], candle)
+                if poshit and is_hit(candle):
+                    return verify_minoria(analise[:3])
+                elif not poshit:
+                    return verify_minoria(analise[:3])
+            return False, False, False
         except Exception as e:
-            print("Catalogar:", e) 
-            return 50, "EURUSD", ("MHI", "maioria")
+            print("Catalogar_estrategia()", e) 
+            return 50, "EURUSD", "MHI minoria"
 
     @staticmethod
     def esperarAte(horas, minutos, segundos = 0, data = (), tolerancia = 0, output = False):
@@ -407,6 +434,7 @@ Valor: R$ {round(valor, 2)}
             valor: entrada do valor
             lucro: alvo inicial
         '''
+
         if type(tipo_martin) == float:
             return round(valor * tipo_martin, 2)
         tipo_martin = tipo_martin.lower()
@@ -418,21 +446,12 @@ Valor: R$ {round(valor, 2)}
             return (abs(perca) + lucro) / payout
         elif tipo_martin == "seguro":
             return round(abs(perca)/payout, 2)
+        elif tipo_martin == "percent":
+            return round(abs(perca) * lucro / payout, 2)
         else:
             return round((abs(perca) + abs(perca) * lucro)/payout, 2)
 
-    @staticmethod
-    def esperar_proximo_minuto(minutos = 1, segundos = 58):
-        time.sleep((datetime.now() + timedelta(
+    def esperar_proximo_minuto(self, minutos = 1):
+        time.sleep(((datetime.now() + timedelta(
             seconds = 50 * minutos)
-        ).replace(second = segundos).timestamp() - time.time())
-
-    def istime(self, string):
-        '''
-        Verifica se é numérico (timestamp)
-        '''
-        try:
-            float(string)
-            return True
-        except:
-            return False
+        ).replace(second = 56).timestamp() - time.time()) % 60)
