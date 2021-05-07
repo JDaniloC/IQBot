@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from utils.operar import Operacao
-import time, threading
+import time
 
 def is_in_list(estrategia, lista):
     for item in lista:
@@ -9,6 +9,9 @@ def is_in_list(estrategia, lista):
     return False
 
 class Estrategias(Operacao):
+    def __init__(self, config, comandos = [], chat_id = False):
+        super().__init__(config, comandos, chat_id)
+
     def pegar_velas(self, paridade, quantidade, timeframe = 1, 
         modo = "colors", velas = [], start = None):
         if velas == []:
@@ -439,8 +442,6 @@ class Estrategias(Operacao):
 ❇️ Payout: {payout}%""")
 
         self.num_operacoes = 0
-        secao_atual = threading.current_thread().getName()
-
         self.mostrar_mensagem("🔹 Iniciando... Esperando próximo minuto...")
         self.esperar_proximo_minuto()
         
@@ -492,12 +493,8 @@ class Estrategias(Operacao):
 
                 minutos = (datetime.now() + timedelta(minutes = 1)).minute
                 self.verifica_entrada(estrategia, timeframe, minutos, True)
-            if self.operacoes_ativas[secao_atual] and secao_atual == self.secao_atual: 
-                self.esperar_proximo_minuto()
+            self.esperar_proximo_minuto()
         self.verificar_stop()
-        
-        self.operacoes_ativas[secao_atual] = False
-
     
     def verifica_estrategia(self, paridade:str = "EURUSD", 
         estrategia: str = "mhi minoria", timeframe: int = 1, horas: int = 1):

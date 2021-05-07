@@ -7,7 +7,7 @@ class IQ_API:
         '''
         Recebe o login, e tenta se conectar
         '''
-        self.asset, self.timeframe, self.payout_cache = False, False, {}
+        self.payout_cache = {}
         self.API = IQ_Option(login, senha)
         if not self.conectar():
             raise ConnectionError(" ❌ Não conseguiu se conectar, reveja a senha ❌ ")

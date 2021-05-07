@@ -3,7 +3,7 @@ from utils.estrategias import Estrategias
 from configparser import RawConfigParser
 from utils.lista_taxa import ListaTaxa
 from datetime import datetime
-from sys import argv
+from sys import argv, exit
 import re, logging
 
 if argv[1:] and argv[1] == "-o":
@@ -224,6 +224,33 @@ def ver_gales(perdaInicial, taxa):
             perda += valor
         print()
 
+def captura_erros(params, operar_lista, tentativas = 0):      
+    try:
+        if operar_lista: bot = ListaTaxa(*params)
+        else: bot = Estrategias(*params)
+        bot.operar()
+    except KeyboardInterrupt:
+        exit(0)
+    except Exception as e:
+        if type(e) == ConnectionError:
+            bot.mostrar_mensagem("Não conseguiu se conectar na conta")
+            tentativas = 2
+        else:
+            print("Aconteceu um erro na API, tentando novamente.")
+        escreve_erros(e)
+        
+        if tentativas == 2: 
+            bot.mostrar_mensagem(
+                "Ultrapassou o máximo de tentativas.")
+            return
+
+        try:
+            print("Continuando as operações...")
+            captura_erros(params, operar_lista, tentativas + 1)
+        except:
+            print("Deu erro novamente! Finalizando o programa.")
+            escreve_erros(e)   
+
 def recebe_comandos(comandos):
     '''
     Recebe os comandos do terminal e computa algum resultado
@@ -277,9 +304,8 @@ def recebe_comandos(comandos):
                 entradas = config['lista']
             
             params = config, entradas, int(comandos[3])
-            if comandos[4] == "True": bot = ListaTaxa(*params)
-            else: bot = Estrategias(*params)
-            bot.operar()
+            captura_erros(params, comandos[4] == "True")
+
         else:
             print('''
             [COMANDOS]

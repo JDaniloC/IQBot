@@ -22,7 +22,6 @@ config.read(".env")
 MongoDB = Mongo()
 
 TOKEN = config.get("TELEGRAM", "token")
-BOTNAME = MongoDB.infos["nome"]
 
 # Funções
 def strDateHour(number:int) -> str:
@@ -193,7 +192,7 @@ class Assistente(amanobot.helper.ChatHandler):
             "Não se esqueça dos links importantes", reply_markup = teclado)
 
         self.enviar_mensagem(
-           f"Olá, eu sou seu assistente do {BOTNAME}.",
+           f"Olá, eu sou seu assistente.",
             delete = False, reply_markup = ReplyKeyboardMarkup(
                 keyboard = [[KeyboardButton(text = "Entrar")]]))
 
@@ -849,7 +848,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         Verifica se a mensagem está nas configurações avançadas
         Se estiver, devolve True caso contrário False
         '''
-        global ADMS, BOTNAME, rodando, \
+        global ADMS, rodando, \
             entrada_01, entrada_02, entrada_03
         
         if self.id not in ADMS:
@@ -871,7 +870,6 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         elif msg['text'] == "Atualizar informações":
             self.enviar_mensagem("Atualizando...")
             MongoDB.atualizar_infos()
-            BOTNAME = MongoDB.infos["nome"]
             ADMS = MongoDB.get_adms()
             entrada_01 = carregar_entradas(1)
             entrada_02 = carregar_entradas(2)

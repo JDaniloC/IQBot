@@ -126,8 +126,10 @@ class Catalogador(IQ_API):
                     else:
                         sair = True
                         break
-                        
-                time_ = int(velas[-1]['from'] - 1)
+                
+                if len(velas) > 0:
+                    time_ = int(velas[-1]['from'] - 1)
+                else: pass
 
             analise = {}
             for velas in data:
@@ -211,11 +213,12 @@ class Catalogador(IQ_API):
                 
                 if ok == True:   
                     direction = catalogacao[par][horario]['dir'].strip()
+                    if not direction: continue
+                    
                     texto_entrada = f"{hoje} {horario} {par} {direction} M{timeframe}\n"
                     entrada = pegar_comando_lista(texto_entrada)
-                    horario_entrada = datetime.fromtimestamp(
-                        entrada["timestamp"]).time()
-                    if entrada != {} and inicio <= horario_entrada <= final:
+                    if entrada != {} and inicio <= datetime.fromtimestamp(
+                        entrada["timestamp"]).time() <= final:
                         entradas.append(entrada)
 
         self.mostrar_mensagem("Ordenando e removendo entradas antigas.")

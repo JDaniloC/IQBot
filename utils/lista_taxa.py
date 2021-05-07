@@ -2,6 +2,9 @@ from utils.operar import Operacao
 import threading, time
 
 class ListaTaxa(Operacao):
+    def __init__(self, config, comandos = [], chat_id = False):
+        super().__init__(config, comandos, chat_id)
+
     def operar(self):
         '''
         1 - Percorre todos os comandos.
@@ -39,7 +42,9 @@ class ListaTaxa(Operacao):
 
         # Lista
         self.comandos.sort(key = lambda x: x["timestamp"])
-        for comando in self.comandos:
+        if len(self.comandos) == 0:
+            self.mostrar_mensagem("Nenhuma lista de sinais encontrada.")
+        for index, comando in enumerate(self.comandos):
             if comando["tipo"] == "taxas": continue
 
             data = comando["data"]
@@ -83,6 +88,7 @@ class ListaTaxa(Operacao):
                     self.valor = self.valor_inicial
                 else:
                     self.mostrar_mensagem(f"{par} não atende o payout mínimo {payout * 100}% < {self.config['minimo']}%")
+                self.mostrar_mensagem(f"Operando lista: {len(self.comandos) - index} sinais restantes.")
             else:
                 self.mostrar_mensagem(f" ⏰ {comando['par']} - {formatHour(horas)}:{formatHour(minutos)} passou da hora ⏰ ")
         
@@ -90,7 +96,7 @@ class ListaTaxa(Operacao):
             thread.join()
 
         time.sleep(1)
-        self.verificar_stop()
+        self.verificar_stop(True)
 
     def esperar_taxa(self, par, taxas):
         '''
