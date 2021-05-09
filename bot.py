@@ -244,12 +244,8 @@ def captura_erros(params, operar_lista, tentativas = 0):
                 "Ultrapassou o máximo de tentativas.")
             return
 
-        try:
-            print("Continuando as operações...")
-            captura_erros(params, operar_lista, tentativas + 1)
-        except:
-            print("Deu erro novamente! Finalizando o programa.")
-            escreve_erros(e)   
+        print("Continuando as operações...")
+        captura_erros(params, operar_lista, tentativas + 1)
 
 def recebe_comandos(comandos):
     '''
@@ -304,7 +300,10 @@ def recebe_comandos(comandos):
                 entradas = config['lista']
             
             params = config, entradas, int(comandos[3])
-            captura_erros(params, comandos[4] == "True")
+            try:
+                captura_erros(params, comandos[4] == "True")
+            except Exception as e:
+                escreve_erros(e)
 
         else:
             print('''
