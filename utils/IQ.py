@@ -348,7 +348,7 @@ Valor: R$ {round(valor, 2)}
         if   gale == 2:   gale = "porcentagemGale2"
         elif gale == 1:   gale = "porcentagemGale1"
         else:             gale = "porcentagemWinDePrimeira"
-        data = requests.get(f"https://catalogador.ml/api/{gale}/M{timeframe}")
+        data = requests.get(f"https://ocatalogador.com/api/{gale}/M{timeframe}")
         try:
             resultado = json.loads(data.text)['Todos']
             for estrategia in resultado:

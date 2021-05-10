@@ -279,11 +279,11 @@ class Operacao(IQ_API):
 					break
 
 	def win_case(self, is_ciclo, in_soros, valor, lucro, gale_text = ""):
-		if is_ciclo:
-			self.config["ciclos"]['gales'] = 0
+		if is_ciclo: self.gale_atual = 1
 		gale_text, num_gales = "", 0
 
 		if self.config["tipo_soros"] == "ciclos":
+			self.gale_atual = 0
 			ciclo_atual = self.config["ciclos"]["soros"]
 			ciclos = self.ciclos_soros
 			soros_atual = self.soros_atual + 1
