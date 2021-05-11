@@ -81,6 +81,15 @@ def pegar_comando_taxas(texto):
     }
     '''
     try:
+        timeframe = re.search(r'[MH][1-6]?[0-5]', texto.upper())
+        if timeframe: 
+            texto = re.sub(r'[MH][1-6]?[0-5]', r'', texto.upper())
+            if "M" in timeframe[0].upper(): 
+                timeframe = int(timeframe[0].strip("M"))
+            else: 
+                timeframe = int(timeframe[0].strip("H")) * 60
+        else: timeframe = 0
+
         primeiro, segundo = re.split(r"[^\w.-]", texto.strip())
         par = re.search(r'[A-Za-z]{6}(-OTC)?', 
             primeiro.upper().replace("/", ""))
@@ -100,6 +109,7 @@ def pegar_comando_taxas(texto):
         "par": par, 
         "taxa": taxa, 
         "tipo": "taxas",
+        "timeframe": timeframe,
         "timestamp": datetime_brazil()
     }
 
@@ -300,6 +310,7 @@ def recebe_comandos(comandos):
                 entradas = config['lista']
             
             params = config, entradas, int(comandos[3])
+
             try:
                 captura_erros(params, comandos[4] == "True")
             except Exception as e:

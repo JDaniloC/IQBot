@@ -130,10 +130,7 @@ class Operacao(IQ_API):
 		'''
 		Mostra a mensagem na interface e no terminal/arquivo.
 		'''
-		print(mensagem)
-		if logs: return
-
-		if self.chat_id:
+		def enviar_telegram():
 			try:
 				self.telegram.sendMessage(self.chat_id, mensagem)
 			except Exception as e:
@@ -142,6 +139,13 @@ class Operacao(IQ_API):
 					self.telegram.sendMessage(self.chat_id, mensagem)
 				except Exception as e:
 					print("mostrar_mensagem()", type(e), e)
+
+		print(mensagem)
+		if logs: return
+
+		if self.chat_id:
+			threading.Thread(target = enviar_telegram, 
+				daemon = True).start()
 
 	def atualizar_noticias(self):
 		'''
@@ -243,29 +247,6 @@ class Operacao(IQ_API):
 			self.mostrar_mensagem(f"[❗️] {paridade}|{direcao.upper()} está contra a tendência. [❗️]")
 			return True
 		return False
-
-	def esperar_anteriores(self, atual = 0):
-		'''
-		Espera as operações anteriores acabar para poder liberar a próxima
-		'''
-		esperar_anteriores = True
-
-		while esperar_anteriores:
-			esperar_anteriores = False
-			ativos = [
-				datetime.fromtimestamp(float(x.name)) for x in threading.enumerate() if self.istime(x.name) and x.name != atual]
-			for timing in ativos:
-				momento_atual = datetime.fromtimestamp(time.time())
-				anteriores = (atual == 0 or datetime.fromtimestamp(float(atual)) > timing)
-
-				perto_de_terminar = (self.tempo * 60 + 30 >= 
-									(momento_atual - timing).seconds >= 
-									self.tempo * 60 - 30)
-				if anteriores and perto_de_terminar:
-					time.sleep(1)
-					print("Esperando as operações anteriores acabar...")
-					esperar_anteriores = True
-					break
 
 	def win_case(self, in_soros, valor, lucro, gale_text = ""):
 		tipo_gale = self.config["tipo_gale"]

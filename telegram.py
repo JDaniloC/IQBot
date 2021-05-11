@@ -48,17 +48,20 @@ def carregar_entradas(opcao):
 
     lista_entradas = []
     for linha in lista:
-        if linha["tipo"] == "taxas": 
-            lista_entradas.append(f"""
-📊 Ativo: {linha['par']}
-📈 Taxa: {linha['taxa']}""")
-            continue
-        direcao = linha["ordem"].lower()
         timeframe = linha['timeframe']
         if timeframe == 0:
             timeframe = "Padrão"
         else:
             timeframe = f"M{linha['timeframe']}"
+
+        if linha["tipo"] == "taxas": 
+            lista_entradas.append(f"""
+📊 Ativo: {linha['par']}
+📈 Taxa: {linha['taxa']}
+⏰ Período: {timeframe}
+            """)
+            continue
+        direcao = linha["ordem"].lower()
         lista_entradas.append(f'''
 📊 Ativo: {linha["par"]}
 📅 Dia: {"/".join(list(map(strDateHour, linha["data"])))}
@@ -196,7 +199,8 @@ class Assistente(amanobot.helper.ChatHandler):
             delete = False, reply_markup = ReplyKeyboardMarkup(
                 keyboard = [[KeyboardButton(text = "Entrar")]]))
 
-    def enviar_mensagem(self, message, reply_markup = None, edit = False, delete = True, save = False):
+    def enviar_mensagem(self, message, reply_markup = None, 
+        edit = False, delete = True, save = False):
         if edit:
             self.bot.editMessageText(self.message_id, message)
             if reply_markup:
@@ -252,7 +256,8 @@ class Assistente(amanobot.helper.ChatHandler):
                     save = True)
                 self.comandos()
             else:
-                self.enviar_mensagem("Sua licença expirou, peça para o administrador renovar.", save = True)
+                self.enviar_mensagem(
+                    "Sua licença expirou, peça para o administrador renovar.", save = True)
                 self.close()
         elif (MongoDB.verifica_cadastro(email)):
             self.enviar_mensagem("Seu e-mail ainda está em análise...", save = True)

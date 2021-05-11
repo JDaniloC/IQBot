@@ -26,10 +26,11 @@ class ListaTaxa(Operacao):
         for comando in self.comandos:
             if comando["tipo"] == "taxas":
                 paridade = comando['par']
+                valor = (comando['taxa'], comando['timeframe'])
                 if paridade not in par_taxa:
-                    par_taxa[paridade] = [comando['taxa']]
+                    par_taxa[paridade] = [valor]
                 else:
-                    par_taxa[paridade].append(comando['taxa'])
+                    par_taxa[paridade].append(valor)
         
         for paridade, taxas in par_taxa.items():
             thread = threading.Thread(
@@ -49,7 +50,7 @@ class ListaTaxa(Operacao):
 
             data = comando["data"]
             horas, minutos = comando["hora"]
-            tempo = comando['timeframe'] if comando['timeframe'] != 0 else self.tempo
+            tempo = comando['timeframe'] if comando['timeframe'] != 0 else self.config["tempo"]
             segundos = 0
 
             if self.esperarAte(horas, minutos, segundos, data, 
@@ -103,6 +104,9 @@ class ListaTaxa(Operacao):
         1 - Verifica se a taxa atual ultrapassou alguma das especificadas
         2 - Cria uma thread para o método operar
         '''
+        def normalize(number):
+            return int(str(number).replace(".", "")[3:])
+
         self.API.start_candles_stream(par, 60, 1)
         ultimo = {}
         while ultimo == {}:
@@ -110,20 +114,23 @@ class ListaTaxa(Operacao):
             ultimo = ultimo[list(ultimo.keys())[0]]['close']
             time.sleep(1)
 
-        self.mostrar_mensagem(f"{par.upper()} esperando bater nas taxas:")
-        self.mostrar_mensagem('\n'.join(list(map(str, taxas))))
+        taxa_time = lambda x: f"{x[0]} M{x[1]}".replace(
+            "M0", f"M{self.config['tempo']}")
+        self.mostrar_mensagem(f"{par.upper()} esperando bater nas taxas:\n" + 
+            '\n'.join(list(map(taxa_time, taxas))))
         chegou_perto = 0
         while not self.verificar_stop() and taxas != []:
             velas = self.API.get_realtime_candles(par, 60)
             abertura = velas[list(velas.keys())[0]]['open']
             fechamento = velas[list(velas.keys())[0]]['close']
 
-            for taxa in taxas:
+            for taxa, timeframe in taxas:
+                timeframe = self.config["tempo"] if timeframe == 0 else timeframe
                 if (fechamento >= taxa and ultimo < taxa or 
                     fechamento <= taxa and ultimo > taxa):
 
                     direcao = "call" if abertura > fechamento else "put"
-                    tipo, payout = self.recebe_payout(par, self.tempo)
+                    tipo, payout = self.recebe_payout(par, timeframe)
 
                     if (self.ativar_noticias and
                         not self.verificar_noticias(par)):
@@ -136,20 +143,19 @@ class ListaTaxa(Operacao):
                             self.esperar_proximo_minuto()
 
                         thread = threading.Thread(
-                            target = self.operar, 
+                            target = self.realizar_trade, 
                             name = f"{time.time()}", 
                             args = (self.valor, par, direcao, 
-                                self.tempo, payout, tipo),
-                            daemon = True
-                        )
+                                timeframe, payout, tipo),
+                            daemon = True)
                         self.espera.append(thread)
                         thread.start()
                     else:
                         self.mostrar_mensagem(f"{par} {taxa} não atende o payout mínimo {payout} {self.config['minimo']}")
 
-                    taxas.remove(taxa)
+                    taxas.remove((taxa, timeframe))
                 else:
-                    if (abs(taxa - fechamento) < 0.00001 and 
+                    if (abs(normalize(taxa) - normalize(fechamento)) <= 2 and 
                         chegou_perto != abs(taxa - fechamento)):
                         chegou_perto = abs(taxa - fechamento)
                         self.mostrar_mensagem(f"{par} perto da taxa {taxa}")
