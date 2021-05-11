@@ -838,7 +838,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                 elif value[2] == list:
                     mensagem = """Formato sugerido:
     Lista: 01/01/2000 13:00 EURUSD-OTC PUT M1
-    Taxas: EURUSD 1.12345 (o timeframe é definido pelo padrão)
+    Taxas: EURUSD 1.12345 M5
+Se o timeframe não for especificado, irá usar o padrão
 Não importa a ordem das informações, e sim o formato de cada componente."""
                 teclado = ReplyKeyboardRemove()
             
