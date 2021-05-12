@@ -281,6 +281,7 @@ class Operacao(IQ_API):
 	def win_case(self, is_ciclo, in_soros, valor, lucro, gale_text = ""):
 		if is_ciclo: self.gale_atual = 1
 		gale_text, num_gales = "", 0
+		self.config["ciclos"]['gales'] = 0
 
 		if self.config["tipo_soros"] == "ciclos":
 			self.gale_atual = 0
@@ -357,8 +358,9 @@ class Operacao(IQ_API):
 		def desconta_perda(resultado, lucro, 
 			in_gale = "", entrada = None):
 			with self.cadeado:
-				inicial = self.saldo_inicial
-				atual = round(self.saldo_inicial + self.ganho_total, 2)
+				# inicial = self.saldo_inicial
+				# atual = round(self.saldo_inicial + self.ganho_total, 2)
+
 				if entrada == None: entrada = valor
 				mensagem = "⚪️"
 				if resultado == "win":
@@ -424,7 +426,9 @@ class Operacao(IQ_API):
 		if resultado == "win" and (self.config['max_soros'] > 0 or 
 			(tipo_gale == "sorosgale" and self.perda_atual > 0) 
 			or self.config["tipo_soros"] == "ciclos" 
-			or (self.gale_atual > 0 and tipo_gale == "martingale")):
+			or (self.gale_atual > 0 and tipo_gale == "martingale")
+			or (is_ciclos_gale and (self.gale_atual > 1 or 
+				self.config["ciclos"]["gales"] > 0))):
 			texto_gale, num_gales = self.win_case(
 				is_ciclos_gale, fazendo_soros, valor, lucro)
 			
@@ -488,10 +492,10 @@ class Operacao(IQ_API):
 					num_gales -= 1
 					if (resultado == "win" or
 						ciclo_atual == len(self.ciclos_gale) - 1):
+						self.config["ciclos"]['gales'] = 0
 						texto_gale = "🔸 Voltando ao primeiro ciclo"
 						if resultado != "win":
 							texto_gale = "♦️" + texto_gale[1:]
-							self.config['ciclos']['gales'] = 0
 						else:
 							texto_gale, num_gales = self.win_case(
 								is_ciclos_gale, fazendo_soros, 
