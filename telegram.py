@@ -198,7 +198,9 @@ class Assistente(amanobot.helper.ChatHandler):
                 self.bot.deleteMessage((self.chat_id, mensagem['message_id']))
         else:
             if delete and not save:
-                self.bot.deleteMessage(self.message_id)
+                try:
+                    self.bot.deleteMessage(self.message_id)
+                except: pass
      
             mensagem = self.sender.sendMessage(message,
                 reply_markup = reply_markup)
@@ -485,6 +487,10 @@ EURJPY 31/12/2000 CALL M5 02:30
                 (datetime.now() - datetime.fromtimestamp(
                     sinais[0]["timestamp"])).days > 0 or 
                 cache_catalogador != conf_catalogador):
+                if self.id not in ADMS:
+                    self.enviar_mensagem(
+                        "Peça para o admnistrador catalogar os sinais de hoje!", save = True)
+                    return True
                 self.catalogar_sinais()
             self.informacoes["lista"] = MongoDB.get_entradas(3)
             self.enviar_mensagem(
@@ -606,8 +612,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                     enviar_lista("Lista própria", carregar_entradas(
                             self.informacoes['lista']))
                 else:
-                    self.enviar_mensagem(
-                        "Nenhuma lista registrada. Para adicionar: Conta > Adicionar lista.")
+                    self.enviar_mensagem("Nenhuma lista registrada. Para adicionar: Conta > Adicionar lista.", save = True)
             self.comandos()
             return True
         else:
@@ -794,7 +799,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             else:
                 mensagem = f"Digite a nova informação para {text}: "
                 if value[2] == str and value[0] != "paridade":
-                    mensagem = "Pegue os ciclos no site: https://argente123.github.io/Ciclos/"
+                    mensagem = "Pegue os ciclos no site: https://jdaniielc.github.io/Ciclos/"
                 elif value[2] == list:
                     mensagem = """Envie a lista no formato:
     01/01/2000 13:00 EURUSD-OTC PUT M1
@@ -899,7 +904,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             entrada_03 = carregar_entradas(3)
         else:
             self.enviar_mensagem(
-                "Nenhum sinal encontrado...")
+                "Nenhum sinal encontrado...", save = True)
 
     def habilitar_alteracao(self, msg):
         '''
@@ -943,9 +948,14 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.alteracoes_avancadas['plano'] = msg
             return None
         elif self.alteracoes_avancadas['aprovar']:
-            MongoDB.aprovar(
+            aprovado = MongoDB.aprovar(
                 self.alteracoes_avancadas['plano'], msg)
-            self.enviar_mensagem("Usuário aprovado.")
+            if aprovado:
+                self.enviar_mensagem("Usuário aprovado.")
+            else:
+                self.enviar_mensagem(
+                    "Você já atingiu o limite de usuários. \
+                        Sua VPS já não suporta.", save = True)
             self.alteracoes_avancadas["aprovar"] = False
             self.alteracoes_avancadas['plano'] = False
             return True
@@ -1013,7 +1023,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                     except Exception as e:
                         print(e)
                         self.enviar_mensagem(
-                            "Não entendi, tente novamente: https://argente123.github.io/Ciclos/")
+                            "Não entendi, tente novamente: https://jdaniielc.github.io/Ciclos/")
                         return True
                 elif novo == "individual":
                     self.enviar_mensagem(

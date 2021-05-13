@@ -46,6 +46,7 @@ def pegar_comando_lista(texto):
                 timeframe = int(timeframe[0].strip("H")) * 60
         else: timeframe = 0
     except Exception as e:
+        print("Erro na catalogação", type(e), e)
         return {}
 
     return {
@@ -162,6 +163,7 @@ class Catalogador(IQ_API):
                 self.mostrar_mensagem('finalizado em ' + str(int(time.time()) - timer) + ' segundos')
         
         resultado = []
+        texto_entradas, conta_texto = "", 0
         for par in catalogacao:
             for horario in sorted(catalogacao[par]):
                 ok = False		
@@ -174,17 +176,16 @@ class Catalogador(IQ_API):
                             ok = True
                             break
                 
-                if ok == True:
-                    msg = par + ' ' + horario + ' ' + catalogacao[par][horario]['dir'] + ' ' + str(catalogacao[par][horario]['%']) + '% '
-                    
-                    for i in range(int(martingale)):
-                        porcentagem_sinal = catalogacao[par][horario]['mg'+str(i+1)]['%']
-                        if str(porcentagem_sinal) != 'N/A':
-                            msg += f'{i+1} | MG ' + str(porcentagem_sinal) + '% '
-                        else:
-                            msg += ' | MG ' + str(i+1) + ' N/A N/A' 
-                                
-                    self.mostrar_mensagem(msg)	
-                    resultado.append(pegar_comando_lista(f"{datetime.now().strftime('%d/%m/%Y')} {horario} {par} {catalogacao[par][horario]['dir'].strip()} M{timeframe}\n"))
+                if ok == True:                    
+                    texto_entrada = f"{datetime.now().strftime('%d/%m/%Y')} {horario} {par} {catalogacao[par][horario]['dir'].strip()} M{timeframe}\n"
+                    entrada = pegar_comando_lista(texto_entrada)
+                    if entrada != {}:
+                        resultado.append(entrada)
+                        texto_entradas += texto_entrada + "\n"
+                        conta_texto += 1
+                        if conta_texto % 50 == 0:
+                            self.mostrar_mensagem(texto_entradas)	
+                            texto_entradas = ""
+        self.mostrar_mensagem(texto_entradas)	        
         self.mostrar_mensagem("Catalogação finalizada")	
         return resultado

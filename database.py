@@ -58,6 +58,8 @@ class Mongo:
         Tira o e-mail de em aprovação e coloca no rol de usuários
         '''
         user = self.apagar_cadastro(email)
+        if self.users_collection.count_documents({}) >= 100:
+            return False
         if user:
             user = users_schema.user
             user['email'] = email
@@ -74,6 +76,8 @@ class Mongo:
             user['plano'] = plano
             user["_id"] = time.time()
             self.users_collection.insert_one(user)
+            return True
+        return False
 
     def renovar_licenca(self, email, plano):
         '''
@@ -218,6 +222,7 @@ class Mongo:
             self.users_collection.update_many(
                 {}, {'$set': {'timestamp': data}})
         elif opcao == "clear":
+            self.users_em_aprovacao.delete_many({})
             users = self.users_collection.find(
                 {"timestamp": {"$lt": time.time()}})
             for user in users:
