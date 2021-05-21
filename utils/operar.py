@@ -522,12 +522,20 @@ class Operacao(IQ_API):
 					self.gale_atual = 0
 
 			elif tipo_gale == 'sorosgale':
-				self.perda_atual += abs(valor)
-				self.soros_atual = 0
-				self.valor = self.perda_atual / 2
-				self.valor = 2 if self.valor < 2 else self.valor
-				texto_gale = f"🔸 Sorosgale: {valor} para {self.valor}"
-
+				if self.gale_atual < self.max_gale:
+					self.soros_atual = 0
+					self.gale_atual += 1
+					self.perda_atual += abs(valor)
+					self.valor = self.perda_atual / 2
+					self.valor = 2 if self.valor < 2 else round(self.valor, 2)
+					texto_gale = f"🔸 Sorosgale: {round(valor, 2)} para {self.valor}"
+				else:
+					self.gale_atual = 0
+					self.perda_atual = 0
+					self.soros_atual = 0
+					self.valor = self.valor_inicial
+					texto_gale = f"♦️ Sorosgale: Voltando ao valor inicial"
+					
 			elif is_ciclos_gale:
 				ciclo_atual = self.config["ciclos"]['gales']
 				if ciclo_atual < len(self.ciclos_gale):
