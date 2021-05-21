@@ -472,7 +472,7 @@ class Operacao(IQ_API):
 					if self.perda_total <= -(self.stoploss):
 						self.ganhos_perdas[1] += 1
 						self.mostrar_mensagem(f"🥵 Stop Loss 🥵\n💲 Perca: R$ {round(self.perda_total, 2)}\n⚠️ Bot parado ⚠️")
-						sys.exit(0)
+						return exit()
 
 					if estrategia == "MSF" and num_gales == 0:
 						self.esperar_proximo_minuto()
@@ -535,7 +535,7 @@ class Operacao(IQ_API):
 					self.soros_atual = 0
 					self.valor = self.valor_inicial
 					texto_gale = f"♦️ Sorosgale: Voltando ao valor inicial"
-					
+
 			elif is_ciclos_gale:
 				ciclo_atual = self.config["ciclos"]['gales']
 				if ciclo_atual < len(self.ciclos_gale):

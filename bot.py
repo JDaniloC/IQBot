@@ -305,8 +305,9 @@ if __name__ == "__main__":
             try: # Dizer que terminou
                 email = argv[2]
                 dados = MongoDB.get_user(email)
-                dados["operando"] = False
-                MongoDB.modifica_usuario(dados, email)
+                if dados:
+                    dados["operando"] = False
+                    MongoDB.modifica_usuario(dados, email)
                 MongoDB.close()
             except Exception as e:
                 print(e)
