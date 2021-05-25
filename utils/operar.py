@@ -255,10 +255,10 @@ class Operacao(IQ_API):
 			self.gale_atual = 1
 		elif tipo_gale == "ciclosoros":
 			self.gale_atual = 0
-
 		num_gales = 0
 		if self.config["tipo_soros"] == "ciclos":
 			ciclo_atual = self.config["ciclos"]["soros"] + 1
+			self.gale_atual = 0
 			ciclos = self.ciclos_soros
 			if ciclo_atual < len(ciclos):
 				self.valor = ciclos[ciclo_atual][0]
