@@ -11,7 +11,8 @@ def extrair_noticias():
         'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:79.0) Gecko/20100101 Firefox/79.0'
     })
 
-    data = requests.get('http://br.investing.com/economic-calendar/', headers=headers)
+    data = requests.get(
+        'http://br.investing.com/economic-calendar/', headers=headers)
 
     resultados = []
 

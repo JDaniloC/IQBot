@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from datetime import time as time_day
 from configparser import RawConfigParser
 from utils.IQ import IQ_API
 import time, re, amanobot
@@ -58,6 +59,29 @@ def pegar_comando_lista(texto):
         "timestamp": timestamp(data, hora)
     }
 
+def strDateHour(number:int) -> str:
+    '''
+    Converte números de 1 dígito para 2 dígitos:
+        0:0 -> 00:00
+        2/1/2000 -> 02/01/2000
+    '''
+    return str(number) if len(str(number)) != 1 else "0" + str(number)
+
+
+def carrega_entrada(comando):
+    direcao = comando["ordem"].lower()
+    timeframe = comando['timeframe']
+    if timeframe == 0:
+        timeframe = "Padrão"
+    else:
+        timeframe = f"M{comando['timeframe']}"
+    return f'''
+📊 Ativo: {comando["par"]}
+📅 Dia: {"/".join(list(map(strDateHour, comando["data"])))}
+⏱ Hora: {":".join(list(map(strDateHour, comando["hora"])))}   
+{'⬆' if direcao == "call" else '⬇'} Direção: {direcao.upper()} 
+⏰ Período: {timeframe}
+        '''
 
 class Catalogador(IQ_API): 
 
@@ -65,14 +89,10 @@ class Catalogador(IQ_API):
         self.verboso = verboso
 
         super().__init__(
-            "hiyivo1180@tmail7.com", "senha123", 
-            self.mostrar_mensagem)
+            "hiyivo1180@tmail7.com", "senha123")
         self.mudar_treino()
 
     def mostrar_mensagem(self, mensagem):
-        '''
-        Mostra a mensagem no terminal e no listbox.
-        '''
         # print(mensagem)
         if self.verboso:
             try:
@@ -84,7 +104,8 @@ class Catalogador(IQ_API):
                 except Exception as e:
                     print("O erro:", type(e), e)
 
-    def catalogar(self, timeframe, dias, porcentagem, martingale, limite):
+    def catalogar(self, timeframe, dias, porcentagem, martingale, 
+        limite = float("inf"), inicio = "00:00", final = "23:59"):
         def cataloga(par, dias, timeframe):
             data = []
             datas_testadas = []
@@ -105,8 +126,10 @@ class Catalogador(IQ_API):
                     else:
                         sair = True
                         break
-                        
-                time_ = int(velas[-1]['from'] - 1)
+                
+                if len(velas) > 0:
+                    time_ = int(velas[-1]['from'] - 1)
+                else: pass
 
             analise = {}
             for velas in data:
@@ -165,6 +188,17 @@ class Catalogador(IQ_API):
         entradas, resultado = [], []
         texto_entradas, conta_texto = "", 0
         hoje = datetime.now().strftime('%d/%m/%Y')
+        
+        try: 
+            inicio = time_day(*tuple(map(int, inicio.split(":"))))
+            if inicio >= time_day(23, 59): inicio = time_day()
+        except: inicio = time_day()
+        try: 
+            final = time_day(*tuple(map(int, final.split(":"))))
+            if final <= inicio: final = time_day(23, 59)
+            if inicio >= final: inicio = time_day()
+        except: final = time_day(23, 59)
+
         for par in catalogacao:
             for horario in sorted(catalogacao[par]):
                 ok = False		
@@ -179,18 +213,14 @@ class Catalogador(IQ_API):
                 
                 if ok == True:   
                     direction = catalogacao[par][horario]['dir'].strip()
+                    if not direction: continue
+                    
                     texto_entrada = f"{hoje} {horario} {par} {direction} M{timeframe}\n"
                     entrada = pegar_comando_lista(texto_entrada)
-                    if entrada != {}:
+                    if entrada != {} and inicio <= datetime.fromtimestamp(
+                        entrada["timestamp"]).time() <= final:
                         entradas.append(entrada)
 
-                        texto_entradas += texto_entrada + "\n"
-                        conta_texto += 1
-                        if conta_texto % 50 == 0:
-                            self.mostrar_mensagem(texto_entradas)	
-                            texto_entradas = ""
-        self.mostrar_mensagem(texto_entradas)	        
-        
         self.mostrar_mensagem("Ordenando e removendo entradas antigas.")
         entradas.sort(key = lambda x: x["timestamp"])
         contagem = 0
@@ -199,7 +229,13 @@ class Catalogador(IQ_API):
                 contagem += 1
                 if contagem < limite:
                     resultado.append(entrada)
+                    texto_entradas += carrega_entrada(entrada)
+                    conta_texto += 1
+                    if conta_texto % 50 == 0:
+                        self.mostrar_mensagem(texto_entradas)	
+                        texto_entradas = ""
                 else: break
+        self.mostrar_mensagem(texto_entradas)	        
         self.mostrar_mensagem(f"Fim da catalogação: {contagem} computadas.")	
 
         return resultado

@@ -22,7 +22,6 @@ config.read(".env")
 MongoDB = Mongo()
 
 TOKEN = config.get("TELEGRAM", "token")
-BOTNAME = MongoDB.infos["nome"]
 
 # Funções
 def strDateHour(number:int) -> str:
@@ -49,17 +48,20 @@ def carregar_entradas(opcao):
 
     lista_entradas = []
     for linha in lista:
-        if linha["tipo"] == "taxas": 
-            lista_entradas.append(f"""
-📊 Ativo: {linha['par']}
-📈 Taxa: {linha['taxa']}""")
-            continue
-        direcao = linha["ordem"].lower()
         timeframe = linha['timeframe']
         if timeframe == 0:
             timeframe = "Padrão"
         else:
             timeframe = f"M{linha['timeframe']}"
+
+        if linha["tipo"] == "taxas": 
+            lista_entradas.append(f"""
+📊 Ativo: {linha['par']}
+📈 Taxa: {linha['taxa']}
+⏰ Período: {timeframe}
+            """)
+            continue
+        direcao = linha["ordem"].lower()
         lista_entradas.append(f'''
 📊 Ativo: {linha["par"]}
 📅 Dia: {"/".join(list(map(strDateHour, linha["data"])))}
@@ -90,6 +92,8 @@ mapeamento_avancado = {
     "Catalogar: Porcentagem": ["cat_perct", False, int],
     "Catalogar: Martingale": ["cat_mg", False, int],
     "Catalogar: Limite": ["cat_max", False, int],
+    "Catalogar: Hora início": ["cat_start", False, str],
+    "Catalogar: Hora final": ["cat_end", False, str]
 }
 
 # O bot
@@ -191,11 +195,12 @@ class Assistente(amanobot.helper.ChatHandler):
             "Não se esqueça dos links importantes", reply_markup = teclado)
 
         self.enviar_mensagem(
-           f"Olá, eu sou seu assistente do {BOTNAME}.",
+           f"Olá, eu sou seu assistente.",
             delete = False, reply_markup = ReplyKeyboardMarkup(
                 keyboard = [[KeyboardButton(text = "Entrar")]]))
 
-    def enviar_mensagem(self, message, reply_markup = None, edit = False, delete = True, save = False):
+    def enviar_mensagem(self, message, reply_markup = None, 
+        edit = False, delete = True, save = False):
         if edit:
             self.bot.editMessageText(self.message_id, message)
             if reply_markup:
@@ -251,7 +256,8 @@ class Assistente(amanobot.helper.ChatHandler):
                     save = True)
                 self.comandos()
             else:
-                self.enviar_mensagem("Sua licença expirou, peça para o administrador renovar.", save = True)
+                self.enviar_mensagem(
+                    "Sua licença expirou, peça para o administrador renovar.", save = True)
                 self.close()
         elif (MongoDB.verifica_cadastro(email)):
             self.enviar_mensagem("Seu e-mail ainda está em análise...", save = True)
@@ -324,12 +330,16 @@ class Assistente(amanobot.helper.ChatHandler):
             Porcentagem: mínimo 0-100%
             Martingale: até 0-2 gales
             Limite: máximo de sinais
+            Hora início: Hora útil inicial (00:00)
+            Hora final: hora útil final (23:59)
             """
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Catalogar: Timeframe" ),
                  KeyboardButton( text = "Catalogar: Dias" )],
                 [KeyboardButton( text = "Catalogar: Porcentagem" ),
                  KeyboardButton( text = "Catalogar: Martingale" )],
+                [KeyboardButton( text = "Catalogar: Hora início" ),
+                 KeyboardButton( text = "Catalogar: Hora final" )],
                 [KeyboardButton( text = "Catalogar: Limite" ),
                  KeyboardButton( text = "Gerenciar" )]
             ])
@@ -357,7 +367,9 @@ class Assistente(amanobot.helper.ChatHandler):
                 "cat_days": "Catalogação - Dias",
                 "cat_mg": "Catalogação - Gales",
                 "cat_time": "Catalogação - Timeframe",
-                "cat_max": "Catalogação - Limite"
+                "cat_max": "Catalogação - Limite",
+                "cat_start": "Catalogação - Hora início",
+                "cat_end": "Catalogação - Hora final"
             }
             return tradutor.get(key)
 
@@ -597,7 +609,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         global entrada_01, entrada_02, entrada_03
         if self.autenticacao:
             def enviar_lista(label, lista):
-                msg = "\n".join(lista)
+                msg = "".join(lista)
                 if len(msg) >  4000:
                     mensagens = [msg[x:x+4000] 
                         for x in range(0, len(msg), 4000)]
@@ -816,11 +828,18 @@ EURJPY 31/12/2000 CALL M5 02:30
                         for x in opcoes[value[0]]]])
             else:
                 mensagem = f"Digite a nova informação para {text}: "
-                if value[2] == str and value[0] != "paridade":
-                    mensagem = "Pegue os ciclos no site: https://jdaniielc.github.io/Ciclos/"
+                if value[0] in ["ciclos_soros", "ciclos_gale"]:
+                    mensagem = """As linhas são os ciclos e colunas são gales:
+    1,2,3 (ciclo 1 com 2 gales)
+    4,5    (ciclo 2 com 1 gale)
+    6       (ciclo 3 sem gale)"""
+                elif value[0] in ["cat_start", "cat_end"]:
+                    mensagem = "Formato 00:00 até 23:59, erros serão desconsiderados"
                 elif value[2] == list:
-                    mensagem = """Envie a lista no formato:
-    01/01/2000 13:00 EURUSD-OTC PUT M1
+                    mensagem = """Formato sugerido:
+    Lista: 01/01/2000 13:00 EURUSD-OTC PUT M1
+    Taxas: EURUSD 1.12345 M5
+Se o timeframe não for especificado, irá usar o padrão
 Não importa a ordem das informações, e sim o formato de cada componente."""
                 teclado = ReplyKeyboardRemove()
             
@@ -835,7 +854,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         Verifica se a mensagem está nas configurações avançadas
         Se estiver, devolve True caso contrário False
         '''
-        global ADMS, BOTNAME, rodando, \
+        global ADMS, rodando, \
             entrada_01, entrada_02, entrada_03
         
         if self.id not in ADMS:
@@ -857,7 +876,6 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         elif msg['text'] == "Atualizar informações":
             self.enviar_mensagem("Atualizando...")
             MongoDB.atualizar_infos()
-            BOTNAME = MongoDB.infos["nome"]
             ADMS = MongoDB.get_adms()
             entrada_01 = carregar_entradas(1)
             entrada_02 = carregar_entradas(2)
@@ -936,7 +954,8 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         conf = MongoDB.get_avancadas()
         conf_catalogador = (conf["cat_time"], 
             conf["cat_days"], conf["cat_perct"], 
-            conf["cat_mg"], conf["cat_max"])
+            conf["cat_mg"], conf["cat_max"],
+            conf["cat_start"], conf["cat_end"])
 
         sinais_antigos = (len(sinais) > 0 and 
             (datetime.now() - datetime.fromtimestamp(
@@ -966,7 +985,8 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         conf = MongoDB.get_avancadas()
         cache_catalogador = (conf["cat_time"], 
             conf["cat_days"], conf["cat_perct"], 
-            conf["cat_mg"], conf["cat_max"])
+            conf["cat_mg"], conf["cat_max"],
+            conf["cat_start"], conf["cat_end"])
         lista = catalogador.catalogar(*cache_catalogador)
 
         if lista != []:
@@ -1082,19 +1102,14 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                         dicionario[key][1] = False
                         self.enviar_mensagem("Deve ser um número.", save = True)
                         return True
-                elif value[2] == str and value[0] != "paridade":
+                elif value[0] in ["ciclos_soros", "ciclos_gale"]:
                     try:
-                        # novo = list(map(lambda x: list(
-                        #     map(float, x.strip().split(","))), 
-                        # novo.strip().split("\n"))) 
-                        if novo != "0" and not numerization(novo, float):
-                            novo = json.loads(novo)
-                        else:
-                            raise ValueError("JSON != int!")    
+                        novo = list(map(lambda x: list(
+                            map(float, x.strip().split(","))), 
+                            novo.strip().split("\n"))) 
                     except Exception as e:
                         print(e)
-                        self.enviar_mensagem(
-                            "Não entendi, tente novamente: https://jdaniielc.github.io/Ciclos/")
+                        self.enviar_mensagem("Não entendi, tente novamente!")
                         return True
                 elif novo == "individual":
                     self.enviar_mensagem(
