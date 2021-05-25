@@ -3,7 +3,6 @@ from utils.investing import extrair_noticias
 from datetime import datetime, timedelta
 from configparser import RawConfigParser
 from utils.IQ import IQ_API
-from pprint import pprint
 
 config = RawConfigParser()
 config.read(".env")
@@ -33,7 +32,7 @@ class Operacao(IQ_API):
 		# Mostra a configuração sem a senha
 		senha = self.config['senha']
 		del self.config['senha']
-		pprint(self.config)
+		from pprint import pprint; pprint(self.config)
 		self.config['senha'] = senha
 
 		self.mostrar_mensagem(f"Entrando na {config['email']}")
@@ -304,7 +303,7 @@ class Operacao(IQ_API):
 		return gale_text, num_gales
 
 	def realizar_trade(self, valor, paridade, ordem, tempo, 
-		payout, tipo, dados = False, estrategia = False):
+		payout, tipo, estrategia = False):
 		'''
 		Faz a operação e a depender da configuração faz:
 		Martingale/Sorosgale e calcula o ganhoTotal/perdaTotal
@@ -328,8 +327,6 @@ class Operacao(IQ_API):
 
 		def desconta_perda(resultado, lucro, 
 			in_gale = "", entrada = None):
-			inicial = self.saldo_inicial
-			atual = round(self.saldo_inicial + self.ganho_total, 2)
 			if entrada == None: entrada = valor
 			mensagem = "⚪️"
 			if resultado == "win":
@@ -382,7 +379,7 @@ class Operacao(IQ_API):
 					f"🔸 Operando no {ciclo_atual + 1}° ciclo de {modalidade}: R$ {round(valor, 2)}")
 
 		resultado, lucro = None, 0
-		for i in range(2):
+		for _ in range(2):
 			try:
 				resultado, lucro, tipo = self.ordem(
 					paridade, ordem, tempo, valor, tipo, 
@@ -405,9 +402,8 @@ class Operacao(IQ_API):
 			or (is_ciclos_gale and (self.gale_atual > 1 or 
 				self.config["ciclos"]["gales"] > 0))):
 			texto_gale, num_gales = self.win_case(
-				fazendo_soros, valor, lucro)
-			
-		if resultado == "loose": 
+				fazendo_soros, valor, lucro)	
+		elif resultado == "loose": 
 			self.ocorreu_gale = True
 			tipo_martin = self.config['tipo_martin']
 			if (self.config['vez_gale'] == "vela" and (
