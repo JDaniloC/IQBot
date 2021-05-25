@@ -7,7 +7,8 @@ class IQ_API:
         '''
         Recebe o login, e tenta se conectar
         '''
-        self.payout_cache = {}
+        self.asset, self.timeframe, self.payout_cache = False, False, {}
+        self.display_time = lambda x, y = False: x
         self.API = IQ_Option(login, senha)
         if not self.conectar():
             raise ConnectionError(" ❌ Não conseguiu se conectar, reveja a senha ❌ ")
@@ -65,7 +66,6 @@ class IQ_API:
         Devolve o payout de uma paridade digital
         '''
         try:
-            print("Pegando payout digital")
             payout = self.API.get_digital_payout(paridade) / 100
             self.add_payout_cache(paridade, "digital", payout)
             return payout
@@ -77,23 +77,36 @@ class IQ_API:
         Devolve o payout de uma paridade binária
         caso não tiver este par, então devolve False
         '''
-        print("Pegando payout binária")
         payouts = self.API.get_all_profit()
         valor = payouts.get(paridade)
         if valor == None:
             result = False
-        if tempo > 5:
-            result = valor['binary'] if valor.get(
-                "binary"
-            ) else False
         else:
-            result = valor['turbo'] if valor.get(
-                "turbo"
-            ) else False
+            if tempo > 5:
+                result = valor['binary'] if valor.get(
+                    "binary"
+                ) else False
+            else:
+                result = valor['turbo'] if valor.get(
+                    "turbo"
+                ) else False
         self.add_payout_cache(paridade, "binary", result)
         return result
 
-    def abertas(self, paridades = False):
+    def abertas(self):
+        paridades = { "turbo": [], "binary": [] }
+        abertas = self.API.get_all_open_time()
+        turbo = abertas["turbo"]
+        digital = abertas["digital"]
+        binaria = abertas["binary"]
+        paridades["turbo"] = set(
+            [x for x in turbo if turbo[x]["open"]] + 
+            [x for x in digital if digital[x]["open"]])
+        paridades["binary"] = set([x for x in binaria if binaria[x]["open"]])
+        paridades["binary"] = paridades["binary"].intersection(paridades["turbo"])
+        return paridades
+
+    def payout_abertas(self, paridades = False):
         '''
         Verifica se a paridade está aberta e devolve o profit
         de forma que seja otimizado, devolvendo ambos os tipos
@@ -233,9 +246,9 @@ class IQ_API:
                     ("binária" if tipo == "digital" else "digital"))
                 tipo = "binary" if tipo == "digital" else "digital"
                 
-                paridade = paridade.upper()
-                payout_atual = (round(self.payout_cache[paridade][tipo] * 100)
-                    if self.payout_cache[paridade][tipo] else -1)
+                opcoes_modalidade = self.payout_cache.get(paridade.upper())
+                payout_modalidade = opcoes_modalidade.get(tipo) if opcoes_modalidade else 1
+                payout_atual = round(payout_modalidade * 100) if payout_modalidade else -1
                 if payout_atual >= self.config['minimo']:
                     return self.ordem(paridade, direcao, tempo, valor, 
                         tipo, bloqueador, delay, scalper, True)
@@ -453,6 +466,19 @@ Valor: R$ {round(valor, 2)}
             return round((abs(perca) + abs(perca) * lucro)/payout, 2)
 
     def esperar_proximo_minuto(self, minutos = 1):
-        time.sleep(((datetime.now() + timedelta(
+        correcao = self.config.get('correcao', 0)
+        espera = (((datetime.now() + timedelta(
             seconds = 50 * minutos)
-        ).replace(second = 56).timestamp() - time.time()) % 60)
+        ).replace(second = 56) - timedelta(seconds = correcao)
+        ).timestamp() - time.time()) % 60
+        self.display_time(round(espera))
+        print("Esperando", round(espera), "segundos.")
+
+        time.sleep(espera)
+
+    def is_number(self, number):
+        try:
+            float(number)
+            return True
+        except:
+            return False

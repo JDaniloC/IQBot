@@ -1,4 +1,4 @@
-import threading, traceback, time, re, sys, amanobot
+import threading, traceback, time, sys, amanobot
 from utils.investing import extrair_noticias
 from datetime import datetime, timedelta
 from configparser import RawConfigParser
@@ -185,11 +185,13 @@ class Operacao(IQ_API):
 		'''
 		Caso estiver em automático, verifica qual o maior
 		payout, primeiro vendo se estão abertas.
-		'''		
+		'''
+		self.asset, self.timeframe = paridade, tempo
+		
 		if self.tipo == "auto":
 			try:
-				payout_binaria = self.payout_binaria(paridade, tempo)
 				payout_digital = self.payout_digital(paridade)
+				payout_binaria = self.payout_binaria(paridade, tempo)
 				if (payout_binaria and payout_digital 
 					and payout_binaria < payout_digital):
 					tipo, payout = "digital", payout_digital
@@ -199,15 +201,18 @@ class Operacao(IQ_API):
 				elif payout_binaria: 
 					tipo, payout = "binary", payout_binaria
 				else:
+					payout_digital = payout_digital if payout_digital else 0.7
 					tipo, payout = "digital", payout_digital
-			except:
+			except Exception as e:
+				self.mostrar_mensagem(f"recebe_payout() {type(e)} {e}", True)
+				self.add_payout_cache(paridade, "digital", 0)
 				tipo, payout = "binary", 0.7
 		else:
 			payout, tipo = (self.payout_binaria(paridade) 
 				if self.tipo != "digital" 
 				else self.payout_digital(paridade)), self.tipo
-		self.mostrar_mensagem(
-			f"Payout de {paridade}: {tipo} {payout * 100}%", True)
+		self.mostrar_mensagem(f"Payout de {paridade}: {tipo} {payout * 100}%", True)
+		self.mudar_payout(payout, paridade, tipo)
 		return tipo, payout
 
 	def verificar_stop(self, parar = False):
@@ -231,10 +236,10 @@ class Operacao(IQ_API):
 			if perca > 0: perca = 0
 			if not self.fim_da_operacao:
 				self.mostrar_mensagem(f'''{mensagem}
-	{placar.center(32, " ")}
-	💰 Saldo: $ {round(self.ganho_total, 2)} | $ {self.stopwin}
-	💲 Perca: $ {perca} | $ {-self.stoploss}
-	✴️ Assertividade: {round(assertividade, 2)}%
+{placar.center(32, " ")}
+💰 Saldo: $ {round(self.ganho_total, 2)} | $ {self.stopwin}
+💲 Perca: $ {perca} | $ {-self.stoploss}
+✴️ Assertividade: {round(assertividade, 2)}%
 					⚠️ Bot parado ⚠️''')
 				self.fim_da_operacao = True
 			return True
@@ -263,7 +268,7 @@ class Operacao(IQ_API):
 			if ciclo_atual < len(ciclos):
 				self.valor = ciclos[ciclo_atual][0]
 				self.config["ciclos"]["soros"] += 1
-				gale_text = f"🔸 Soros: {ciclo_atual+1}° ciclo completo: \nVariação de $ {valor} -> $ {self.valor}"
+				gale_text = f"🔸 Soros: {ciclo_atual}° ciclo completo: \nVariação de $ {valor} -> $ {self.valor}"
 			else:
 				gale_text = "🔸 Soros: Voltando ao primeiro ciclo"
 				self.config["ciclos"]["soros"] = 0
@@ -299,7 +304,7 @@ class Operacao(IQ_API):
 		return gale_text, num_gales
 
 	def realizar_trade(self, valor, paridade, ordem, tempo, 
-		payout, tipo, estrategia = False):
+		payout, tipo, dados = False, estrategia = False):
 		'''
 		Faz a operação e a depender da configuração faz:
 		Martingale/Sorosgale e calcula o ganhoTotal/perdaTotal
@@ -331,7 +336,10 @@ class Operacao(IQ_API):
 				self.ganho_total += round(lucro, 2)
 				self.ganhos_perdas[0] += 1
 				mensagem = (num_gales * "🐔 ") + "✅"
-				if self.config['tipo_stop'] == "fixo":
+				if self.config['tipo_stop'] == "fixo" or (
+					self.config['vez_gale'] != "vela" and
+					tipo_gale == "martingale" and num_gales > 0
+				):
 					self.perda_total += round(lucro, 2)
 			else:
 				if resultado == 'loose':
@@ -370,7 +378,8 @@ class Operacao(IQ_API):
 				modalidade = "gale"
 			
 			if valor != self.valor_inicial:
-				self.mostrar_mensagem(f"🔸 Operando no {ciclo_atual + 1}° ciclo de {modalidade}: R$ {round(valor, 2)}")
+				self.mostrar_mensagem(
+					f"🔸 Operando no {ciclo_atual + 1}° ciclo de {modalidade}: R$ {round(valor, 2)}")
 
 		resultado, lucro = None, 0
 		for i in range(2):
@@ -404,6 +413,7 @@ class Operacao(IQ_API):
 			if (self.config['vez_gale'] == "vela" and (
 				is_ciclos_gale or tipo_gale == "martingale")):
 				perda, num_gales, ciclo_atual, errors = 0, 0, 0, 0
+				lucro_esperado = valor * payout
 				if is_ciclos_gale:
 					if tipo_gale == 'ciclos':
 						ciclo_atual = self.config["ciclos"]['gales']
@@ -440,10 +450,9 @@ class Operacao(IQ_API):
 						else:
 							if tipo_martin == "percent":
 								lucro = self.config['martin_pct'] / 100
-							self.mostrar_mensagem(
-					f"Fazendo martingale {tipo_martin} {payout}% R$ {perda} R$ {valor} R$ {lucro}", True)
 							valor = self.martingale(
-								tipo_martin, payout, perda, valor, lucro)
+								tipo_martin, payout, perda, 
+								valor, lucro_esperado)
 						valor = 2 if valor < 2 else valor # Caso der doji
 
 					if self.verificar_stop():
@@ -476,9 +485,9 @@ class Operacao(IQ_API):
 					if (resultado == "win" or (tipo_gale == "ciclos"
 						and ciclo_atual == len(self.ciclos_gale) - 1)):
 						texto_gale = "🔸 Voltando ao primeiro ciclo"
+						self.config['ciclos']['gales'] = 0
 						if resultado != "win":
 							texto_gale = "♦️" + texto_gale[1:]
-							self.config['ciclos']['gales'] = 0
 							num_gales += 1
 						else:
 							texto_gale, num_gales = self.win_case(
@@ -487,8 +496,8 @@ class Operacao(IQ_API):
 						if tipo_gale == "ciclos":
 							self.config['ciclos']['gales'] += 1
 							texto_gale = f"♦️ Avançando para o {ciclo_atual+2}° ciclo"
-						else:
-							self.config['ciclos']['soros'] = 0
+						elif self.config.get("stop_ciclos", True):
+							self.config["ciclos"]["soros"] = 0
 							texto_gale = f"♦️ Voltando ao primeiro ciclo"
 						self.valor = self.valor_inicial
 						num_gales += 1
@@ -558,12 +567,14 @@ class Operacao(IQ_API):
 			if (resultado == "loose" and (
 				(self.config['max_soros'] > 0 and fazendo_soros 
 				) or self.config["ciclos"]["soros"] > 0)):
+				
+				if self.config.get("stop_ciclos", True):
+					self.config["ciclos"]["soros"] = 0
 				self.soros_atual = 0
-				self.config["ciclos"]["soros"] = 0
 				
 				if self.config["tipo_soros"] == "ciclos":
 					self.valor = self.ciclos_soros[0][0]
-				if texto_gale == "":
+				if texto_gale == "" and self.config.get("stop_ciclos", True):
 					self.valor = self.valor_inicial
 					texto_gale = f"♦️ Soros: R$ {round(valor, 2)} para R$ {self.valor}"
 
@@ -572,7 +583,7 @@ class Operacao(IQ_API):
 				desconta_perda(resultado, lucro, texto_gale)      
 			else:
 				self.mostrar_mensagem(self.format_dir(f"""
-	⚪️ {paridade.upper()}|{tipo.capitalize()} M{tempo} {ordem.upper()}
+⚪️ {paridade.upper()}|{tipo.capitalize()} M{tempo} {ordem.upper()}
 	💰 $ {round(valor, 2)} | $ 0,00 💰"""))
 			time.sleep(3)          
 			mostra_resultado()
