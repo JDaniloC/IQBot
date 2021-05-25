@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from datetime import time as time_day
 from configparser import RawConfigParser
 from utils.IQ import IQ_API
 import time, re, amanobot
@@ -37,8 +38,7 @@ def pegar_comando_lista(texto):
         par = re.search(r'[A-Za-z]{6}(-OTC)?', 
             texto.upper().replace("/", ""))[0]
         ordem = re.search(r'CALL|PUT', texto.upper())[0].lower()
-        timeframe = re.search(
-            r'[MH][1-6]?[0-5]', texto.upper())
+        timeframe = re.search(r'[MH][1-6]?[0-5]', texto.upper())
         if timeframe: 
             if "M" in timeframe[0].upper(): 
                 timeframe = int(timeframe[0].strip("M"))
@@ -46,7 +46,7 @@ def pegar_comando_lista(texto):
                 timeframe = int(timeframe[0].strip("H")) * 60
         else: timeframe = 0
     except Exception as e:
-        print("Erro na catalogação", type(e), e)
+        print(f"Erro na catalogação: {texto}", type(e), e)
         return {}
 
     return {
@@ -59,6 +59,29 @@ def pegar_comando_lista(texto):
         "timestamp": timestamp(data, hora)
     }
 
+def strDateHour(number:int) -> str:
+    '''
+    Converte números de 1 dígito para 2 dígitos:
+        0:0 -> 00:00
+        2/1/2000 -> 02/01/2000
+    '''
+    return str(number) if len(str(number)) != 1 else "0" + str(number)
+
+
+def carrega_entrada(comando):
+    direcao = comando["ordem"].lower()
+    timeframe = comando['timeframe']
+    if timeframe == 0:
+        timeframe = "Padrão"
+    else:
+        timeframe = f"M{comando['timeframe']}"
+    return f'''
+📊 Ativo: {comando["par"]}
+📅 Dia: {"/".join(list(map(strDateHour, comando["data"])))}
+⏱ Hora: {":".join(list(map(strDateHour, comando["hora"])))}   
+{'⬆' if direcao == "call" else '⬇'} Direção: {direcao.upper()} 
+⏰ Período: {timeframe}
+        '''
 
 class Catalogador(IQ_API): 
 
@@ -66,14 +89,10 @@ class Catalogador(IQ_API):
         self.verboso = verboso
 
         super().__init__(
-            "hiyivo1180@tmail7.com", "senha123", 
-            self.mostrar_mensagem)
+            "hiyivo1180@tmail7.com", "senha123")
         self.mudar_treino()
 
     def mostrar_mensagem(self, mensagem):
-        '''
-        Mostra a mensagem no terminal e no listbox.
-        '''
         # print(mensagem)
         if self.verboso:
             try:
@@ -85,7 +104,8 @@ class Catalogador(IQ_API):
                 except Exception as e:
                     print("O erro:", type(e), e)
 
-    def catalogar(self, timeframe, dias, porcentagem, martingale):
+    def catalogar(self, timeframe, dias, porcentagem, martingale, 
+        limite = float("inf"), inicio = "00:00", final = "23:59"):
         def cataloga(par, dias, timeframe):
             data = []
             datas_testadas = []
@@ -106,8 +126,10 @@ class Catalogador(IQ_API):
                     else:
                         sair = True
                         break
-                        
-                time_ = int(velas[-1]['from'] - 1)
+                
+                if len(velas) > 0:
+                    time_ = int(velas[-1]['from'] - 1)
+                else: pass
 
             analise = {}
             for velas in data:
@@ -132,7 +154,7 @@ class Catalogador(IQ_API):
         for par in P['digital']:
             if P['digital'][par]['open'] == True:
                 timer = int(time.time())
-                self.mostrar_mensagem(' CATALOGANDO - ' + par + '.. ')
+                self.mostrar_mensagem(f' CATALOGANDO - {par}...')
                 
                 catalogacao.update({par: cataloga(par, dias, timeframe)})	
                 
@@ -160,10 +182,23 @@ class Catalogador(IQ_API):
                             else:						
                                 catalogacao[par][horario]['mg'+str(i+1)]['%'] = 'N/A'
                 
-                self.mostrar_mensagem('finalizado em ' + str(int(time.time()) - timer) + ' segundos')
+                self.mostrar_mensagem(
+                    f'Finalizado em {int(time.time()) - timer} segundos.')
         
-        resultado = []
+        entradas, resultado = [], []
         texto_entradas, conta_texto = "", 0
+        hoje = datetime.now().strftime('%d/%m/%Y')
+        
+        try: 
+            inicio = time_day(*tuple(map(int, inicio.split(":"))))
+            if inicio >= time_day(23, 59): inicio = time_day()
+        except: inicio = time_day()
+        try: 
+            final = time_day(*tuple(map(int, final.split(":"))))
+            if final <= inicio: final = time_day(23, 59)
+            if inicio >= final: inicio = time_day()
+        except: final = time_day(23, 59)
+
         for par in catalogacao:
             for horario in sorted(catalogacao[par]):
                 ok = False		
@@ -176,16 +211,31 @@ class Catalogador(IQ_API):
                             ok = True
                             break
                 
-                if ok == True:                    
-                    texto_entrada = f"{datetime.now().strftime('%d/%m/%Y')} {horario} {par} {catalogacao[par][horario]['dir'].strip()} M{timeframe}\n"
+                if ok == True:   
+                    direction = catalogacao[par][horario]['dir'].strip()
+                    if not direction: continue
+                    
+                    texto_entrada = f"{hoje} {horario} {par} {direction} M{timeframe}\n"
                     entrada = pegar_comando_lista(texto_entrada)
-                    if entrada != {}:
-                        resultado.append(entrada)
-                        texto_entradas += texto_entrada + "\n"
-                        conta_texto += 1
-                        if conta_texto % 50 == 0:
-                            self.mostrar_mensagem(texto_entradas)	
-                            texto_entradas = ""
+                    if entrada != {} and inicio <= datetime.fromtimestamp(
+                        entrada["timestamp"]).time() <= final:
+                        entradas.append(entrada)
+
+        self.mostrar_mensagem("Ordenando e removendo entradas antigas.")
+        entradas.sort(key = lambda x: x["timestamp"])
+        contagem = 0
+        for entrada in entradas:
+            if entrada["timestamp"] > time.time():
+                contagem += 1
+                if contagem < limite:
+                    resultado.append(entrada)
+                    texto_entradas += carrega_entrada(entrada)
+                    conta_texto += 1
+                    if conta_texto % 50 == 0:
+                        self.mostrar_mensagem(texto_entradas)	
+                        texto_entradas = ""
+                else: break
         self.mostrar_mensagem(texto_entradas)	        
-        self.mostrar_mensagem("Catalogação finalizada")	
+        self.mostrar_mensagem(f"Fim da catalogação: {contagem} computadas.")	
+
         return resultado

@@ -506,8 +506,13 @@ class IQ_Option:
             try:
                 self.api.getcandles(
                     OP_code.ACTIVES[ACTIVES], interval, count, endtime)
+                contador = 0
                 while self.check_connect and self.api.candles.candles_data == None:
-                    pass
+                    time.sleep(0.1)
+                    contador += 1
+                    if contador == 20:
+                        logging.error('**error** (get_candles) sem velas')
+                        return []
                 if self.api.candles.candles_data != None:
                     break
             except:
@@ -515,7 +520,7 @@ class IQ_Option:
                 logging.error('**error** (get_candles) precisa se reconectar')
                 self.connect()
                 if cont == 5:
-                    return None
+                    return []
 
         return self.api.candles.candles_data
 

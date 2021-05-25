@@ -1,7 +1,9 @@
-from utils.operar import Operacao, escreve_erros, IQ_API
+from utils.operar import escreve_erros, IQ_API
+from utils.estrategias import Estrategias
 from configparser import RawConfigParser
+from utils.lista_taxa import ListaTaxa
 from datetime import datetime
-from sys import argv
+from sys import argv, exit
 import re, logging
 
 if argv[1:] and argv[1] == "-o":
@@ -79,6 +81,15 @@ def pegar_comando_taxas(texto):
     }
     '''
     try:
+        timeframe = re.search(r'[MH][1-6]?[0-5]', texto.upper())
+        if timeframe: 
+            texto = re.sub(r'[MH][1-6]?[0-5]', r'', texto.upper())
+            if "M" in timeframe[0].upper(): 
+                timeframe = int(timeframe[0].strip("M"))
+            else: 
+                timeframe = int(timeframe[0].strip("H")) * 60
+        else: timeframe = 0
+
         primeiro, segundo = re.split(r"[^\w.-]", texto.strip())
         par = re.search(r'[A-Za-z]{6}(-OTC)?', 
             primeiro.upper().replace("/", ""))
@@ -98,6 +109,7 @@ def pegar_comando_taxas(texto):
         "par": par, 
         "taxa": taxa, 
         "tipo": "taxas",
+        "timeframe": timeframe,
         "timestamp": datetime_brazil()
     }
 
@@ -222,6 +234,29 @@ def ver_gales(perdaInicial, taxa):
             perda += valor
         print()
 
+def captura_erros(params, operar_lista, tentativas = 0):      
+    try:
+        if operar_lista: bot = ListaTaxa(*params)
+        else: bot = Estrategias(*params)
+        bot.operar()
+    except KeyboardInterrupt:
+        exit(0)
+    except Exception as e:
+        if type(e) == ConnectionError:
+            bot.mostrar_mensagem("Não conseguiu se conectar na conta")
+            tentativas = 2
+        else:
+            print("Aconteceu um erro na API, tentando novamente.")
+        escreve_erros(e)
+        
+        if tentativas == 2: 
+            bot.mostrar_mensagem(
+                "Ultrapassou o máximo de tentativas.")
+            return
+
+        print("Continuando as operações...")
+        captura_erros(params, operar_lista, tentativas + 1)
+
 def recebe_comandos(comandos):
     '''
     Recebe os comandos do terminal e computa algum resultado
@@ -251,7 +286,7 @@ def recebe_comandos(comandos):
         elif comandos[0] in ['-c', 'config'] and len(comandos[0:]) != 1:
             config = configuracoes(comandos[1])
             comandos = abrir_arquivo(config["arquivo"])
-            Operacao(config, comandos)
+            ListaTaxa(config, comandos).operar_lista()
         elif comandos[0] in ["-h", "ajuda"]:
             with open(LOCALAJUDA, "r+") as file:
                 for i in file:
@@ -273,7 +308,14 @@ def recebe_comandos(comandos):
                 entradas = MongoDB.get_entradas(maximo)
             else:
                 entradas = config['lista']
-            Operacao(config, entradas, int(comandos[3]), comandos[4] == "True")
+            
+            params = config, entradas, int(comandos[3])
+
+            try:
+                captura_erros(params, comandos[4] == "True")
+            except Exception as e:
+                escreve_erros(e)
+
         else:
             print('''
             [COMANDOS]
@@ -286,7 +328,7 @@ def recebe_comandos(comandos):
     else:
         config = configuracoes()
         comandos = abrir_arquivo(config["arquivo"])
-        Operacao(config, comandos)
+        ListaTaxa(config, comandos).operar_lista()
         
 if __name__ == "__main__":
     try:

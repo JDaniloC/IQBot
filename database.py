@@ -214,6 +214,7 @@ class Mongo:
         '''
         if opcao == "delete":
             self.users_collection.delete_many({})
+            self.users_em_aprovacao.delete_many({})
         elif opcao == "off":
             self.users_collection.update_many(
                 {}, {'$set': {'operando': False}})
