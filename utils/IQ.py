@@ -342,7 +342,7 @@ Valor: R$ {round(valor, 2)}
                 -1 for x in velas
             ]
 
-            if velas[0] == velas[1] == velas[2]:
+            if len(velas) == 3 and velas[0] == velas[1] == velas[2]:
                 direcao = 1 if direcao.lower() == "call" else -1
                 return velas[0] == direcao
         return True if (

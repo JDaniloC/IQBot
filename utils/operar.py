@@ -27,6 +27,7 @@ class Operacao(IQ_API):
 		self.chat_id = chat_id
 		self.comandos = comandos
 		self.config = config
+		self.entrou = False
 		self.operacoes_ativas = {}	
 
 		# Mostra a configuração sem a senha
@@ -35,13 +36,24 @@ class Operacao(IQ_API):
 		from pprint import pprint; pprint(self.config)
 		self.config['senha'] = senha
 
-		self.mostrar_mensagem(f"Entrando na {config['email']}")
-		super().__init__(config['email'], config['senha'])
+		self.mostrar_mensagem(
+			f"📝 Entrando na {config['email']}")
+		for _ in range(3):
+			try:
+				super().__init__(
+					config['email'], 
+					config['senha'])
+				self.entrou = True
+				break
+			except Exception as e:
+				self.mostrar_mensagem(e)
+				escreve_erros(e)
+		
+		if self.entrou:
+			self.salvar_variaveis(config)
+			self.resetar_status()
 
-		self.resetar_status()
-		self.salvar_variaveis(config)
-
-		self.mostrar_mensagem(f"""
+			self.mostrar_mensagem(f"""
 📝Revise as suas configurações:
 👤 Conta: {config['tipo_conta'].upper()}
 💰 Banca: $ {self.saldo_inicial}
