@@ -432,7 +432,8 @@ Valor: R$ {round(valor, 2)}
         return False
     
     @staticmethod
-    def martingale(tipo_martin, payout, perca, valor = 1, lucro = 1):
+    def martingale(tipo_martin, payout, 
+        perca, valor = 1, lucro = 1):
         '''
         Calcula o martingale onde:
             tipo_martin:
@@ -461,7 +462,7 @@ Valor: R$ {round(valor, 2)}
         elif tipo_martin == "seguro":
             return round(abs(perca)/payout, 2)
         elif tipo_martin == "percent":
-            return round(abs(perca) * lucro / payout, 2)
+            return round((abs(perca) + lucro) / payout, 2)
         else:
             return round((abs(perca) + abs(perca) * lucro)/payout, 2)
 
