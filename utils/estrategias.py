@@ -10,6 +10,7 @@ def is_in_list(estrategia, lista):
 
 class Estrategias(Operacao):
     def __init__(self, config, comandos = [], chat_id = False):
+        self.pos_hit = config.get('poshit', False)
         super().__init__(config, comandos, chat_id)
 
     def pegar_velas(self, paridade, quantidade, timeframe = 1, 
@@ -389,12 +390,12 @@ class Estrategias(Operacao):
         timeframe = int(self.config["autotime"][1:])
 
         porcentagem = False
-        if self.config["poshit"]:
+        if self.pos_hit:
             self.mostrar_mensagem(f"🔹 Procurando por um ativo com hit...")
         while not self.verificar_stop() and not porcentagem:
             porcentagem, paridade, estrategia = self.catalogar_estrategia(
                 self.config["autotime"], self.config["autogale"], 
-                self.config["poshit"])
+                self.pos_hit)
             if porcentagem == False:
                 self.esperar_proximo_minuto(timeframe)
         else: 
@@ -415,7 +416,7 @@ class Estrategias(Operacao):
             or result == "error" or force): 
             if self.config["auto"]:
                 paridade, estrategia = self.pegar_catalogacao()
-            elif self.config['poshit']:
+            elif self.pos_hit:
                 self.esperar_poshit(paridade, estrategia, timeframe)
             self.num_operacoes = 0
         return paridade, estrategia
@@ -442,7 +443,7 @@ class Estrategias(Operacao):
         self.mostrar_mensagem("🔹 Iniciando... Esperando próximo minuto...")
         self.esperar_proximo_minuto()
         
-        if not self.config["auto"] and self.config.get('poshit', False):
+        if not self.config["auto"] and self.pos_hit:
             self.esperar_poshit(paridade, estrategia, timeframe)
         
         self.verifica_entrada(estrategia, timeframe, 

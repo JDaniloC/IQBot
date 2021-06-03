@@ -223,7 +223,6 @@ class Operacao(IQ_API):
 				if self.tipo != "digital" 
 				else self.payout_digital(paridade)), self.tipo
 		self.mostrar_mensagem(f"Payout de {paridade}: {tipo} {payout * 100}%", True)
-		self.mudar_payout(payout, paridade, tipo)
 		return tipo, payout
 
 	def verificar_stop(self, parar = False):

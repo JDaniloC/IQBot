@@ -112,7 +112,7 @@ class Assistente(amanobot.helper.ChatHandler):
         self.operar_lista = True
         self.alteracoes_avancadas = {
             "adm_in": False,  # Adicionar novo ADM
-            "adm_out": False,  # Remover um ADM
+            "adm_out": False, # Remover um ADM
             "licenca": False, # Renovar licença
             "aprovar": False, # Aprovar usuário
             "remover": False, # Tirar um usuário cadastrado
@@ -153,11 +153,12 @@ class Assistente(amanobot.helper.ChatHandler):
             "Taxas: próxima vela": ["taxas_vela", False, tuple],
             "Segurança pós-gale": ["no_posgale", False, bool],
 
-            # "Paridade": ["paridade", False, str],
-            # "Estratégia": ["estrategia", False, tuple],
-            # "Tipo milhão": ["tipo_milhao", False, tuple],
-            # "Auto VIP: Timeframe": ["autotime", False, tuple],
-            # "Auto VIP: Gales": ["autogale", False, tuple],
+            "Paridade": ["paridade", False, str],
+            "Automático": ["auto", False, bool],
+            "Estratégia": ["estrategia", False, tuple],
+            "Tipo milhão": ["tipo_milhao", False, tuple],
+            "Auto: Timeframe": ["autotime", False, tuple],
+            "Auto: Gales": ["autogale", False, tuple],
 
             "Tipo par": ["tipo_par", False, tuple],
             "Timeframe": ["tempo", False, tuple],
@@ -480,11 +481,9 @@ EURJPY 31/12/2000 CALL M5 02:30
         if self.autenticacao:
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Operar Lista/Taxas" ),
-                 KeyboardButton( text = "Adicionar lista" )],
+                 KeyboardButton( text = "Operar Estratégias" )],
                 [KeyboardButton( text = "Catalogar sinais"),
                  KeyboardButton( text = "Verificar lista")],
-                #  [KeyboardButton( text = "Operar Estratégias" ),
-                #   KeyboardButton( text = "Operar Auto VIP")],
                 [KeyboardButton( text = "Editar configurações" ),
                  KeyboardButton( text = "Ver lista de sinais" )],
                 [KeyboardButton( text = "Parar Bot" ),
@@ -506,11 +505,6 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.operar_lista = True
             return self.operar(msg)
         elif texto == "Operar Estratégias":
-            self.informacoes["auto"] = False
-            self.operar_lista = False
-            return self.operar(msg)
-        elif texto == "Operar Auto VIP":
-            self.informacoes["auto"] = True
             self.operar_lista = False
             return self.operar(msg)
         elif texto == "Catalogar sinais":
@@ -675,8 +669,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                      KeyboardButton( text = "Ajustes" )],
                     [KeyboardButton( text = "Gerenciamento" ),
                      KeyboardButton( text = "Martingale e Soros" )],
-                    #  KeyboardButton( text = "Estratégias")],
-                    [KeyboardButton( text = "Tendência e notícias" )],
+                    [KeyboardButton( text = "Estratégias"),
+                     KeyboardButton( text = "Tendência e notícias" )],
                     [KeyboardButton( text = "Outras opções" ), 
                      KeyboardButton( text = "Voltar ao menu" )]
             ], resize_keyboard = True))
@@ -743,8 +737,9 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "Paridade" ),
                  KeyboardButton( text = "Estratégia" ),
                  KeyboardButton( text = "Tipo milhão" )],
-                [KeyboardButton( text = "Auto VIP: Gales" ),
-                 KeyboardButton( text = "Auto VIP: Timeframe")],
+                [KeyboardButton( text = "Automático" ),
+                 KeyboardButton( text = "Auto: Gales" ),
+                 KeyboardButton( text = "Auto: Timeframe")],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == "Outras opções":
