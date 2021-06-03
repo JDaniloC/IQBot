@@ -129,16 +129,16 @@ class Assistente(amanobot.helper.ChatHandler):
 
             "Tipo de gale": ["tipo_gale", False, tuple], 
             "Tipo de Stoploss": ["tipo_stop", False, tuple], 
-            # "Scalper Loss": ["scalper_loss", False, int],
-            # "Scalper Win": ["scalper_win", False, int],
+            "Scalper Loss": ["scalper_loss", False, int],
+            "Scalper Win": ["scalper_win", False, int],
             "Payout mínimo": ["minimo", False, int], 
             "StopLoss": ["stoploss", False, float],
             "StopWin": ["stopwin", False, float],
 
             "Tipo de martingale": ["tipo_martin", False, tuple],
             "Martingale na próxima": ["vez_gale", False, tuple],
-            # "Ciclos de soros": ["ciclos_soros", False, str],
-            # "Ciclos de gales": ["ciclos_gale", False, str],
+            "Ciclos de soros": ["ciclos_soros", False, str],
+            "Ciclos de gales": ["ciclos_gale", False, str],
             "Máximo de soros": ["max_soros", False, int],
             "Máximo de gales": ["max_gale", False, int],
             "Tipo soros": ["tipo_soros", False, tuple],
@@ -286,8 +286,9 @@ class Assistente(amanobot.helper.ChatHandler):
             [KeyboardButton( text = "Configurações avançadas" ),
              KeyboardButton( text = "Administração" )],
             [KeyboardButton( text = "Catalogação"),
-             KeyboardButton( text = "Desligar VPS" )],
-            [KeyboardButton( text = "Voltar ao menu" )]
+             KeyboardButton( text = "Adicionar entradas")],
+            [KeyboardButton( text = "Desligar VPS" ),
+             KeyboardButton( text = "Voltar ao menu" )]
         ])
 
         self.enviar_mensagem("Configurações avançadas para admnistradores:",
@@ -385,15 +386,15 @@ class Assistente(amanobot.helper.ChatHandler):
         Mudar caminho do arquivo de entradas
         '''
         if self.id in ADMS and msg['text'] == "Adicionar entradas":
-            teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "entrada 01" )],
-                [KeyboardButton( text = "entrada 02" )],
-                [KeyboardButton( text = "entrada 03" )],
-                [KeyboardButton( text = "todas" )]
-            ])
-
-            self.enviar_mensagem("Qual arquivo de entradas:",
-                reply_markup = teclado)
+            # teclado = ReplyKeyboardMarkup(keyboard = [
+            #     [KeyboardButton( text = "entrada 01" )],
+            #     [KeyboardButton( text = "entrada 02" )],
+            #     [KeyboardButton( text = "entrada 03" )],
+            #     [KeyboardButton( text = "todas" )]
+            # ])
+            self.habilitar_entradas({"text": "entrada 01"})
+            # self.enviar_mensagem("Qual arquivo de entradas:",
+            #     reply_markup = teclado)
             return True
         return False
 
@@ -478,7 +479,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         if self.autenticacao:
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Operar Lista" ),
+                [KeyboardButton( text = "Operar Lista/Taxas" ),
                  KeyboardButton( text = "Adicionar lista" )],
                 [KeyboardButton( text = "Catalogar sinais"),
                  KeyboardButton( text = "Verificar lista")],
@@ -501,7 +502,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         do menu principal, devolvendo um boolean
         '''
         texto = msg['text']
-        if texto == "Operar Lista":
+        if texto == "Operar Lista/Taxas":
             self.operar_lista = True
             return self.operar(msg)
         elif texto == "Operar Estratégias":
@@ -619,19 +620,14 @@ EURJPY 31/12/2000 CALL M5 02:30
                     self.enviar_mensagem(f"{label}:\n" +
                         msg, save = True)
             
-            if self.informacoes['tipo_lista'] == "casa":
-                self.enviar_mensagem("Entradas:", 
-                    reply_markup = ReplyKeyboardRemove())
-                
-                enviar_lista("Lista 01", entrada_01)
-                enviar_lista("Lista 02", entrada_02)
-                enviar_lista("Lista 03", entrada_03)
+            if self.informacoes['lista'] != []:
+                enviar_lista("Lista própria", carregar_entradas(
+                        self.informacoes['lista']))
             else:
-                if self.informacoes['lista'] != []:
-                    enviar_lista("Lista própria", carregar_entradas(
-                            self.informacoes['lista']))
-                else:
-                    self.enviar_mensagem("Nenhuma lista registrada. Para adicionar: Conta > Adicionar lista.", save = True)
+                self.enviar_mensagem(
+                    "Nenhuma lista registrada. Para adicionar: Conta > Adicionar lista.\
+                    Ou considere clicar em catalogar sinais.", 
+                    save = True)
             self.comandos()
             return True
         else:
@@ -656,7 +652,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             }
             mensagem = ""
             for key, value in self.mapeamento.items():
-                if value[0] not in ["lista", "tipo_lista", "num_lista"]:
+                if value[0] not in ["lista", "num_lista"]:
                     if key in headers:
                         mensagem += f"\n⚙️ {headers[key]} ⚙️\n"
                     valor = str(self.informacoes.get(value[0], 'Não configurado'))
@@ -697,7 +693,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Valor de entrada" )],
                 [KeyboardButton( text = "Adicionar lista" ),
                  KeyboardButton( text = "Verificar lista")],
-                [KeyboardButton( text = "Editar configurações" )]])
+                [KeyboardButton( text = "Tipo de lista"),
+                 KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == 'Gerenciamento':
             teclado = ReplyKeyboardMarkup(keyboard = [
@@ -705,8 +702,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Tipo de gale" )],
                 [KeyboardButton( text = "StopWin" ),
                  KeyboardButton( text = "StopLoss" )],
-                # [KeyboardButton( text = "Scalper Win"),
-                #  KeyboardButton( text = "Scalper Loss")],
+                [KeyboardButton( text = "Scalper Win"),
+                 KeyboardButton( text = "Scalper Loss")],
                 [KeyboardButton( text = "Payout mínimo" ),
                  KeyboardButton( text = "Editar configurações" )]
                 ])
@@ -717,10 +714,10 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Martingale na próxima" )],
                 [KeyboardButton( text = "Máximo de gales" ),
                  KeyboardButton( text = "Máximo de soros" )],
-                # [KeyboardButton( text = "Ciclos de soros" ),
-                #  KeyboardButton( text = "Ciclos de gales" )],
-                # [KeyboardButton( text = "Tipo soros" ),
-                 [KeyboardButton( text = "Editar configurações" )]])
+                [KeyboardButton( text = "Ciclos de soros" ),
+                 KeyboardButton( text = "Ciclos de gales" )],
+                [KeyboardButton( text = "Tipo soros" ),
+                 KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == 'Tendência e notícias':
             teclado = ReplyKeyboardMarkup(keyboard = [
@@ -773,26 +770,20 @@ EURJPY 31/12/2000 CALL M5 02:30
                     keyboard = [
                     [KeyboardButton( text = "Sim" ),
                     KeyboardButton( text = "Não" )]])
-            elif (value[0] == "tipo_lista" and 
-                self.informacoes['plano'] == "teste"):
-                self.enviar_mensagem(
-                    "Você não tem acesso a lista da casa, peça um upgrade na sua conta.", save = True)
-                return True
             elif value[2] == tuple:
                 opcoes = {
                     "toros": [0, 1, 2, 3], "num_lista": [1, 2, 3],
                     "tempo": [1, 5, 15, 30], "autogale": [0, 1, 2],
                     "autotime": [1, 5, 15], "vez_gale": ["vela", "sinal"],
                     "tipo_par": ["binary", "digital", "auto"],
-                    "tipo_lista": ["casa", "propria"],
+                    "tipo_lista": ["Catalogador", "Da casa"],
                     "tipo_conta": ["treino", "real"],
                     "tipo_soros": ["normal", "ciclos"],
                     "tipo_stop": ["movel", "fixo"],
                     "taxas_vela": ["atual", "próxima"],
                     "tipo_milhao": ["Minoria", "Maioria"],
                     "tipo_gale": [
-                        "martingale", "sorosgale", "nenhum"],  
-                        # "ciclos",
+                        "martingale", "sorosgale", "ciclos", "nenhum"],  
                     "tipo_tendencia": [
                         "medias móveis simples", "velas"],
                     "tipo_martin": [
@@ -950,26 +941,41 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         Verifica se os sinais são atuais ou foi modificado 
         '''
         self.enviar_mensagem("Carregando...")
-        sinais = MongoDB.get_entradas(3)
-        conf = MongoDB.get_avancadas()
-        conf_catalogador = (conf["cat_time"], 
-            conf["cat_days"], conf["cat_perct"], 
-            conf["cat_mg"], conf["cat_max"],
-            conf["cat_start"], conf["cat_end"])
+        lista_da_casa = self.informacoes["tipo_lista"] == "Da casa"
+        if lista_da_casa:
+            sinais = MongoDB.get_entradas(1)
+            conf_alterada = False
+        else:
+            sinais = MongoDB.get_entradas(3)
+            conf = MongoDB.get_avancadas()
+            conf_catalogador = (conf["cat_time"], 
+                conf["cat_days"], conf["cat_perct"], 
+                conf["cat_mg"], conf["cat_max"],
+                conf["cat_start"], conf["cat_end"])
+            conf_alterada = cache_catalogador != conf_catalogador
 
         sinais_antigos = (len(sinais) > 0 and 
             (datetime.now() - datetime.fromtimestamp(
                 sinais[0]["timestamp"])).days > 0)
-        conf_alterada = cache_catalogador != conf_catalogador
         
-        if len(sinais) == 0 or (sinais_antigos or conf_alterada):
+        if len(sinais) == 0 or sinais_antigos or (
+            not lista_da_casa and conf_alterada):
             if self.id not in ADMS:
                 self.enviar_mensagem(
-                    "Peça para o admnistrador catalogar os sinais de hoje!", save = True)
+                    "Peça para o administrador catalogar os sinais de hoje!", 
+                    save = True)
                 return True
-            self.catalogar_sinais()
+            if not lista_da_casa:
+                self.catalogar_sinais()
+            else: 
+                self.enviar_mensagem("Atualize a lista!", save = True)
+                return True
         
-        self.informacoes["lista"] = MongoDB.get_entradas(3)
+        if lista_da_casa:
+            nova_lista = MongoDB.get_entradas(1)
+        else:
+            nova_lista = MongoDB.get_entradas(3)
+        self.informacoes["lista"] = nova_lista
         self.enviar_mensagem(
             "Sinais catalogados adicionados à sua lista.", save = True)
         self.comandos()
