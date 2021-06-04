@@ -214,7 +214,8 @@ class IQ_API:
             if tipo == "digital":
                 identificador = str(identificador['message'])
             else: identificador = str(identificador)
-            self.saida(identificador)
+            print(identificador)
+            self.saida(f"A IQ não permitiu operar na {tipo}!")
             if verify_string(["active_suspended", "invalid", "available"], 
                 identificador) and not trying:
                 if self.tipo != "auto": 
