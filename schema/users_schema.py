@@ -24,8 +24,11 @@ user = {
     "tipo_martin": "simples",
     "tipo_soros": "normal", 
     "vez_gale": "vela",
+    "martin_pct": 100,
+    "prestoploss": False,
+    "prestopwin": 0,
     "scalper_loss": 0,        
-    "scalper_win": 0,         
+    "scalper_win": 0,      
 
     "max_gale": 2,
     "max_soros": 1,
@@ -39,12 +42,13 @@ user = {
     "auto": False,           
     "autogale": 2,            
     "autotime": 1,    
+    "poshit": 0,
+    "max_trades": 10,
     "estrategia": "MHI",      
     "paridade": "EURUSD",        
     "tipo_milhao": "Minoria", 
 
     "periodo_tendencia": 21,
-    "tipo_tendencia": "sma",
     "tendencia": False,
 
     "taxas_vela": "atual",

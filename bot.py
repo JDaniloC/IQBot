@@ -90,7 +90,7 @@ def pegar_comando_taxas(texto):
                 timeframe = int(timeframe[0].strip("H")) * 60
         else: timeframe = 0
 
-        primeiro, segundo = re.split(r"[^\w.-]", texto.strip())
+        primeiro, segundo = re.split(r"[^\w.-]+", texto.strip())
         par = re.search(r'[A-Za-z]{6}(-OTC)?', 
             primeiro.upper().replace("/", ""))
         if not par:
