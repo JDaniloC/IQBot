@@ -264,23 +264,36 @@ class Operacao(IQ_API):
 		return False
 
 	def win_case(self, in_soros, valor, lucro, gale_text = ""):
+		did_gale = (self.gale_atual > 0 or gale_text != ""
+			or self.config["ciclos"]["gales"] > 0)
+
 		tipo_gale = self.config["tipo_gale"]
 		if tipo_gale in ["ciclos", "ciclosoros"]:
-			self.config["ciclos"]['gales'] = 0
-			self.gale_atual = 0
+			self.config["ciclos"]["gales"] = 0
+			if tipo_gale == "ciclos":
+				self.valor = self.valor_inicial
+			else:
+				self.gale_atual = 0
 
 		num_gales = 0
 		if self.config["tipo_soros"] == "ciclos":
 			ciclo_atual = self.config["ciclos"]["soros"] + 1
 			ciclos = self.ciclos_soros
-			if ciclo_atual < len(ciclos):
+			if ciclo_atual < len(ciclos) and not (
+				did_gale and self.config.get("stop_ciclos", True)):
 				self.valor = ciclos[ciclo_atual][0]
 				self.config["ciclos"]["soros"] += 1
-				gale_text = f"🔸 CicloSoros: {ciclo_atual}° ciclo completo: \nVariação de $ {valor} -> $ {self.valor}"
+				gale_text = f"🔸 CicloSoros: {ciclo_atual}° ciclo completo:\nVariação de $ {valor} -> $ {self.valor}"
 			else:
 				gale_text = "🔸 CicloSoros: Voltando ao primeiro ciclo"
 				self.config["ciclos"]["soros"] = 0
 				self.valor = self.valor_inicial
+		elif self.gale_atual > 0 or did_gale:
+			num_gales = self.gale_atual
+			self.gale_atual = 0
+			self.perda_atual -= abs(valor)
+			self.valor = self.valor_inicial
+			if self.perda_atual < 0: self.perda_atual = 0
 		elif (self.soros_atual < self.config['max_soros'] or 
 			(tipo_gale == "sorosgale" and self.perda_atual > 0)):
 			# Caso estiver em sorosgale
@@ -302,13 +315,7 @@ class Operacao(IQ_API):
 		elif in_soros:
 			self.soros_atual = 0
 			self.valor = self.valor_inicial
-			gale_text = f"🔸 Soros: $ {round(valor, 2)} para $ {self.valor_inicial}"
-		elif self.gale_atual > 0:
-			num_gales = self.gale_atual
-			self.gale_atual = 0
-			self.perda_atual -= abs(valor)
-			self.valor = self.valor_inicial
-			if self.perda_atual < 0: self.perda_atual = 0
+			gale_text = f"🔸 Soros: Voltando $ {round(valor, 2)} -> $ {self.valor_inicial}"
 
 		return gale_text, num_gales
 
@@ -337,6 +344,8 @@ class Operacao(IQ_API):
 
 		def desconta_perda(resultado, lucro, 
 			in_gale = "", entrada = None):
+			inicial = self.saldo_inicial
+			atual = round(self.saldo_inicial + self.ganho_total, 2)
 			if entrada == None: entrada = valor
 			mensagem = "⚪️"
 			if resultado == "win":
@@ -412,12 +421,12 @@ class Operacao(IQ_API):
 			or (is_ciclos_gale and (self.gale_atual > 0 or 
 				self.config["ciclos"]["gales"] > 0))):
 			texto_gale, num_gales = self.win_case(
-				fazendo_soros, valor, lucro)	
-
+				fazendo_soros, valor, lucro)
+			
 		elif resultado == "loose" or (
             resultado == "equal" and tipo == "digital"): 
 			self.ocorreu_gale = True
-
+			
 			tipo_martin = self.config['tipo_martin']
 			if (self.config['vez_gale'] == "vela" and (
 				is_ciclos_gale or tipo_gale == "martingale")):
@@ -427,18 +436,19 @@ class Operacao(IQ_API):
 
 				if is_ciclos_gale:
 					if tipo_gale == 'ciclos':
-						ciclo_atual = self.config["ciclos"]['gales']
+						ciclo_atual = self.config["ciclos"]["gales"]
 						max_gale = len(self.ciclos_gale[ciclo_atual])
 						if ciclo_atual >= len(self.ciclos_gale):
 							ciclo_atual = 0
 					else:
-						ciclo_atual = self.config['ciclos']['soros']
+						ciclo_atual = self.config["ciclos"]["soros"]
 						max_gale = len(self.ciclos_soros[ciclo_atual])
 						if ciclo_atual >= len(self.ciclos_soros):
 							ciclo_atual = 0
 					tipo_martin = f"ciclo {ciclo_atual+1}"
 					num_gales += 1
 				else:
+					self.valor = self.valor_inicial
 					max_gale = self.max_gale
 				
 				while (max_gale > num_gales and resultado != "win"
@@ -455,6 +465,8 @@ class Operacao(IQ_API):
 						
 						perda += abs(lucro)
 						lucro = valor * payout
+						if num_gales == 0: # Incide sobre o valor inicial
+							valor = self.valor_inicial 
 						if resultado == "equal" and tipo != "digital":
 							valor = valor_anterior
 						else: valor_anterior = valor # Caso der doji
@@ -504,8 +516,8 @@ class Operacao(IQ_API):
 					if (resultado == "win" or (tipo_gale == "ciclos"
 						and ciclo_atual == len(self.ciclos_gale) - 1)):
 						texto_gale = "🔸 Voltando ao primeiro ciclo"
-						self.config['ciclos']['gales'] = 0
 						if resultado != "win":
+							self.config['ciclos']['gales'] = 0
 							texto_gale = "♦️" + texto_gale[1:]
 							num_gales += 1
 						else:
@@ -526,20 +538,20 @@ class Operacao(IQ_API):
 
 			elif tipo_gale == "martingale":
 				if self.gale_atual < self.max_gale:
-					if self.gale_atual == 0:
-						self.perda_inicial = valor
-					
 					texto_gale = f"🔸 {self.gale_atual + 1}° Martingale: {tipo_martin} para o próximo sinal"
 					self.perda_atual += abs(valor)
-					self.gale_atual += 1
 					lucro_esperado = valor * payout
+					
+					if self.gale_atual == 0:
+						self.perda_inicial = valor
+						self.valor = self.valor_inicial 
+					self.gale_atual += 1
 					if tipo_martin == "percent":
 						lucro_esperado = self.perda_inicial * round(
 							(self.config['martin_pct'] / 100) - 1, 2)
-					self.mostrar_mensagem(f"[{tipo_martin}] {payout} {self.perda_atual} {valor} {lucro_esperado}", True)
 					self.valor = self.martingale(
 						tipo_martin, payout, self.perda_atual, 
-						valor, lucro_esperado)
+						self.valor, lucro_esperado)
 					self.valor = 2 if self.valor < 2 else self.valor
 				else:
 					self.valor = self.valor_inicial
@@ -567,12 +579,13 @@ class Operacao(IQ_API):
 				) else self.config["ciclos"]["soros"]
 
 				ciclo_gale = self.ciclos_gale if (
-					tipo_gale == "ciclos" ) else self.ciclos_soros
+					tipo_gale == "ciclos"
+				) else self.ciclos_soros
 
 				if ciclo_atual < len(ciclo_gale):
 					self.gale_atual += 1
 					if self.gale_atual < len(ciclo_gale[ciclo_atual]):
-						texto_gale = f"🔸 Próxima entrada no {self.gale_atual + 1}° gale."
+						texto_gale = f"🔸 Próxima entrada no {self.gale_atual}° gale."
 						self.valor = ciclo_gale[ciclo_atual][self.gale_atual]
 					else:
 						ciclo_atual += 1
@@ -610,3 +623,4 @@ class Operacao(IQ_API):
 			mostra_resultado()
 
 		return resultado
+

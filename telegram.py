@@ -1,4 +1,4 @@
-import time, pprint, amanobot, os, sys, json
+import time, pprint, amanobot, os, sys
 from configparser import RawConfigParser
 from datetime import timedelta, datetime
 
@@ -16,7 +16,7 @@ from utils.checador import checa_sinais
 from controlador import Control
 from database import Mongo
 
-
+email_list = {}
 config = RawConfigParser()
 config.read(".env")
 MongoDB = Mongo()
@@ -86,7 +86,7 @@ rodando = True
 mapeamento_avancado = {
     "Tipo de paridade": ["tipo_par", False, tuple],
     "Mudar timeframe": ["tempo", False, tuple],
-    "Mudar a correção": ["correcao", False, int],
+    "Antecipar entrada": ["correcao", False, int],
     "Catalogar: Timeframe": ["cat_time", False, int],
     "Catalogar: Dias": ["cat_days", False, int],
     "Catalogar: Porcentagem": ["cat_perct", False, int],
@@ -144,25 +144,29 @@ class Assistente(amanobot.helper.ChatHandler):
             "Tipo soros": ["tipo_soros", False, tuple],
 
             "Seguir tendência": ["tendencia", False, bool],
-            "Tipo de tendência": ["tipo_tendencia", False, tuple],
             "Período da tendência": ["periodo_tendencia", False, int],
             "Notícias: antes": ['noticias_pre', False, int],
             "Notícias: depois": ['noticias_pos', False, int],
             "Notícias: toros": ["toros", False, tuple],
 
             "Taxas: próxima vela": ["taxas_vela", False, tuple],
-            "Segurança pós-gale": ["no_posgale", False, bool],
+            "Martingale Porcento": ["martin_pct", False, int],
+            "Pre-stop Win": ["prestopwin", False, int],
+            "Pre-stop Loss": ["prestoploss", False, bool],
+            # "Segurança pós-gale": ["no_posgale", False, bool],
 
             "Paridade": ["paridade", False, str],
             "Automático": ["auto", False, bool],
             "Estratégia": ["estrategia", False, tuple],
             "Tipo milhão": ["tipo_milhao", False, tuple],
             "Auto: Timeframe": ["autotime", False, tuple],
+            "Máximo de trades": ["max_trades", False, int],
             "Auto: Gales": ["autogale", False, tuple],
+            "AutoFiltro": ["poshit", False, tuple],
 
             "Tipo par": ["tipo_par", False, tuple],
             "Timeframe": ["tempo", False, tuple],
-            "Correção": ["correcao", False, int],
+            "Antecipar entrada": ["correcao", False, int],
             "Delay": ["delay", False, float],
         }
 
@@ -199,6 +203,9 @@ class Assistente(amanobot.helper.ChatHandler):
            f"Olá, eu sou seu assistente.",
             delete = False, reply_markup = ReplyKeyboardMarkup(
                 keyboard = [[KeyboardButton(text = "Entrar")]]))
+
+        if self.id in email_list:
+            self.login({ "text": email_list[self.id] })
 
     def enviar_mensagem(self, message, reply_markup = None, 
         edit = False, delete = True, save = False):
@@ -249,6 +256,7 @@ class Assistente(amanobot.helper.ChatHandler):
             if restante > 0:
                 self.entrada = False
                 self.autenticacao = True
+                email_list[self.id] = email
                 restante = str(
                     timedelta(seconds = restante)
                 ).replace('days', 'dias')
@@ -307,7 +315,7 @@ class Assistente(amanobot.helper.ChatHandler):
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Tipo de paridade" ),
                  KeyboardButton( text = "Mudar timeframe" )],
-                [KeyboardButton( text = "Mudar a correção" ),
+                [KeyboardButton( text = "Antecipar entrada" ),
                  KeyboardButton( text = "Mudar o delay" )],
                 [KeyboardButton( text = "Gerenciar" )]
             ])
@@ -641,7 +649,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                 "Tipo de martingale": "Martingale e Soros",
                 "Seguir tendência": "Tendência e notícias",
                 "Tipo par": "Ajustes",
-                "Paridade": "Auto Trade",
+                "Paridade": "Estratégias",
                 "Taxas: próxima vela": "Outras opções"
             }
             mensagem = ""
@@ -719,16 +727,14 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Seguir tendência" )],
                 [KeyboardButton( text = "Notícias: antes" ),
                  KeyboardButton( text = "Notícias: depois" )],
-                [KeyboardButton( text = "Tipo de tendência" ),
-                 KeyboardButton( text = "Período da tendência" )],
-                [KeyboardButton( text = "Editar configurações" )]
-                ])
+                [KeyboardButton( text = "Período da tendência" )],
+                [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == "Ajustes":
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Tipo par" ),
                  KeyboardButton( text = "Timeframe" )],
-                [KeyboardButton( text = "Correção" ),
+                [KeyboardButton( text = "Antecipar entrada" ),
                  KeyboardButton( text = "Delay" )],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
@@ -740,12 +746,17 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "Automático" ),
                  KeyboardButton( text = "Auto: Gales" ),
                  KeyboardButton( text = "Auto: Timeframe")],
-                [KeyboardButton( text = "Editar configurações" )]])
+                [KeyboardButton( text = "Máximo de trades" ),
+                 KeyboardButton( text = "AutoFiltro" ),
+                 KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == "Outras opções":
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Taxas: próxima vela" ),
-                 KeyboardButton( text = "Segurança pós-gale" )],
+                 KeyboardButton( text = "Martingale Porcento" )],
+                #  KeyboardButton( text = "Segurança pós-gale" )
+                [KeyboardButton( text = "Pre-stop Win" ),
+                 KeyboardButton( text = "Pre-stop Loss" )],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         if verificador:
@@ -769,6 +780,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                 opcoes = {
                     "toros": [0, 1, 2, 3], "num_lista": [1, 2, 3],
                     "tempo": [1, 5, 15, 30], "autogale": [0, 1, 2],
+                    "poshit": [0, 1, 2, 3],
                     "autotime": [1, 5, 15], "vez_gale": ["vela", "sinal"],
                     "tipo_par": ["binary", "digital", "auto"],
                     "tipo_lista": ["Catalogador", "Da casa"],
@@ -779,25 +791,19 @@ EURJPY 31/12/2000 CALL M5 02:30
                     "tipo_milhao": ["Minoria", "Maioria"],
                     "tipo_gale": [
                         "martingale", "sorosgale", "ciclos", "nenhum"],  
-                    "tipo_tendencia": [
-                        "medias móveis simples", "velas"],
-                    "tipo_martin": [
-                        "seguro", "leve", "agressivo", "individual"],
-                    "estrategia": ["Milhão", "MHI", "MHI2", 
-                        "MHI3", 'C3', "MSF", "HOPE", "R7", 
-                        "Vituxo", "Três Mosqueteiros",
-                        "Padrão Impar", 'Três Vizinhos', 
-                        'Torres Gêmeas', "Last of five",
-                        "DAKA", "Padrão 23", "Power", 
-                        "Melhor de 3", "Triplicação", 
-                        "M5: Três Mosqueteiros", "GABA", 
-                        "M5: Três Vizinhos", "Five Flip",
-                        "M5: MHI", "M5: MHI2", "M5: MHI3", 
-                        "M5: Torres Gêmeas", "M5: Milhão", 
-                        "Primeiros trocados", "Half hour", 
-                        "Hora do equilibrio", "Turn Over",
-                        "M15: Torres Gêmeas", "M15: MHI",
-                        "M15: MHI2", "M15: MHI3"]
+                    "tipo_martin": ["seguro", "leve", 
+                        "porcento", "agressivo", "individual"],
+                    "estrategia": ['c3', 'daka','five flip',
+                        'five flip + não triplicação', 'five flip + torres gêmeas',
+                        'gaba','half hour','hope','last of five','melhor de 3',
+                        'mhi + padrão impar','mhi maioria','mhi minoria','vituxo'
+                        'mhi2 + r7','mhi2 maioria','mhi2 minoria','mhi3 + seven flip',
+                        'mhi3 maioria','mhi3 minoria','milhão maioria','milhão minoria',
+                        'msf','não triplicação','padrão 23','padrão 3x1','padrão impar',
+                        'power','primeiros trocados','quinto elemento','r7','seven flip',
+                        'torres gêmeas','torres gêmeas + padrão 3x1','triplicação',
+                        'triplicação + torres gêmeas','três mosqueteiros','três vizinhos',
+                        'três vizinhos + torres gêmeas','turn over','turn over + mhi']
                 }
                 if value[0] in ["tipo_gale", "tempo",
                     "tipo_martin", "tipo_par", "estrategia"]:
@@ -927,7 +933,8 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         else: mensagens = [resultado]
 
         for msg in mensagens:
-            self.enviar_mensagem(msg, save = True)
+            if msg != "":
+                self.enviar_mensagem(msg, save = True)
         self.comandos()
         return True
     
@@ -1095,7 +1102,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                     novo = self.pegar_entrada(novo.split("\n"))
                 elif value[2] == bool:
                     novo = bool(novo.strip() == "Sim")
-                elif value[0] in ["tempo", "toros", 
+                elif value[0] in ["tempo", "toros", "poshit",
                     "num_lista", "autogale", "autotime"]:
                     try:
                         novo = int(novo)
