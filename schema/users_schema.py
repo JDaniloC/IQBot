@@ -32,8 +32,8 @@ user = {
     "ciclos_gale": [],        
     "ciclos_soros": [],       
     
-    "noticias_minuto": 0,
-    "noticias_hora": 0,
+    "noticias_pre": 0,
+    "noticias_pos": 0,
     "toros": 0,               
 
     "auto": False,           
