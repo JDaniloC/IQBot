@@ -8,7 +8,6 @@ class IQ_API:
         Recebe o login, e tenta se conectar
         '''
         self.asset, self.timeframe, self.payout_cache = False, False, {}
-        self.display_time = lambda x, y = False: x
         self.API = IQ_Option(login, senha)
         if not self.conectar():
             raise ConnectionError(" ❌ Não conseguiu se conectar, reveja a senha ❌ ")
@@ -187,6 +186,19 @@ class IQ_API:
 
         return payouts
     
+    def catalogar_erros(self, mensagem):
+        def is_in_list(nome, lista):
+            for item in lista:
+                if item in nome.lower():
+                    return True
+            return False
+        
+        if is_in_list(mensagem, ["is not available", "active_suspended"]):
+            mensagem = "Ativo fechado nesta modalidade/timeframe."
+        elif "invalid instrument" in mensagem:
+            mensagem = "Paridade não encontrada na digital pela IQ." 
+        self.mostrar_mensagem("❌ Não consegui operar: \n" + mensagem)
+
     def ordem(self, paridade, direcao = "call", tempo = 1, 
         valor = 1, tipo = "binary", bloqueador = None, 
         delay = False, scalper = False, trying = False):
@@ -237,7 +249,7 @@ class IQ_API:
             if tipo == "digital":
                 identificador = str(identificador['message'])
             else: identificador = str(identificador)
-            self.mostrar_mensagem("❌ Não consegui operar: " + identificador)
+            self.catalogar_erros(identificador)
             
             if not trying:
                 if self.tipo != "auto": 
@@ -285,15 +297,6 @@ class IQ_API:
             resultado, lucro = self.API.check_win_v5(
                 identificador, tipo, delay)
 
-        print(f"""
-Paridade: {paridade}|{tipo.capitalize()}
-Direção:  {direcao.upper()}
-tempo:    M{tempo}
-
-Hora: {hora_atual.strftime("%H:%M")}
-Valor: R$ {round(valor, 2)}
-{resultado.capitalize()}:  R$ {round(lucro, 2)}""")
-
         return resultado, round(lucro, 2), tipo
 
     def scalper(self, identificador, valor, infos):
@@ -311,13 +314,10 @@ Valor: R$ {round(valor, 2)}
             )['position-changed']['msg']['status'] == 'open'
             time.sleep(0.3)
 
-    def calcular_tendencia(
-        self, tipo, par, direcao, timeframe, periodo = 21):
+    def calcular_tendencia(self, par, direcao, timeframe, periodo = 21):
         '''
-        Devolve se a decisão está de acordo com a estratégia M.M_007
-        tipo: velas|SMA|bollinger
+        Verifica se está em uma tendência forte
         '''
-        # from talib import BBANDS        
         # pega a última vela
         try:
             dados = [
@@ -332,25 +332,12 @@ Valor: R$ {round(valor, 2)}
             dados, pesos, 'valid').tolist()
         diferenca = smas[-1] - smas[-periodo]
 
-        if tipo == "velas":
-            velas = self.API.get_candles(
-                par, timeframe * 60, 3, time.time())
-
-            velas = [
-                1 if x['close'] - x['open'] > 0 else 
-                0 if x['close'] - x['open'] == 0 else 
-                -1 for x in velas
-            ]
-
-            if velas[0] == velas[1] == velas[2]:
-                direcao = 1 if direcao.lower() == "call" else -1
-                return velas[0] == direcao
         return True if (
             direcao.lower() == "call" 
             and diferenca > 0) or (
             direcao.lower() == "put" 
             and diferenca < 0) else False
-    
+
     def format_dir(self, text):
         return text.replace("CALL", "⬆️").replace("PUT", "⬇️")
 
@@ -359,14 +346,14 @@ Valor: R$ {round(valor, 2)}
             ).replace("PUT", "🔴").replace("DOJI", "⚪️")
 
     @staticmethod
-    def catalogar_estrategia(timeframe, gale, poshit):
-        def is_hit(res):
+    def catalogar_estrategia(timeframe, gale, poshit, ciclos = 0):
+        def is_hit(candle):
             hit = False
-            if res == "H":
+            if candle == "H":
                 hit = True 
-            elif res == "G2" and gale != "2":
+            elif candle == "G2" and gale != "2":
                 hit = True
-            elif res == "G1" and gale == "0":
+            elif candle == "G1" and gale == "0":
                 hit = True
             return hit
 
@@ -380,6 +367,9 @@ Valor: R$ {round(valor, 2)}
 
             return pct, par, estrategia
 
+        def verify_ciclos(trades: list):
+            return ciclos < (len(trades) - trades.count("D"))
+
         if   gale == "2": gName = "porcentagemGale2"
         elif gale == "1": gName = "porcentagemGale1"
         else:             gName = "porcentagemWinDePrimeira"
@@ -387,19 +377,20 @@ Valor: R$ {round(valor, 2)}
         try:
             resultado = json.loads(data.text)['Todos']
             for analise in resultado:
-                candle = analise[3][0][-1]
-                print(analise[1:3], candle)
-                if poshit and is_hit(candle):
-                    return verify_minoria(analise[:3])
-                elif not poshit:
+                if not verify_ciclos(analise[3][0]):
+                    continue
+                
+                candle = analise[3][0][-1]   
+                if (poshit and is_hit(candle)) or not poshit:
                     return verify_minoria(analise[:3])
             return False, False, False
         except Exception as e:
-            print("Catalogar_estrategia()", e) 
+            print("catalogar_estrategia()", e) 
             return 50, "EURUSD", "MHI minoria"
 
     @staticmethod
-    def esperarAte(horas, minutos, segundos = 0, data = (), tolerancia = 0, output = False):
+    def esperarAte(horas, minutos, segundos = 0, 
+        data = (), tolerancia = 0, output = False):
         '''
         Espera até determinada data/hora:minuto:segundo do dia
         Se a data não for passada, será considerada a data atual
@@ -432,7 +423,8 @@ Valor: R$ {round(valor, 2)}
         return False
     
     @staticmethod
-    def martingale(tipo_martin, payout, perca, valor = 1, lucro = 1):
+    def martingale(tipo_martin, payout, 
+        perca, valor = 1, lucro = 1):
         '''
         Calcula o martingale onde:
             tipo_martin:
@@ -461,7 +453,7 @@ Valor: R$ {round(valor, 2)}
         elif tipo_martin == "seguro":
             return round(abs(perca)/payout, 2)
         elif tipo_martin == "percent":
-            return round(abs(perca) * lucro / payout, 2)
+            return round((abs(perca) + lucro) / payout, 2)
         else:
             return round((abs(perca) + abs(perca) * lucro)/payout, 2)
 
@@ -471,8 +463,6 @@ Valor: R$ {round(valor, 2)}
             seconds = 50 * minutos)
         ).replace(second = 56) - timedelta(seconds = correcao)
         ).timestamp() - time.time()) % 60
-        self.display_time(round(espera))
-        print("Esperando", round(espera), "segundos.")
 
         time.sleep(espera)
 

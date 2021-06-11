@@ -90,7 +90,7 @@ def pegar_comando_taxas(texto):
                 timeframe = int(timeframe[0].strip("H")) * 60
         else: timeframe = 0
 
-        primeiro, segundo = re.split(r"[^\w.-]", texto.strip())
+        primeiro, segundo = re.split(r"[^\w.-]+", texto.strip())
         par = re.search(r'[A-Za-z]{6}(-OTC)?', 
             primeiro.upper().replace("/", ""))
         if not par:
@@ -235,26 +235,25 @@ def ver_gales(perdaInicial, taxa):
         print()
 
 def captura_erros(params, operar_lista, tentativas = 0):      
+    if operar_lista: bot = ListaTaxa(*params)
+    else: bot = Estrategias(*params)
+    
+    if not bot.entrou:
+        return
+
     try:
-        if operar_lista: bot = ListaTaxa(*params)
-        else: bot = Estrategias(*params)
         bot.operar()
     except KeyboardInterrupt:
         exit(0)
     except Exception as e:
         if type(e) == ConnectionError:
-            bot.mostrar_mensagem("Não conseguiu se conectar na conta")
+            bot.mostrar_mensagem("Não consegui se conectar na conta")
             tentativas = 2
-        else:
-            print("Aconteceu um erro na API, tentando novamente.")
         escreve_erros(e)
         
-        if tentativas == 2: 
-            bot.mostrar_mensagem(
-                "Ultrapassou o máximo de tentativas.")
+        if tentativas == 1: 
             return
 
-        print("Continuando as operações...")
         captura_erros(params, operar_lista, tentativas + 1)
 
 def recebe_comandos(comandos):

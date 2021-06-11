@@ -67,7 +67,6 @@ class ListaTaxa(Operacao):
                 if (self.ativar_noticias and
                     not self.verificar_noticias(par)):
                         continue
-                # self.esperar_anteriores()
 
                 if self.verificar_stop():
                     break
@@ -91,7 +90,8 @@ class ListaTaxa(Operacao):
                     self.mostrar_mensagem(f"{par} não atende o payout mínimo {payout * 100}% < {self.config['minimo']}%")
                 self.mostrar_mensagem(f"Operando lista: {len(self.comandos) - index} sinais restantes.")
             else:
-                self.mostrar_mensagem(f" ⏰ {comando['par']} - {formatHour(horas)}:{formatHour(minutos)} passou da hora ⏰ ")
+                self.mostrar_mensagem(
+                    f" ⏰ {comando['par']} - {formatHour(horas)}:{formatHour(minutos)} passou da hora ⏰ ")
         
         for thread in self.espera:
             thread.join()
