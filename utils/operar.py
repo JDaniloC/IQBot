@@ -121,6 +121,13 @@ class Operacao(IQ_API):
 
 		if self.chat_id != "":
 			self.telegram = amanobot.Bot(BOTTOKEN)
+		
+		self.config['poshit'] = {
+			"Nenhum": 0,
+			"Bear 1": 1,
+			"Bear 2": 2,
+			"Pós Hit": 3
+		}.get(self.config['poshit'], 0)
 
 	def resetar_status(self):
 		self.saldo_inicial = self.API.get_balance()
@@ -279,8 +286,7 @@ class Operacao(IQ_API):
 		if self.config["tipo_soros"] == "ciclos":
 			ciclo_atual = self.config["ciclos"]["soros"] + 1
 			ciclos = self.ciclos_soros
-			if ciclo_atual < len(ciclos) and not (
-				did_gale and self.config.get("stop_ciclos", True)):
+			if ciclo_atual < len(ciclos) and not self.config.get("stop_ciclos", True):
 				self.valor = ciclos[ciclo_atual][0]
 				self.config["ciclos"]["soros"] += 1
 				gale_text = f"🔸 CicloSoros: {ciclo_atual}° ciclo completo:\nVariação de $ {valor} -> $ {self.valor}"
@@ -607,13 +613,13 @@ class Operacao(IQ_API):
 				(self.config['max_soros'] > 0 and fazendo_soros 
 				) or self.config["ciclos"]["soros"] > 0)):
 				
-				if self.config.get("stop_ciclos", True):
-					self.config["ciclos"]["soros"] = 0
 				self.soros_atual = 0
-				
 				if self.config["tipo_soros"] == "ciclos":
 					self.valor = self.ciclos_soros[0][0]
-				if texto_gale == "" and self.config.get("stop_ciclos", True):
+					if self.config.get("stop_ciclos", True):
+						self.valor = self.valor_inicial
+						self.config["ciclos"]["soros"] = 0
+				elif texto_gale == "":
 					self.valor = self.valor_inicial
 					texto_gale = f"♦️ Soros: R$ {round(valor, 2)} para R$ {self.valor}"
 

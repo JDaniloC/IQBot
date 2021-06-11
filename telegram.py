@@ -2,13 +2,14 @@ import time, pprint, amanobot, os, sys
 from configparser import RawConfigParser
 from datetime import timedelta, datetime
 
+from amanobot.text import apply_entities_as_markdown
 from amanobot.loop import MessageLoop
 from amanobot.namedtuple import (
     ReplyKeyboardMarkup, KeyboardButton, 
     ReplyKeyboardRemove, InlineKeyboardMarkup, 
     InlineKeyboardButton)
 from amanobot.delegate import (
-    pave_event_space, per_chat_id, create_open)
+    pave_event_space, per_callback_query_origin, per_chat_id, create_open)
 
 from bot import pegar_comando, escreve_erros
 from utils.catalogador import Catalogador
@@ -16,7 +17,7 @@ from utils.checador import checa_sinais
 from controlador import Control
 from database import Mongo
 
-email_list = {}
+account_list = {}
 config = RawConfigParser()
 config.read(".env")
 MongoDB = Mongo()
@@ -158,11 +159,10 @@ class Assistente(amanobot.helper.ChatHandler):
             "Paridade": ["paridade", False, str],
             "Automático": ["auto", False, bool],
             "Estratégia": ["estrategia", False, tuple],
-            "Tipo milhão": ["tipo_milhao", False, tuple],
             "Auto: Timeframe": ["autotime", False, tuple],
             "Máximo de trades": ["max_trades", False, int],
             "Auto: Gales": ["autogale", False, tuple],
-            "AutoFiltro": ["poshit", False, tuple],
+            "Filtros": ["poshit", False, tuple],
 
             "Tipo par": ["tipo_par", False, tuple],
             "Timeframe": ["tempo", False, tuple],
@@ -204,27 +204,28 @@ class Assistente(amanobot.helper.ChatHandler):
             delete = False, reply_markup = ReplyKeyboardMarkup(
                 keyboard = [[KeyboardButton(text = "Entrar")]]))
 
-        if self.id in email_list:
-            self.login({ "text": email_list[self.id] })
+        if self.id in account_list:
+            self.login({ "text": account_list[self.id]["email"] })
 
     def enviar_mensagem(self, message, reply_markup = None, 
         edit = False, delete = True, save = False):
         if edit:
             self.bot.editMessageText(self.message_id, message)
             if reply_markup:
-                mensagem = self.sender.sendMessage("Escolha: ",
+                message = self.sender.sendMessage("Escolha: ",
                     reply_markup = reply_markup)  
-                self.bot.deleteMessage((self.chat_id, mensagem['message_id']))
+                self.bot.deleteMessage((self.chat_id, message['message_id']))
         else:
             if delete and not save:
                 try:
                     self.bot.deleteMessage(self.message_id)
                 except: pass
      
-            mensagem = self.sender.sendMessage(message,
-                reply_markup = reply_markup)
+            message = self.sender.sendMessage(message,
+                reply_markup = reply_markup, parse_mode = "Markdown")
             if not save:
-                self.message_id = (self.chat_id, mensagem['message_id'])
+                self.message_id = (self.chat_id, message['message_id'])
+        return message
 
     def entrar(self):
         if not self.autenticacao:
@@ -232,7 +233,6 @@ class Assistente(amanobot.helper.ChatHandler):
                 reply_markup = ReplyKeyboardRemove())
             self.entrada = True
         else:
-            self.enviar_mensagem("Você já está logado")
             self.comandos()
 
     def login(self, msg):
@@ -256,13 +256,18 @@ class Assistente(amanobot.helper.ChatHandler):
             if restante > 0:
                 self.entrada = False
                 self.autenticacao = True
-                email_list[self.id] = email
+                account_list[self.id] = {
+                    "email": self.email, 
+                    "mapping": self.mapeamento,
+                    "informacoes": self.informacoes 
+                }
                 restante = str(
                     timedelta(seconds = restante)
                 ).replace('days', 'dias')
-                self.enviar_mensagem(
-                    f"E-mail autenticado, seja bem-vindo Sr(a) {self.nome_usuario} sua licença expira em: {restante[:-10]}.",
-                    save = True)
+                self.sender.sendMessage(f"E-mail autenticado, seja bem-vindo Sr(a) {self.nome_usuario} sua licença expira em: {restante[:-10]}.", 
+                reply_markup = InlineKeyboardMarkup(inline_keyboard = [[InlineKeyboardButton( 
+                    text = "Ver configurações gerais", callback_data = "show" )]
+                ]), parse_mode = "Markdown")
                 self.comandos()
             else:
                 self.enviar_mensagem(
@@ -528,6 +533,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         elif texto == "Ver lista de sinais":
             return self.ver_lista()
         elif texto == "Sair da conta":
+            del account_list[self.id]
             self.close()
             return True
         return False
@@ -636,13 +642,12 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.enviar_mensagem("Usuário não autenticado")
         return False
 
-    def ver_configuracoes(self):
+    def ver_configuracoes(self, modalidade = "Todas"):
         '''
         Mostra as configurações de usuário
         Devolve um boolean se está autenticado.
         '''
         if self.autenticacao:
-            
             headers = {
                 "Tipo de conta": "Conta e listas",
                 "Tipo de gale": "Gerenciamento",
@@ -652,13 +657,18 @@ EURJPY 31/12/2000 CALL M5 02:30
                 "Paridade": "Estratégias",
                 "Taxas: próxima vela": "Outras opções"
             }
-            mensagem = ""
+            mensagem, current_header = "", ""
             for key, value in self.mapeamento.items():
                 if value[0] not in ["lista", "num_lista"]:
                     if key in headers:
-                        mensagem += f"\n⚙️ {headers[key]} ⚙️\n"
+                        current_header = headers[key]
+                        if modalidade != "Todas" and headers[key] == modalidade:
+                            mensagem = f"\n⚙️ {headers[key]} ⚙️\n"
                     valor = str(self.informacoes.get(value[0], 'Não configurado'))
-                    mensagem += f"{key}: {valor.replace('True', 'Sim').replace('False', 'Não')}\n"
+                    valor = valor.replace('True', 'Sim').replace('False', 'Não')
+                    if modalidade == "Todas" or current_header == modalidade:
+                        mensagem += f"*{key}*: {valor}\n"
+
             return mensagem
         else:
             self.enviar_mensagem("Usuário não autenticado")
@@ -670,7 +680,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         Devolve um boolean se está autenticado
         '''
         if self.autenticacao:
-            self.enviar_mensagem(
+            result = self.enviar_mensagem(
                 self.ver_configuracoes(), 
                 reply_markup = ReplyKeyboardMarkup( keyboard = [
                     [KeyboardButton( text = "Conta e listas" ),
@@ -682,6 +692,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                     [KeyboardButton( text = "Outras opções" ), 
                      KeyboardButton( text = "Voltar ao menu" )]
             ], resize_keyboard = True))
+            apply_entities_as_markdown(result['text'], [])
             return True
         else:
             self.enviar_mensagem("Usuário não autenticado")
@@ -742,12 +753,11 @@ EURJPY 31/12/2000 CALL M5 02:30
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Paridade" ),
                  KeyboardButton( text = "Estratégia" ),
-                 KeyboardButton( text = "Tipo milhão" )],
+                 KeyboardButton( text = "Filtros" )],
                 [KeyboardButton( text = "Automático" ),
                  KeyboardButton( text = "Auto: Gales" ),
                  KeyboardButton( text = "Auto: Timeframe")],
                 [KeyboardButton( text = "Máximo de trades" ),
-                 KeyboardButton( text = "AutoFiltro" ),
                  KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == "Outras opções":
@@ -760,7 +770,9 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         if verificador:
-            self.enviar_mensagem("Qual das opções?", reply_markup = teclado)
+            result = self.enviar_mensagem(self.ver_configuracoes(msg['text']), 
+                reply_markup = teclado)
+            apply_entities_as_markdown(result['text'], [])
             return True
         return False
 
@@ -780,7 +792,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                 opcoes = {
                     "toros": [0, 1, 2, 3], "num_lista": [1, 2, 3],
                     "tempo": [1, 5, 15, 30], "autogale": [0, 1, 2],
-                    "poshit": [0, 1, 2, 3],
+                    "poshit": ["Nenhum", "Bear 1", "Bear 2", "Pós Hit"],
                     "autotime": [1, 5, 15], "vez_gale": ["vela", "sinal"],
                     "tipo_par": ["binary", "digital", "auto"],
                     "tipo_lista": ["Catalogador", "Da casa"],
@@ -788,7 +800,6 @@ EURJPY 31/12/2000 CALL M5 02:30
                     "tipo_soros": ["normal", "ciclos"],
                     "tipo_stop": ["movel", "fixo"],
                     "taxas_vela": ["atual", "próxima"],
-                    "tipo_milhao": ["Minoria", "Maioria"],
                     "tipo_gale": [
                         "martingale", "sorosgale", "ciclos", "nenhum"],  
                     "tipo_martin": ["seguro", "leve", 
@@ -1004,7 +1015,6 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.enviar_mensagem(
                 "Nenhum sinal encontrado...", save = True)
 
-
     def habilitar_alteracao(self, msg):
         '''
         Habilita a alteração da informação e pergunta qual a nova
@@ -1102,7 +1112,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                     novo = self.pegar_entrada(novo.split("\n"))
                 elif value[2] == bool:
                     novo = bool(novo.strip() == "Sim")
-                elif value[0] in ["tempo", "toros", "poshit",
+                elif value[0] in ["tempo", "toros", 
                     "num_lista", "autogale", "autotime"]:
                     try:
                         novo = int(novo)
@@ -1156,6 +1166,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             if result and type(result) == tuple:
                 info, valor = result
                 self.informacoes[info] = valor
+                account_list[self.id]["informacoes"] = self.informacoes 
                 self.enviar_mensagem("Alteração salva!")
                 self.editar_configuracoes()
                 return True
@@ -1184,12 +1195,23 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         self.close()
         sys.exit(0)
 
+    def cancelar(self):
+        self.alteracoes_avancadas = {
+            key: False for key in self.alteracoes_avancadas.keys()}
+        self.mapeamento = {
+            key: [value[0], False, value[2]]
+            for key, value in self.mapeamento.items()}
+        self.iniciar_operacao = False
+        self.parar_bot = False
+        self.comandos()
+
     def on_chat_message(self, msg):
         '''
         Método que é chamado sempre que é digitado alguma coisa
         '''
-        
-        if self.entrada:
+        if msg['text'].lower() == "cancelar":
+            self.cancelar()
+        elif self.entrada:
             self.login(msg)         # [0] Login
         elif self.iniciar_operacao:
             self.operar(msg)        # [3] Opções
@@ -1274,6 +1296,83 @@ def printProgressBar (iteration, total, prefix = '', suffix = '',
     if iteration == total: 
         print()
 
+class Settings(amanobot.helper.CallbackQueryOriginHandler):
+    def __init__(self, *args, **kwargs):
+        super(Settings, self).__init__(*args, **kwargs)
+        self._answer = ""
+
+    def _get_settings(self, id, chosen = "Todas"):
+        if id in account_list:
+            account = account_list[id]
+            headers = {
+                "Tipo de conta": "Conta e listas",
+                "Tipo de gale": "Gerenciamento",
+                "Tipo de martingale": "Martingale e Soros",
+                "Seguir tendência": "Tendência e notícias",
+                "Tipo par": "Ajustes",
+                "Paridade": "Estratégias",
+                "Taxas: próxima vela": "Outras opções"
+            }
+            mensagem, current_header = "", ""
+            for key, value in account["mapping"].items():
+                if value[0] not in ["lista", "num_lista"]:
+                    if key in headers:
+                        current_header = headers[key]
+                        if chosen != "Todas" and headers[key] == chosen:
+                            mensagem = f"\n⚙️ {headers[key]} ⚙️\n"
+                    valor = str(account["informacoes"].get(value[0], 'Não configurado'))
+                    valor = valor.replace('True', 'Sim').replace('False', 'Não')
+                    if chosen == "Todas" or current_header == chosen:
+                        mensagem += f"*{key}*: {valor}\n"
+
+            return True, mensagem
+        return False, "Você não está logado!"
+
+    def on_callback_query(self, msg):
+        _, from_id, query_data = amanobot.glance(
+            msg, flavor='callback_query')
+
+        if query_data == "show":
+            authenticated, answer = self._get_settings(from_id)
+        else:
+            authenticated, answer = self._get_settings(from_id, query_data)
+
+        keyboard = None
+        if answer != self._answer and answer != "":
+            self._answer = answer
+
+            if authenticated: 
+                keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+                    InlineKeyboardButton(
+                        text= "Conta e listas", callback_data = "Conta e listas"),
+                    InlineKeyboardButton(
+                        text= "Gerenciamento", callback_data = "Gerenciamento"),
+                    InlineKeyboardButton(
+                        text= "Martingale e Soros", callback_data = "Martingale e Soros")
+                ], [
+                    InlineKeyboardButton(
+                        text= "Tendência e notícias", callback_data = "Tendência e notícias"),
+                ], [
+                    InlineKeyboardButton(
+                        text= "Ajustes", callback_data = "Ajustes"),
+                    InlineKeyboardButton(
+                        text= "Estratégias", callback_data = "Estratégias"),
+                    InlineKeyboardButton(
+                        text= "Outras opções", callback_data = "Outras opções")
+                ]])
+            
+            try: 
+                result = self.editor.editMessageText(self._answer, 
+                    reply_markup = keyboard, parse_mode = "Markdown")
+                apply_entities_as_markdown(result['text'], [])
+            except: pass
+
+    def on__idle(self, event):
+        time.sleep(5)
+        self.editor.deleteMessage()
+        try: self.close()
+        except: pass
+
 if __name__ == "__main__":
     print("Carregando...")
     printProgressBar(0, 20, prefix = 'Progress:', suffix = 'Complete', length = 30)
@@ -1285,6 +1384,8 @@ if __name__ == "__main__":
     bot = amanobot.DelegatorBot(TOKEN, [
         pave_event_space()(
             per_chat_id(), create_open, Assistente, timeout = 180),
+        pave_event_space()(
+            per_callback_query_origin(), create_open, Settings, timeout = 60),
     ])
 
     try:
