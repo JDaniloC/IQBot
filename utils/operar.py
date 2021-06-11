@@ -281,10 +281,11 @@ class Operacao(IQ_API):
 				self.valor = self.valor_inicial
 			else:
 				self.gale_atual = 0
-
+    
 		num_gales = 0
 		if self.config["tipo_soros"] == "ciclos":
 			ciclo_atual = self.config["ciclos"]["soros"] + 1
+			self.gale_atual = 0
 			ciclos = self.ciclos_soros
 			if ciclo_atual < len(ciclos) and not self.config.get("stop_ciclos", True):
 				self.valor = ciclos[ciclo_atual][0]
