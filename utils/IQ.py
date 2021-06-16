@@ -205,7 +205,7 @@ class IQ_API:
                 status, identificador = self.API.buy(
                     valor, paridade, direcao, tempo)
             else:
-                status, identificador = self.API.buy_digital_spot(
+                status, identificador = self.API.buy_digital_spot_v2(
                     paridade, valor, direcao, tempo)
             
         if not status:
