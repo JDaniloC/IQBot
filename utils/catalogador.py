@@ -106,8 +106,9 @@ class Catalogador(IQ_API):
                     else:
                         sair = True
                         break
-                        
-                time_ = int(velas[-1]['from'] - 1)
+
+                if len(velas) > 0:
+                    time_ = int(velas[-1]['from'] - 1)   
 
             analise = {}
             for velas in data:

@@ -58,7 +58,6 @@ class IQ_API:
         Devolve o payout de uma paridade digital
         '''
         try:
-            print("Pegando payout digital")
             return self.API.get_digital_payout(paridade) / 100
         except:
             return False
@@ -68,7 +67,6 @@ class IQ_API:
         Devolve o payout de uma paridade binária
         caso não tem esse par, então devolve False
         '''
-        print("Pegando payout binária")
         payouts = self.API.get_all_profit()
         valor = payouts.get(par)
         if valor == None:
@@ -200,7 +198,7 @@ class IQ_API:
                     status, identificador = self.API.buy(
                         valor, paridade, direcao, tempo)
                 else:
-                    status, identificador = self.API.buy_digital_spot(
+                    status, identificador = self.API.buy_digital_spot_v2(
                         paridade, valor, direcao, tempo)
         else:
             if tipo == "binary":
