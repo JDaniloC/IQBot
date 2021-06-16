@@ -734,6 +734,7 @@ class Operacao(IQ_API):
 
 		def proxima_entrada(min_list, estrategia, timeframe, isM1 = False):
 			minutos = str(datetime.now().minute).zfill(2)
+			is_the_last = False
 			for i in range(len(min_list)):
 				if isM1:
 					option = int(f"{minutos[0]}{min_list[i]}"
@@ -746,6 +747,7 @@ class Operacao(IQ_API):
 					break
 				elif i == len(min_list) - 1:
 					entrar = min_list[0]
+					is_the_last = True
 
 			maisUm = timeframe * 60 if estrategia not in [
 				"MHI2", "MHI3", "Vituxo"
@@ -757,8 +759,9 @@ class Operacao(IQ_API):
 				datetime.utcnow().timestamp() - 10800).replace(
 				minute = entrar, second = 0) + timedelta(seconds = maisUm)
 
-			if agora.timestamp() - time.time() < 0:
-				agora += timedelta(hours = 1)
+			if agora.timestamp() - time.time() < 0 and is_the_last:
+				if isM1: agora += timedelta(minutes = 10)
+				else: agora += timedelta(hours = 1)
 			horario = agora.strftime(f'%H:%M')
 			self.mostrar_mensagem(f"⏰ Próxima entrada será às {horario} ⏰")
 
