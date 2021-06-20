@@ -144,7 +144,6 @@ class Assistente(amanobot.helper.ChatHandler):
             "Tipo soros": ["tipo_soros", False, tuple],
 
             "Seguir tendência": ["tendencia", False, bool],
-            "Tipo de tendência": ["tipo_tendencia", False, tuple],
             "Período da tendência": ["periodo_tendencia", False, int],
             "Notícias: antes": ['noticias_pre', False, int],
             "Notícias: depois": ['noticias_pos', False, int],
@@ -728,9 +727,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Seguir tendência" )],
                 [KeyboardButton( text = "Notícias: antes" ),
                  KeyboardButton( text = "Notícias: depois" )],
-                [KeyboardButton( text = "Tipo de tendência" ),
-                 KeyboardButton( text = "Período da tendência" )],
-                [KeyboardButton( text = "Editar configurações" )]
+                [KeyboardButton( text = "Período da tendência" ),
+                 KeyboardButton( text = "Editar configurações" )]
                 ])
             verificador = True
         elif msg['text'] == "Ajustes":
@@ -793,8 +791,6 @@ EURJPY 31/12/2000 CALL M5 02:30
                     "tipo_gale": [
                         "martingale", "sorosgale", "nenhum"],  
                         # "ciclos",
-                    "tipo_tendencia": [
-                        "medias móveis simples", "velas"],
                     "tipo_martin": [
                         "seguro", "leve", "agressivo", "individual"],
                     "estrategia": ["Milhão", "MHI", "MHI2", 

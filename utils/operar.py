@@ -257,8 +257,7 @@ class Operacao(IQ_API):
 
 	def verificar_tendencia(self, paridade, direcao, timeframe):
 		if (self.config['tendencia'] and not self.calcular_tendencia(
-			self.config['tipo_tendencia'], paridade, direcao, 
-			timeframe, self.config['periodo_tendencia'])):
+			paridade, direcao, timeframe, self.config['periodo_tendencia'])):
 			self.mostrar_mensagem(f"[❗️] {paridade}|{direcao.upper()} está contra a tendência. [❗️]")
 			return True
 		return False
