@@ -350,6 +350,8 @@ class IQ_Option:
     def get_all_profit(self):
         all_profit = nested_dict(2, dict)
         init_info = self.get_all_init()
+        if not init_info: return {}
+        
         for actives in init_info["result"]["turbo"]["actives"]:
             name = init_info["result"]["turbo"]["actives"][actives]["name"]
             name = name[name.index(".") + 1:len(name)]
@@ -507,7 +509,7 @@ class IQ_Option:
                 self.api.getcandles(
                     OP_code.ACTIVES[ACTIVES], interval, count, endtime)
                 contador = 0
-                while self.check_connect and self.api.candles.candles_data == None:
+                while self.check_connect() and self.api.candles.candles_data == None:
                     time.sleep(0.1)
                     contador += 1
                     if contador == 20:

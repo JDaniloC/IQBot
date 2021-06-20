@@ -146,8 +146,8 @@ class Assistente(amanobot.helper.ChatHandler):
             "Seguir tendência": ["tendencia", False, bool],
             "Tipo de tendência": ["tipo_tendencia", False, tuple],
             "Período da tendência": ["periodo_tendencia", False, int],
-            "Notícias: minutos": ['noticias_minuto', False, int],
-            "Notícias: horas": ['noticias_hora', False, int],
+            "Notícias: antes": ['noticias_pre', False, int],
+            "Notícias: depois": ['noticias_pos', False, int],
             "Notícias: toros": ["toros", False, tuple],
 
             "Taxas: próxima vela": ["taxas_vela", False, tuple],
@@ -726,8 +726,8 @@ EURJPY 31/12/2000 CALL M5 02:30
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Notícias: toros"),
                  KeyboardButton( text = "Seguir tendência" )],
-                [KeyboardButton( text = "Notícias: horas" ),
-                 KeyboardButton( text = "Notícias: minutos" )],
+                [KeyboardButton( text = "Notícias: antes" ),
+                 KeyboardButton( text = "Notícias: depois" )],
                 [KeyboardButton( text = "Tipo de tendência" ),
                  KeyboardButton( text = "Período da tendência" )],
                 [KeyboardButton( text = "Editar configurações" )]
