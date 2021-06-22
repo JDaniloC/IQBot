@@ -42,7 +42,8 @@ class Digital_options_close_position(Base):
         }
         self.send_websocket_request(self.name, data)
 
-class Digital_options_place_digital_option_v2(Base):
+
+class DigitalOptionsPlaceDigitalOptionV2(Base):
     name = "sendMessage"
 
     def __call__(self, instrument_id, asset_id, amount):

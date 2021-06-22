@@ -45,8 +45,7 @@ class Operacao(IQ_API):
 					self.telegram = amanobot.Bot(BOTTOKEN)
 
 				print(f"Entrando na {config['email']}")
-				super().__init__(
-					config['email'], config['senha'], self.mostrar_mensagem)
+				super().__init__(config['email'], config['senha'])
 				
 				if config['tipo_conta'] == "treino":
 					self.mudar_treino()
@@ -248,8 +247,7 @@ class Operacao(IQ_API):
 
 	def verificar_tendencia(self, paridade, direcao, timeframe):
 		if (self.config['tendencia'] and not self.calcular_tendencia(
-			self.config['tipo_tendencia'], paridade, direcao, 
-			timeframe, self.config['periodo_tendencia'])):
+			paridade, direcao, timeframe, self.config['periodo_tendencia'])):
 			self.mostrar_mensagem(
 				f"[❗️] {paridade}|{direcao.upper()} está contra a tendência. [❗️]")
 			return True
@@ -411,8 +409,7 @@ class Operacao(IQ_API):
 			try:
 				resultado, lucro = self.ordem(
 					paridade, ordem, tempo, valor, tipo, 
-					self.cadeado, self.config['delay'], 
-					self.config["scalper"])
+					self.config['delay'], self.config["scalper"])
 				break
 			except Exception as e:
 				self.mostrar_mensagem(
@@ -479,9 +476,8 @@ class Operacao(IQ_API):
 					elif type(estrategia) == list:
 						ordem = estrategia[num_gales]
 
-					resultado, lucro = self.ordem(
-						paridade, ordem, tempo, valor, tipo,
-						self.cadeado, self.config['delay'])
+					resultado, lucro = self.ordem(paridade, ordem, 
+						tempo, valor, tipo, self.config['delay'])
 					if resultado != "win":
 						num_gales += 1
 				if (resultado == "win" and 

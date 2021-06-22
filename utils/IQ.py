@@ -1,19 +1,20 @@
 from iqoptionapi.stable_api import IQ_Option
 from datetime import datetime, timedelta
-import time, numpy, requests, json
+import time, numpy, requests, json, threading
 
 class IQ_API:
-    def __init__(self, login, senha, output = None):
+    def __init__(self, login, senha):
         '''
         Recebe o login, e tenta se conectar
         '''
-        if output == None:
-            output = print
-        self.saida = output
+        self.asset, self.timeframe, self.payout_cache = False, False, {}
+        self.display_time = lambda x, y = False: x
+        self.cadeado = threading.Lock()
         self.API = IQ_Option(login, senha)
         if not self.conectar():
             raise ConnectionError(" ❌ Não conseguiu se conectar, reveja a senha ❌ ")
 
+    def mostrar_mensagem(self, msg): print(msg)
     def conectar(self, tentativas = 5):
         '''
         Método para se conectar a plataforma.
@@ -29,10 +30,10 @@ class IQ_API:
         self.API.connect()
         for tentativas in range(tentativas):
             if self.API.check_connect():
-                self.saida("✅ Conectado com sucesso ✅")
+                self.mostrar_mensagem("✅ Conectado com sucesso ✅")
                 return True
             else:
-                self.saida(" ⏱ Tentando se conectar ⏱")
+                self.mostrar_mensagem(" ⏱ Tentando se conectar ⏱")
                 self.API.connect()
                 time.sleep(1)
         return False
@@ -42,7 +43,7 @@ class IQ_API:
         Muda para a conta treino
         '''
         if self.API.get_balance_mode() != "PRACTICE":
-            self.saida(" - Usando a conta treino -\n")
+            self.mostrar_mensagem(" - Usando a conta treino -\n")
             self.API.change_balance("PRACTICE")
     
     def mudar_real(self):
@@ -50,37 +51,63 @@ class IQ_API:
         Muda para a conta real
         '''
         if self.API.get_balance_mode() != "REAL":
-            self.saida(" - Usando a conta real -\n")
+            self.mostrar_mensagem(" - Usando a conta real -\n")
             self.API.change_balance("REAL")
+
+    def add_payout_cache(self, paridade, modalidade, payout):
+        if paridade not in self.payout_cache:
+            self.payout_cache[paridade] = {
+                "binary": 0, "digital": 0
+            }
+        paridade = paridade.upper()
+        self.payout_cache[paridade][modalidade] = payout
 
     def payout_digital(self, paridade):
         '''
         Devolve o payout de uma paridade digital
         '''
         try:
-            return self.API.get_digital_payout(paridade) / 100
+            payout = self.API.get_digital_payout(paridade) / 100
+            self.add_payout_cache(paridade, "digital", payout)
+            return payout
         except:
             return False
 
-    def payout_binaria(self, par, tempo = 1):
+    def payout_binaria(self, paridade, tempo = 1):
         '''
         Devolve o payout de uma paridade binária
-        caso não tem esse par, então devolve False
+        caso não tiver este par, então devolve False
         '''
         payouts = self.API.get_all_profit()
-        valor = payouts.get(par)
+        valor = payouts.get(paridade)
         if valor == None:
-            return False
-        if tempo > 5:
-            return valor['binary'] if valor.get(
-                "binary"
-            ) else False
+            result = False
         else:
-            return valor['turbo'] if valor.get(
-                "turbo"
-            ) else False
+            if tempo > 5:
+                result = valor['binary'] if valor.get(
+                    "binary"
+                ) else False
+            else:
+                result = valor['turbo'] if valor.get(
+                    "turbo"
+                ) else False
+        self.add_payout_cache(paridade, "binary", result)
+        return result
 
-    def abertas(self, paridades = False):
+    def abertas(self):
+        paridades = { "turbo": [], "binary": [] }
+        abertas = self.API.get_all_open_time()
+        turbo = abertas["turbo"]
+        binaria = abertas["binary"]
+        digital = abertas["digital"]
+        paridades["turbo"] = set(
+            [x for x in turbo if turbo[x]["open"]] + 
+            [x for x in digital if digital[x]["open"]])
+        paridades["binary"] = set([x for x in binaria if binaria[x]["open"]])
+        paridades["binary"] = paridades["binary"].intersection(paridades["turbo"])
+        return paridades
+
+    def payout_abertas(self, paridades = False):
         '''
         Verifica se a paridade está aberta e devolve o profit
         de forma que seja otimizado, devolvendo ambos os tipos
@@ -113,12 +140,13 @@ class IQ_API:
                 paridades = list(abertas["binary"].keys())
             todos_binary = self.API.get_all_profit()
             if abertas == None or todos_binary == None:
-                self.saida(" ❌ Algo deu errado, se conectando novamente. ❌")
+                self.mostrar_mensagem(
+                    " ❌ Algo deu errado, se conectando novamente. ❌")
                 self.conectar()
             else:
                 break
         if abertas == None or todos_binary == None:
-            self.saida(" ❌❌ Reinicie o bot ❌❌")
+            self.mostrar_mensagem(" ❌❌ Reinicie o bot ❌❌")
             return None
 
         for tipo_binaria in ['turbo', 'binary']:
@@ -146,7 +174,7 @@ class IQ_API:
                     payouts["digital"][par] = [
                         True, round(payout_digital / 100, 2)]
                 else:
-                    self.saida(
+                    self.mostrar_mensagem(
         f" [ ❗️] Não consegui pegar o payout de {par} [ ❗️]")
                     payouts['digital'][par] = [True, 0.7]
             else:
@@ -160,9 +188,22 @@ class IQ_API:
 
         return payouts
     
+    def catalogar_erros(self, mensagem):
+        def is_in_list(nome, lista):
+            for item in lista:
+                if item in nome.lower():
+                    return True
+            return False
+        
+        if is_in_list(mensagem, ["is not available", "active_suspended"]):
+            mensagem = "Ativo fechado nesta modalidade/timeframe."
+        elif "invalid instrument" in mensagem:
+            mensagem = "Paridade não encontrada na digital pela IQ." 
+        self.mostrar_mensagem("❌ A IQ não permitiu: \n" + mensagem)
+
     def ordem(self, paridade, direcao = "call", tempo = 1, 
-        valor = 1, tipo = "binary", bloqueador = None, 
-        delay = False, scalper = False, trying = False):
+        valor = 1, tipo = "binary", delay = False, 
+        scalper = False, trying = False):
         '''
         Faz uma ordem e devolve o resultado.
         Params:
@@ -170,63 +211,57 @@ class IQ_API:
             tempo: 1, 10, 15
             valor: dinheiro investido 2 - saldo
             tipo: binary ou digital
-            bloqueador: caso estiver trabalhando com threads, um threading.Lock para não pegar o mesmo resultado.
             delay: tempo para pegar o resultado antes/depois
             Scalper: porcentagem de ganho sobre o valor investido
         return:
             (resultado, lucro)
         '''
-        def verify_string(verifiers, string):
-            for node in verifiers:
-                if node in string:
-                    return True
-            return False
-
         direcao = direcao.lower()
-        hora_atual = datetime.fromtimestamp(
-            datetime.utcnow().timestamp() - 10800)
-
         if tipo == "binary" and tempo == 5:
             atual = datetime.utcnow()
             if ((atual.minute % 5 == 4 and atual.second < 30) 
                 or atual.minute % 5 < 4): 
                 tempo = 5 - (atual.minute % 5)
 
-        if bloqueador != None:
-            with bloqueador:
-                if tipo == "binary":
-                    status, identificador = self.API.buy(
-                        valor, paridade, direcao, tempo)
-                else:
-                    status, identificador = self.API.buy_digital_spot_v2(
-                        paridade, valor, direcao, tempo)
-        else:
+        with self.cadeado:
             if tipo == "binary":
                 status, identificador = self.API.buy(
                     valor, paridade, direcao, tempo)
             else:
                 status, identificador = self.API.buy_digital_spot_v2(
                     paridade, valor, direcao, tempo)
-            
+
         if not status:
             if tipo == "digital":
                 identificador = str(identificador['message'])
             else: identificador = str(identificador)
-            print(identificador)
-            self.saida(f"A IQ não permitiu operar na {tipo}!")
-            if verify_string(["active_suspended", "invalid", "available"], 
-                identificador) and not trying:
+            self.catalogar_erros(identificador)
+            
+            if not trying:
                 if self.tipo != "auto": 
-                    self.tipo = ("binary" if 
-                        self.tipo == "digital" else "digital")
-                return self.ordem(paridade, direcao, tempo, valor, 
-                    "binary" if tipo == "digital" else "digital", 
-                    bloqueador, delay, scalper, True)
-            self.saida(f"❌ {paridade}-{tipo} {direcao.upper()} fechada ou máximo de operações ❌")
-            return "error", 0
+                    self.tipo = "binary" if self.tipo == "digital" else "digital"
+                self.mostrar_mensagem("❌ Erro na operação, tentando operar na " + 
+                    ("binária" if tipo == "digital" else "digital"))
+                tipo = "binary" if tipo == "digital" else "digital"
+                
+                opcoes_modalidade = self.payout_cache.get(paridade.upper())
+                payout_modalidade = opcoes_modalidade.get(tipo) if opcoes_modalidade else -1
+                payout_atual = round(payout_modalidade * 100) if payout_modalidade else -1
+                if payout_atual >= self.config['minimo']:
+                    return self.ordem(paridade, direcao, tempo, 
+                        valor, tipo, delay, scalper, True)
+                else:
+                    if payout_atual < 0:
+                        payout_atual = " Não encontrado"
+                    else:
+                        payout_atual = f"{payout_atual}% < {self.config['minimo']}%"
+                    self.mostrar_mensagem(
+                        f"Payout na {tipo} está abaixo do aceitável: {payout_atual}")
+            return "error", 0, tipo
 
-        self.saida(self.format_dir(f" 🔸 {paridade} | {tipo.capitalize()} | M{tempo} | $ {round(valor, 2)} | {direcao.upper()}"))
-
+        self.mostrar_mensagem(self.format_dir(
+            f" 🔸 {paridade} | {tipo.capitalize()} | M{tempo} | $ {round(valor, 2)} | {direcao.upper()}"))
+        
         lucro = 0
         if delay == False:
             # Versão que pega no histórico
@@ -253,16 +288,7 @@ class IQ_API:
             resultado, lucro = self.API.check_win_v5(
                 identificador, tipo, delay)
 
-        print(f"""
-Paridade: {paridade}|{tipo.capitalize()}
-Direção:  {direcao.upper()}
-tempo:    M{tempo}
-
-Hora: {hora_atual.strftime("%H:%M")}
-Valor: R$ {round(valor, 2)}
-{resultado.capitalize()}:  R$ {round(lucro, 2)}""")
-
-        return resultado, round(lucro, 2)
+        return resultado, round(lucro, 2), tipo
 
     def scalper(self, identificador, valor, infos):
         aberto = True
@@ -279,13 +305,10 @@ Valor: R$ {round(valor, 2)}
             )['position-changed']['msg']['status'] == 'open'
             time.sleep(0.3)
 
-    def calcular_tendencia(
-        self, tipo, par, direcao, timeframe, periodo = 21):
+    def calcular_tendencia(self, par, direcao, timeframe, periodo = 21):
         '''
-        Devolve se a decisão está de acordo com a estratégia M.M_007
-        tipo: velas|SMA|bollinger
+        Verifica se está em uma tendência forte
         '''
-        # from talib import BBANDS        
         # pega a última vela
         try:
             dados = [
@@ -300,19 +323,6 @@ Valor: R$ {round(valor, 2)}
             dados, pesos, 'valid').tolist()
         diferenca = smas[-1] - smas[-periodo]
 
-        if tipo == "velas":
-            velas = self.API.get_candles(
-                par, timeframe * 60, 3, time.time())
-
-            velas = [
-                1 if x['close'] - x['open'] > 0 else 
-                0 if x['close'] - x['open'] == 0 else 
-                -1 for x in velas
-            ]
-
-            if velas[0] == velas[1] == velas[2]:
-                direcao = 1 if direcao.lower() == "call" else -1
-                return velas[0] == direcao
         return True if (
             direcao.lower() == "call" 
             and diferenca > 0) or (
@@ -357,7 +367,8 @@ Valor: R$ {round(valor, 2)}
             return 50, "EURUSD", ("MHI", "maioria")
 
     @staticmethod
-    def esperarAte(horas, minutos, segundos = 0, data = (), tolerancia = 0, output = False):
+    def esperarAte(horas, minutos, segundos = 0, 
+        data = (), tolerancia = 0, output = False):
         '''
         Espera até determinada data/hora:minuto:segundo do dia
         Se a data não for passada, será considerada a data atual
@@ -390,7 +401,8 @@ Valor: R$ {round(valor, 2)}
         return False
     
     @staticmethod
-    def martingale(tipo_martin, payout, perca, valor = 1, lucro = 1):
+    def martingale(tipo_martin, payout, 
+        perca, valor = 1, lucro = 1):
         '''
         Calcula o martingale onde:
             tipo_martin:
@@ -406,6 +418,7 @@ Valor: R$ {round(valor, 2)}
             valor: entrada do valor
             lucro: alvo inicial
         '''
+
         if type(tipo_martin) == float:
             return round(valor * tipo_martin, 2)
         tipo_martin = tipo_martin.lower()
@@ -420,18 +433,18 @@ Valor: R$ {round(valor, 2)}
         else:
             return round((abs(perca) + abs(perca) * lucro)/payout, 2)
 
-    @staticmethod
-    def esperar_proximo_minuto(minutos = 1):
-        time.sleep((datetime.now() + timedelta(
+    def esperar_proximo_minuto(self, minutos = 1):
+        correcao = self.config.get('correcao', 0)
+        espera = (((datetime.now() + timedelta(
             seconds = 50 * minutos)
-        ).replace(second = 58).timestamp() - time.time())
+        ).replace(second = 56) - timedelta(seconds = correcao)
+        ).timestamp() - time.time()) % 60
 
-    def istime(self, string):
-        '''
-        Verifica se é numérico (timestamp)
-        '''
+        time.sleep(espera)
+
+    def is_number(self, number):
         try:
-            float(string)
+            float(number)
             return True
         except:
             return False
