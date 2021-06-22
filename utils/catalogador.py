@@ -65,9 +65,7 @@ class Catalogador(IQ_API):
     def __init__(self, verboso = False):
         self.verboso = verboso
 
-        super().__init__(
-            "hiyivo1180@tmail7.com", "senha123", 
-            self.mostrar_mensagem)
+        super().__init__("hiyivo1180@tmail7.com", "senha123")
         self.mudar_treino()
 
     def mostrar_mensagem(self, mensagem):
