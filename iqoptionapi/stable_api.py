@@ -818,7 +818,7 @@ class IQ_Option:
             action = order['instrument_dir']
             lose = order['buy_amount']
             payout = self.get_digital_payout(active)
-            if not payout: payout = 0.7
+            payout = payout / 100 if payout else 0.7
             win_amount = round(lose * payout, 2)
         
         self.start_candles_stream(active, 1, 1)
