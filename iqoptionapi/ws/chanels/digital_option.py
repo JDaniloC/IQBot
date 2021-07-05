@@ -42,21 +42,24 @@ class Digital_options_close_position(Base):
         }
         self.send_websocket_request(self.name, data)
 
-class Digital_options_place_digital_option_v2(Base):
+
+class DigitalOptionsPlaceDigitalOptionV2(Base):
     name = "sendMessage"
 
-    def __call__(self, instrument_id, amount, instrument_index, asset_id):
+    def __call__(self, instrument_id, asset_id, amount):
         data = {
             "name": "digital-options.place-digital-option",
             "version": "2.0",
             "body": {
-                "user_balance_id": int(global_value.balance_id),
-                "instrument_id": str(instrument_id),
                 "amount": str(amount),
-                "instrument_index": instrument_index,
-                "asset_id": asset_id
+                "asset_id": int(asset_id),
+                "instrument_id": instrument_id,
+                "instrument_index": 0,
+                "user_balance_id": int(global_value.balance_id)
             }
         }
+
         request_id = str(randint(0, 100000))
         self.send_websocket_request(self.name, data, request_id)
+
         return request_id

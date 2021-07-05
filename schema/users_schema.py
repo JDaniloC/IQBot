@@ -44,7 +44,6 @@ user = {
     "tipo_milhao": "Minoria", 
 
     "periodo_tendencia": 21,
-    "tipo_tendencia": "sma",
     "tendencia": False,
 
     "taxas_vela": "atual",

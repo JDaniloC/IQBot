@@ -257,8 +257,7 @@ class Operacao(IQ_API):
 
 	def verificar_tendencia(self, paridade, direcao, timeframe):
 		if (self.config['tendencia'] and not self.calcular_tendencia(
-			self.config['tipo_tendencia'], paridade, direcao, 
-			timeframe, self.config['periodo_tendencia'])):
+			paridade, direcao, timeframe, self.config['periodo_tendencia'])):
 			self.mostrar_mensagem(f"[❗️] {paridade}|{direcao.upper()} está contra a tendência. [❗️]")
 			return True
 		return False
@@ -268,10 +267,10 @@ class Operacao(IQ_API):
 		if tipo_gale in ["ciclos", "ciclosoros"]:
 			self.config["ciclos"]['gales'] = 0
 			self.gale_atual = 0
-
 		num_gales = 0
 		if self.config["tipo_soros"] == "ciclos":
 			ciclo_atual = self.config["ciclos"]["soros"] + 1
+			self.gale_atual = 0
 			ciclos = self.ciclos_soros
 			if ciclo_atual < len(ciclos):
 				self.valor = ciclos[ciclo_atual][0]
