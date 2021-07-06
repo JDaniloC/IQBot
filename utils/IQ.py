@@ -216,8 +216,6 @@ class IQ_API:
             (resultado, lucro)
         '''
         direcao = direcao.lower()
-        hora_atual = datetime.fromtimestamp(
-            datetime.utcnow().timestamp() - 10800)
 
         if self.config.get('prestoploss', False) and (
             self.perda_total - valor <= -self.stoploss):
@@ -242,7 +240,7 @@ class IQ_API:
                 status, identificador = self.API.buy(
                     valor, paridade, direcao, tempo)
             else:
-                status, identificador = self.API.buy_digital_spot(
+                status, identificador = self.API.buy_digital_spot_v2(
                     paridade, valor, direcao, tempo)
 
         if not status:

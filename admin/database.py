@@ -1,7 +1,6 @@
 from configparser import RawConfigParser
-from schema import waiting_schema
-from schema import users_schema
-from schema import adms_schema
+from admin.schema import users_schema
+from admin.schema import adms_schema
 from pymongo import MongoClient
 import time
 
@@ -9,7 +8,7 @@ import time
 config = RawConfigParser()
 config.read(".env")
 
-autenticacao = config.get("DATABASE", "autentication")
+autenticacao = config.get("DATABASE", "authentication")
 
 class Mongo:
     def __init__(self):        
