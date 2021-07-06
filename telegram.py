@@ -8,14 +8,14 @@ from amanobot.namedtuple import (
     ReplyKeyboardMarkup, KeyboardButton, 
     ReplyKeyboardRemove, InlineKeyboardMarkup, 
     InlineKeyboardButton)
-from amanobot.delegate import (
-    pave_event_space, per_callback_query_origin, per_chat_id, create_open)
+from amanobot.delegate import (pave_event_space,
+    per_callback_query_origin, per_chat_id, create_open)
 
 from bot import pegar_comando, escreve_erros
 from utils.catalogador import Catalogador
 from utils.checador import checa_sinais
-from controlador import Control
-from database import Mongo
+from admin.controlador import Control
+from admin.database import Mongo
 
 account_list = {}
 config = RawConfigParser()
