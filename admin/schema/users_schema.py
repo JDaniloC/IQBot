@@ -6,7 +6,7 @@ user = {
     "num_lista": "1",
     "plano": "teste",
     "operando": False,
-    "tipo_lista":"propria",
+    "tipo_lista":"Catalogador",
 
     "tipo_conta": "treino",
     "tipo_par": "auto",
@@ -39,13 +39,18 @@ user = {
     "noticias_pos": 0,
     "toros": 0,               
 
-    "auto": False,           
     "autogale": 2,            
     "autotime": 1,    
     "poshit": "Nenhum",
     "max_trades": 10,
     "estrategia": "MHI",      
-    "paridade": "EURUSD",        
+    "paridade": "EURUSD",   
+    
+    "auto": False,           
+    "autocycles": 0, 
+    "hits": 1, 
+    "assert": 0, 
+    "catalogador": "old", 
 
     "periodo_tendencia": 21,
     "tendencia": False,
