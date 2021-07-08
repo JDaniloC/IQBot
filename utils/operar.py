@@ -392,8 +392,7 @@ class Operacao(IQ_API):
 			try:
 				resultado, lucro, tipo = self.ordem(
 					paridade, ordem, tempo, valor, tipo, 
-					self.cadeado, self.config['delay'], 
-					self.config["scalper"])
+					self.config['delay'], self.config["scalper"])
 				break
 			except Exception as e:
 				self.mostrar_mensagem(
@@ -483,7 +482,7 @@ class Operacao(IQ_API):
 
 					resultado, lucro, tipo = self.ordem(
 						paridade, ordem, tempo, valor, tipo,
-						self.cadeado, self.config['delay'])
+						self.config['delay'])
 
 					if resultado == "loose" or (
 						resultado == "equal" and tipo == "digital"):

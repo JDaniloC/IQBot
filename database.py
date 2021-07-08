@@ -9,7 +9,7 @@ import time
 config = RawConfigParser()
 config.read(".env")
 
-autenticacao = config.get("DATABASE", "autentication")
+autenticacao = config.get("DATABASE", "authentication")
 
 class Mongo:
     def __init__(self):        
