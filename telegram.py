@@ -87,8 +87,8 @@ def exibir_configuracoes(mapeamento, infos, modalidade):
         if value[0] not in ["lista", "num_lista"]:
             if key in headers:
                 current_header = headers[key]
-                if modalidade != "Todas" and headers[key] == modalidade:
-                    mensagem = f"\n{headers[key]}\n"
+                if modalidade == "Todas" or current_header == modalidade:
+                    mensagem += f"\n{headers[key]}\n"
             valor = str(infos.get(value[0], 'Não configurado'))
             valor = valor.replace('True', 'Sim').replace('False', 'Não')
             if modalidade == "Todas" or current_header == modalidade:
@@ -176,7 +176,8 @@ class Assistente(amanobot.helper.ChatHandler):
             "Notícias - toros": ["toros", False, tuple],
 
             "Paridade": ["paridade", False, str],
-            "Filtros": ["poshit", False, tuple],
+            "Pós hit": ["poshit", False, bool],
+            "Filtros": ["posgale", False, tuple],
             "Estratégia": ["estrategia", False, tuple],
             "Máximo de trades": ["max_trades", False, int],
             "Estratégias - gales": ["autogale", False, tuple],
@@ -233,6 +234,8 @@ class Assistente(amanobot.helper.ChatHandler):
                 keyboard = [[KeyboardButton(text = "Entrar")]]))
 
         if self.id in account_list:
+            print(account_list[self.id]['email'])
+            self.entrada = True
             self.login({ "text": account_list[self.id]["email"] })
 
     def enviar_mensagem(self, message, reply_markup = None, 
@@ -521,7 +524,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             
             self.add_entrada = "-"
             self.enviar_mensagem("Salvo")
-            self.gerenciar()
+            self.gerenciar({"msg": "gerenciar"})
 
     def comandos(self):
         '''
@@ -767,9 +770,10 @@ EURJPY 31/12/2000 CALL M5 02:30
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Paridade" ),
                  KeyboardButton( text = "Estratégia" ),
-                 KeyboardButton( text = "Filtros" )],
+                 KeyboardButton( text = "Pós hit" )],
                 [KeyboardButton( text = "Estratégias - gales" ),
-                 KeyboardButton( text = "Estratégias - timeframe")],
+                 KeyboardButton( text = "Estratégias - timeframe"),
+                 KeyboardButton( text = "Filtros" )],
                 [KeyboardButton( text = "Máximo de trades" ),
                  KeyboardButton( text = "⚙️ Editar configurações ⚙️" )]])
             verificador = True
@@ -793,7 +797,9 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "Taxas: próxima vela" ),
                  KeyboardButton( text = "⚙️ Editar configurações ⚙️" )]])
             verificador = True
+        
         if verificador:
+            self.ultimo_comando = msg
             result = self.enviar_mensagem(self.ver_configuracoes(msg['text']), 
                 reply_markup = teclado)
             apply_entities_as_markdown(result['text'], [])
@@ -815,8 +821,8 @@ EURJPY 31/12/2000 CALL M5 02:30
             elif value[2] == tuple:
                 opcoes = {
                     "toros": [0, 1, 2, 3], "num_lista": [1, 2, 3],
-                    "tempo": [1, 5, 15, 30], "autogale": [0, 1, 2],
-                    "poshit": ["Nenhum", "Bear 1", "Bear 2", "Pós Hit"],
+                    "tempo": [1, 5, 15, 30], "autogale": [0, 1, 2], 
+                    "posgale": ["Nenhum", "Bear 1", "Bear 2"],
                     "autotime": [1, 5, 15], "vez_gale": ["vela", "sinal"],
                     "tipo_par": ["binary", "digital", "auto"],
                     "tipo_lista": ["Catalogador", "Da casa"],
@@ -824,7 +830,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                     "tipo_soros": ["normal", "ciclos"],
                     "tipo_stop": ["movel", "fixo"], "hits": [1, 2, 3], 
                     "taxas_vela": ["atual", "próxima"],
-                    "catalogador": ["old", "new"], "tipo_gale": [
+                    "catalogador": ["velho", "novo"], "tipo_gale": [
                         "martingale", "sorosgale", "ciclos", "nenhum"],  
                     "tipo_martin": ["seguro", "leve", 
                         "porcento", "agressivo", "individual"],
@@ -908,7 +914,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             entrada_02 = carregar_entradas(2)
             entrada_03 = carregar_entradas(3)
             self.enviar_mensagem("Informações atualizadas.")
-            self.gerenciar()
+            self.gerenciar({"msg": "gerenciar"})
         elif msg['text'] in [
             "Aprovar usuários", "Renovar licença", 
             "Tirar de cadastro", "Remover usuários"]:
@@ -1117,7 +1123,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         Se houver verifica se o novo valor está correto
         Devolve um bool, usado para confirmar_alteração/avançado
         '''
-        def numerization(valor, func):
+        def numeration(valor, func):
             try:
                 return func(valor.strip().replace(",", "."))
             except: return False
@@ -1125,7 +1131,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         for key, value in dicionario.items():
             if value[1]:
                 if value[2] in [int, float]:
-                    novo = numerization(novo, value[2])
+                    novo = numeration(novo, value[2])
                     if novo != 0 and not novo:
                         if value[0] == "delay":
                             novo = False
@@ -1136,7 +1142,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                     novo = self.pegar_entrada(novo.split("\n"))
                 elif value[2] == bool:
                     novo = bool(novo.strip() == "Sim")
-                elif value[0] in ["tempo", "toros", 
+                elif value[0] in ["tempo", "toros",
                     "num_lista", "autogale", "autotime"]:
                     try:
                         novo = int(novo)
@@ -1158,9 +1164,8 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                         "Digite o fator do martingale:\nEx: 2.5", 
                         reply_markup = ReplyKeyboardRemove())
                     return True
-                elif value[0] == "tipo_martin" and novo not in [
-                    "seguro", "leve", "agressivo"]:
-                    novo = float(novo.strip().replace(",", "."))
+                elif value[0] == "tipo_martin" and numeration(novo, float):
+                    novo = numeration(novo, float)
                 dicionario[key][1] = False
                 return value[0], novo
         return False
@@ -1176,7 +1181,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             info, valor = result
             MongoDB.modifica_avancadas(info, valor)
             self.enviar_mensagem(f"Valor salvo.")
-            self.gerenciar()
+            self.gerenciar({"msg": "gerenciar"})
             return True
         return result
 
@@ -1192,7 +1197,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                 self.informacoes[info] = valor
                 account_list[self.id]["informacoes"] = self.informacoes 
                 self.enviar_mensagem("Alteração salva!")
-                self.editar_configuracoes()
+                self.submenu_configuracoes(self.ultimo_comando)
                 return True
             return result
         return False
@@ -1245,7 +1250,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.parar_bot = False
             self.enviar_mensagem(
                 "Deixando o bot ligado", save = True)
-            self.gerenciar()
+            self.gerenciar({"msg": "gerenciar"})
         return True
 
     def voltar(self, msg):
@@ -1271,7 +1276,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.operar(msg)        # [3] Opções
         elif self.salvar_alteracoes_avancadas(msg) in [True, None]:
             if not self.alteracoes_avancadas['plano']:
-                self.gerenciar()    # [4] Avançadas (ADM)
+                self.gerenciar({"msg": "gerenciar"})    # [4] Avançadas (ADM)
         elif self.entrar(msg):
             pass # [0] Login
         elif self.voltar(msg):
@@ -1307,7 +1312,6 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         elif self.listar_usuarios(msg):
             pass # [0] Usuários
         else: self.entrar({"text": "entrar"})
-        self.ultimo_comando = msg['text']
         
     def on__idle(self, event):
         '''

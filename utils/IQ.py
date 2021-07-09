@@ -271,7 +271,6 @@ class IQ_API:
                         f"Payout na {tipo} está abaixo do aceitável: {payout_atual}")
             return "error", 0, tipo
 
-        self.popup("add.svg", "Operação realizada", direcao.lower())
         self.mostrar_mensagem(self.format_dir(
             f" 🔸 {paridade} | {tipo.capitalize()} | M{tempo} | $ {round(valor, 2)} | {direcao.upper()}"))
         
@@ -352,7 +351,7 @@ class IQ_API:
     def catalogar_estrategia(self, timeframe, gale, poshit, posgale,
             ciclos = 0, hits = 0,  _assert = 0, catalogador = "old"):
         try:
-            if catalogador == "new":
+            if catalogador == "novo":
                 if not poshit: hits = 0
                 resultado = self.bear_catalogador(timeframe, 
                     gale, ciclos, hits, posgale, _assert)

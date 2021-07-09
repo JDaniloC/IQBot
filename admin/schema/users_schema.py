@@ -41,7 +41,8 @@ user = {
 
     "autogale": 2,            
     "autotime": 1,    
-    "poshit": "Nenhum",
+    "poshit": 0,
+    "posgale": "Nenhum",
     "max_trades": 10,
     "estrategia": "MHI",      
     "paridade": "EURUSD",   
