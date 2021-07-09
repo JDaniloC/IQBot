@@ -271,7 +271,6 @@ class IQ_API:
                         f"Payout na {tipo} está abaixo do aceitável: {payout_atual}")
             return "error", 0, tipo
 
-        self.popup("add.svg", "Operação realizada", direcao.lower())
         self.mostrar_mensagem(self.format_dir(
             f" 🔸 {paridade} | {tipo.capitalize()} | M{tempo} | $ {round(valor, 2)} | {direcao.upper()}"))
         
