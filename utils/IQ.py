@@ -351,7 +351,7 @@ class IQ_API:
     def catalogar_estrategia(self, timeframe, gale, poshit, posgale,
             ciclos = 0, hits = 0,  _assert = 0, catalogador = "old"):
         try:
-            if catalogador == "new":
+            if catalogador == "novo":
                 if not poshit: hits = 0
                 resultado = self.bear_catalogador(timeframe, 
                     gale, ciclos, hits, posgale, _assert)

@@ -122,13 +122,16 @@ class Operacao(IQ_API):
 		if self.chat_id != "":
 			self.telegram = amanobot.Bot(BOTTOKEN)
 		
-		self.config['poshit'] = {
+		self.config["poshit"] = int(
+			self.config["autogale"]
+		) + 1 if self.config["poshit"] else 0
+
+		self.config['posgale'] = {
 			"Nenhum": 0,
 			"Bear 1": 1,
-			"Bear 2": 2,
-			"Pós Hit": 3
-		}.get(self.config['poshit'], 0)
-
+			"Bear 2": 2
+		}.get(self.config['posgale'], 0)
+		
 	def resetar_status(self):
 		self.saldo_inicial = self.API.get_balance()
 		self.valor = self.config["valor"]
