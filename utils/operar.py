@@ -178,6 +178,8 @@ class Operacao(IQ_API):
 		Verifica se há alguma notícia no período especificado pelo:
 			config['noticia_hora'], config['noticia_minuto']
 		'''
+		if not self.ativar_noticias: return True
+
 		agora = datetime.fromtimestamp(
 			datetime.utcnow().timestamp() - 10800) # -3Horas
 		if (self.ultima_atualizacao_noticia.day != agora.day):
@@ -264,11 +266,16 @@ class Operacao(IQ_API):
 
 	def verificar_tendencia(self, paridade, direcao, timeframe):
 		if (self.config['tendencia'] and not self.calcular_tendencia(
-			self.config['tipo_tendencia'], paridade, direcao, 
-			timeframe, self.config['periodo_tendencia'])):
+			paridade, direcao, timeframe, self.config['periodo_tendencia'])):
 			self.mostrar_mensagem(f"[❗️] {paridade}|{direcao.upper()} está contra a tendência. [❗️]")
-			return True
-		return False
+			return False
+		return True
+
+	def verificar_payout(self, paridade, payout): 
+		if not self.config.get("minimo", 0) <= payout * 100:
+			self.mostrar_mensagem(f"{paridade} não atende o payout mínimo {payout * 100}% < {self.config['minimo']}%")
+			return False
+		return True
 
 	def win_case(self, in_soros, valor, lucro, gale_text = ""):
 		did_gale = (self.gale_atual > 0 or gale_text != ""
@@ -287,15 +294,18 @@ class Operacao(IQ_API):
 			ciclo_atual = self.config["ciclos"]["soros"] + 1
 			self.gale_atual = 0
 			ciclos = self.ciclos_soros
-			if ciclo_atual < len(ciclos) and not self.config.get("stop_ciclos", True):
+			if ciclo_atual < len(ciclos) and not (
+				did_gale and self.config.get("stop_ciclos", True)):
 				self.valor = ciclos[ciclo_atual][0]
 				self.config["ciclos"]["soros"] += 1
-				gale_text = f"🔸 CicloSoros: {ciclo_atual}° ciclo completo:\nVariação de $ {valor} -> $ {self.valor}"
+				gale_text = f"""🔸 CicloSoros: {ciclo_atual}° ciclo completo:
+					Variação de $ {valor} -> $ {self.valor}"""
 			else:
 				gale_text = "🔸 CicloSoros: Voltando ao primeiro ciclo"
 				self.config["ciclos"]["soros"] = 0
 				self.valor = self.valor_inicial
-		elif self.gale_atual > 0 or did_gale:
+		elif (self.gale_atual > 0 or did_gale) and not (
+			tipo_gale == "sorosgale" and self.perda_atual > 0):
 			num_gales = self.gale_atual
 			self.gale_atual = 0
 			self.perda_atual -= abs(valor)
@@ -409,8 +419,7 @@ class Operacao(IQ_API):
 			try:
 				resultado, lucro, tipo = self.ordem(
 					paridade, ordem, tempo, valor, tipo, 
-					self.cadeado, self.config['delay'], 
-					self.config["scalper"])
+					self.config['delay'], self.config["scalper"])
 				break
 			except Exception as e:
 				self.mostrar_mensagem(
@@ -431,7 +440,7 @@ class Operacao(IQ_API):
 				fazendo_soros, valor, lucro)
 			
 		elif resultado == "loose" or (
-            resultado == "equal" and tipo == "digital"): 
+			resultado == "equal" and tipo == "digital"): 
 			self.ocorreu_gale = True
 			
 			tipo_martin = self.config['tipo_martin']
@@ -503,7 +512,7 @@ class Operacao(IQ_API):
 
 					resultado, lucro, tipo = self.ordem(
 						paridade, ordem, tempo, valor, tipo,
-						self.cadeado, self.config['delay'])
+						self.config['delay'])
 
 					if resultado == "loose" or (
 						resultado == "equal" and tipo == "digital"):
@@ -514,8 +523,7 @@ class Operacao(IQ_API):
 							self.mostrar_mensagem("❌ Não consigo fazer o gale...")
 							break
 					
-				if (resultado == "win" and 
-					self.config['tipo_stop'] != "fixo"):
+				if resultado == "win" and self.config['tipo_stop'] != "fixo":
 					self.perda_total += perda
 				
 				if is_ciclos_gale:
@@ -630,4 +638,3 @@ class Operacao(IQ_API):
 			mostra_resultado()
 
 		return resultado
-

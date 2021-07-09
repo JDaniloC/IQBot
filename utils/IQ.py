@@ -1,6 +1,6 @@
 from iqoptionapi.stable_api import IQ_Option
 from datetime import datetime, timedelta
-import time, numpy, requests, json
+import time, numpy, requests, json, threading
 
 class IQ_API:
     def __init__(self, login, senha):
@@ -8,6 +8,7 @@ class IQ_API:
         Recebe o login, e tenta se conectar
         '''
         self.asset, self.timeframe, self.payout_cache = False, False, {}
+        self.cadeado = threading.Lock()
         self.API = IQ_Option(login, senha)
         if not self.conectar():
             raise ConnectionError(" ❌ Não conseguiu se conectar, reveja a senha ❌ ")
@@ -96,8 +97,8 @@ class IQ_API:
         paridades = { "turbo": [], "binary": [] }
         abertas = self.API.get_all_open_time()
         turbo = abertas["turbo"]
-        digital = abertas["digital"]
         binaria = abertas["binary"]
+        digital = abertas["digital"]
         paridades["turbo"] = set(
             [x for x in turbo if turbo[x]["open"]] + 
             [x for x in digital if digital[x]["open"]])
@@ -200,8 +201,8 @@ class IQ_API:
         self.mostrar_mensagem("❌ Não consegui operar: \n" + mensagem)
 
     def ordem(self, paridade, direcao = "call", tempo = 1, 
-        valor = 1, tipo = "binary", bloqueador = None, 
-        delay = False, scalper = False, trying = False):
+        valor = 1, tipo = "binary", delay = False, 
+        scalper = False, trying = False):
         '''
         Faz uma ordem e devolve o resultado.
         Params:
@@ -209,7 +210,6 @@ class IQ_API:
             tempo: 1, 10, 15
             valor: dinheiro investido 2 - saldo
             tipo: binary ou digital
-            bloqueador: caso estiver trabalhando com threads, um threading.Lock para não pegar o mesmo resultado.
             delay: tempo para pegar o resultado antes/depois
             Scalper: porcentagem de ganho sobre o valor investido
         return:
@@ -235,7 +235,7 @@ class IQ_API:
                 or atual.minute % 5 < 4): 
                 tempo = 5 - (atual.minute % 5)
 
-        with bloqueador:
+        with self.cadeado:
             if tipo == "binary":
                 status, identificador = self.API.buy(
                     valor, paridade, direcao, tempo)
@@ -257,15 +257,21 @@ class IQ_API:
                 tipo = "binary" if tipo == "digital" else "digital"
                 
                 opcoes_modalidade = self.payout_cache.get(paridade.upper())
-                payout_modalidade = opcoes_modalidade.get(tipo) if opcoes_modalidade else 1
+                payout_modalidade = opcoes_modalidade.get(tipo) if opcoes_modalidade else -1
                 payout_atual = round(payout_modalidade * 100) if payout_modalidade else -1
                 if payout_atual >= self.config['minimo']:
-                    return self.ordem(paridade, direcao, tempo, valor, 
-                        tipo, bloqueador, delay, scalper, True)
+                    return self.ordem(paridade, direcao, tempo, 
+                        valor, tipo, delay, scalper, True)
                 else:
-                    self.mostrar_mensagem(f"Payout na {tipo} está abaixo do aceitável {payout_atual}% < {self.config['minimo']}%")
+                    if payout_atual < 0:
+                        payout_atual = " Não encontrado"
+                    else:
+                        payout_atual = f"{payout_atual}% < {self.config['minimo']}%"
+                    self.mostrar_mensagem(
+                        f"Payout na {tipo} está abaixo do aceitável: {payout_atual}")
             return "error", 0, tipo
 
+        self.popup("add.svg", "Operação realizada", direcao.lower())
         self.mostrar_mensagem(self.format_dir(
             f" 🔸 {paridade} | {tipo.capitalize()} | M{tempo} | $ {round(valor, 2)} | {direcao.upper()}"))
         
@@ -343,16 +349,94 @@ class IQ_API:
         return text.replace("CALL", "🟢"
             ).replace("PUT", "🔴").replace("DOJI", "⚪️")
 
-    @staticmethod
-    def catalogar_estrategia(timeframe, gale, poshit, ciclos = 0):
-        def is_hit(candle):
-            hit = False
-            if candle == "H":
-                hit = True 
-            elif candle == "G2" and gale != "2":
-                hit = True
-            elif candle == "G1" and gale == "0":
-                hit = True
+    def catalogar_estrategia(self, timeframe, gale, poshit, posgale,
+            ciclos = 0, hits = 0,  _assert = 0, catalogador = "old"):
+        try:
+            if catalogador == "new":
+                if not poshit: hits = 0
+                resultado = self.bear_catalogador(timeframe, 
+                    gale, ciclos, hits, posgale, _assert)
+            else:
+                resultado = self.ocatalogador(timeframe, 
+                    gale, poshit, ciclos, hits, _assert, 
+                    self.API.get_all_open_time())
+        except Exception as e: 
+            self.mostrar_mensagem("Ocorreu um problema no catalogador...")
+            self.mostrar_mensagem(str(type(e)) + str(e), True)
+            resultado = False, False, False
+
+        return resultado
+
+    def verify_payouts(self, paridade, payouts):
+        if_err = {"open": False}
+        binaria = payouts["turbo"].get(paridade, if_err)["open"]
+        digital = payouts["digital"].get(paridade, if_err)["open"]
+        
+        if self.tipo == "digital":
+            its_ok = digital                        
+        elif self.tipo == "binary": 
+            its_ok = binaria
+        else:
+            its_ok = digital or binaria
+
+        if its_ok:
+            timeframe = int(self.config["autotime"][1:])
+            payout = round(100 * self.recebe_payout(
+                paridade, timeframe)[1])
+            if payout < self.config['minimo']:
+                its_ok = False
+        return its_ok
+    
+    def verify_payouts_bear(self, analise):
+        its_ok = True
+        if analise.get("payout"):
+            digital = analise["payout"]["digital"]
+            binaria = analise["payout"]["binary"]
+            if self.tipo == "digital":
+                payout = digital 
+            elif self.tipo == "binary": 
+                payout = binaria
+            else:
+                payout = digital if digital > binaria else binaria
+
+            if (payout * 100) < self.config['minimo']:
+                its_ok = False
+        else:
+            paridades_abertas = self.API.get_all_open_time()
+            its_ok = self.verify_payouts(
+                analise["asset"], paridades_abertas)
+        return its_ok
+
+    def bear_catalogador(self, timeframe, gale, 
+            ciclos, hits, posgale, _assert):
+
+        data = requests.get(
+            f"http://34.121.79.212:5000/api/catalogacao/{timeframe}/{gale}/",
+            headers = { 
+                "poshit": str(hits), 
+                "cycles": str(ciclos),
+                "posgale": str(posgale),
+                "assert": str(_assert)
+            })
+        resultado = json.loads(data.text)['trades']
+        for analise in resultado:
+            paridade = analise["asset"]
+            its_ok = self.verify_payouts_bear(analise)
+            if not its_ok: continue
+        
+            percentage = analise["percents"][0]
+            return percentage, paridade, analise["strategy"]
+        return False, False, False
+
+    def ocatalogador(self, timeframe, gale, 
+        poshit, ciclos, hits, _assert, payouts):
+        def is_hit(candles):
+            hit = True
+            for candle in candles:
+                if candle in ["W", "D"] or (
+                    candle == "G1" and gale != "0"
+                ) or (candle == "G2" and gale == "2"):
+                    hit = False
             return hit
 
         def verify_minoria(response):
@@ -372,19 +456,20 @@ class IQ_API:
         elif gale == "1": gName = "porcentagemGale1"
         else:             gName = "porcentagemWinDePrimeira"
         data = requests.get(f"https://ocatalogador.com/api/{gName}/{timeframe}")
-        try:
-            resultado = json.loads(data.text)['Todos']
-            for analise in resultado:
-                if not verify_ciclos(analise[3][0]):
-                    continue
-                
-                candle = analise[3][0][-1]   
-                if (poshit and is_hit(candle)) or not poshit:
-                    return verify_minoria(analise[:3])
-            return False, False, False
-        except Exception as e:
-            print("catalogar_estrategia()", e) 
-            return 50, "EURUSD", "MHI minoria"
+        resultado = json.loads(data.text)['Todos']
+        for analise in resultado:
+            if not verify_ciclos(analise[3][0]
+                ) or _assert > analise[0]:
+                continue
+            
+            candle = analise[3][0][-hits:]   
+            if (poshit and is_hit(candle)) or not poshit:
+                if payouts:
+                    its_ok = self.verify_payouts(analise[1], payouts)
+                    if not its_ok: continue
+       
+                return verify_minoria(analise[:3])
+        return False, False, False
 
     @staticmethod
     def esperarAte(horas, minutos, segundos = 0, 
@@ -455,13 +540,14 @@ class IQ_API:
         else:
             return round((abs(perca) + abs(perca) * lucro)/payout, 2)
 
-    def esperar_proximo_minuto(self, minutos = 1):
+    def esperar_proximo_minuto(self, minutos = 1, segundos = 56):
         correcao = self.config.get('correcao', 0)
         espera = (((datetime.now() + timedelta(
             seconds = 50 * minutos)
-        ).replace(second = 56) - timedelta(seconds = correcao)
+        ).replace(second = segundos) - timedelta(
+            seconds = correcao)
         ).timestamp() - time.time()) % 60
-
+        
         time.sleep(espera)
 
     def is_number(self, number):

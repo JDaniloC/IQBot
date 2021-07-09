@@ -127,8 +127,6 @@ class Estrategias(Operacao):
         if estrategia in ["três mosqueteiros", 
             "triplicação", "não triplicação"]:
             entrada = [9, 24, 39, 54]
-        elif is_in_list(estrategia, ["milhão"]):
-            entrada = [59]
         elif estrategia in ["torres gêmeas", "five flip"]:
             entrada = [24, 54]
         elif estrategia in ["power", "gaba"]: 
@@ -200,8 +198,7 @@ class Estrategias(Operacao):
             velas = self.pegar_velas(par, 4, 15, velas = preset)
         
         if len(velas) > 0: 
-            velas, horarios = zip(*velas)
-            self.chart_control("quadrante", horarios)
+            velas, _ = zip(*velas)
 
         return list(velas)
 
@@ -274,6 +271,7 @@ class Estrategias(Operacao):
 
         if not primeiro or not segundo:
             self.mostrar_mensagem("⏰ A entrada foi cancelada: DOJI")
+            self.esperar_proximo_minuto()
             return [], False
 
         estr1, estr2 = estrategia.split("+")
@@ -337,14 +335,19 @@ class Estrategias(Operacao):
             direcao = "put" if direcao == "call" else "call"
         return direcao
 
-    def esperar_poshit(self, paridade, estrategia, timeframe, gale = 3):
-        if gale == 3:
-            self.mostrar_mensagem(f"🔹 Procurando por um hit em {paridade}")
+    def esperar_poshit(self, paridade, estrategia, 
+        timeframe, hits = 3, trade_now = True):
+        '''
+        Espera ocorrer um hit, de acordo com o especificado.
+        '''
+        if trade_now:
+            self.mostrar_mensagem(f"🔹 Filtro Bear {hits}: Analisando...")
         else:
-            self.mostrar_mensagem(f"🔹 Filtro Bear {gale}: Analisando...")
+            self.mostrar_mensagem(f"🔹 Procurando por HIT {hits} em {paridade}...")
+        
         while not self.verificar_stop():
             horario = (datetime.now() - timedelta(
-                minutes = timeframe * gale)) 
+                minutes = timeframe * hits)) 
             entrada = self.verifica_entrada(
                 estrategia, timeframe, horario.minute) 
 
@@ -355,14 +358,16 @@ class Estrategias(Operacao):
                     paridade, estrategia, timeframe, velas)
 
                 if direcao:
-                    ultimas = self.pegar_velas(paridade, gale, timeframe)
+                    ultimas = self.pegar_velas(paridade, hits, timeframe)
                     ultimas, _ = zip(*ultimas)
-                    if gale == 3:
+                    if not trade_now:
                         self.mostrar_velas(self.format_candles(
                             f"Deveria dar: {direcao}"), ultimas)
                     if all(map(lambda x: 
                         x.lower() != direcao.lower(), ultimas)):
                         return velas, direcao
+                    elif trade_now:
+                        self.mostrar_mensagem("Sem ciclo operável...")
             self.esperar_proximo_minuto()
         return [], False
 
@@ -407,20 +412,44 @@ class Estrategias(Operacao):
             self.mostrar_mensagem("❌ Não consegui pegar as velas...")
         else:
             self.mostrar_mensagem("⏰ A entrada foi cancelada: DOJI")
+            self.esperar_proximo_minuto()
         return velas, direcao
     
     def pegar_catalogacao(self):
-        timeframe = int(self.config["autotime"][1:])
-        is_poshit = self.config["poshit"] == 3
+        ciclos = self.config.get("autocycles", 0)
+        is_poshit = self.config.get("poshit", 0) > 0
+        gales_number = self.config.get("autogale", 2)
+        auto_timeframe = self.config.get("autotime", 1)
+        catalogador = self.config.get("catalogador", "old")
+        posgale = self.config.get('posgale', 0)
+        _assert = self.config.get("assert", 0)
+        hits = self.config.get("hits", 0)
 
+        timeframe = int(auto_timeframe[1:])
         porcentagem = False
+        
+        proximo_minuto = (datetime.now().minute + 1) % 60
+        if timeframe == 1:
+            min_func = lambda x: x == proximo_minuto
+        else:
+            min_func = lambda x: (x + 1) % timeframe == 0 
+
+        minuto_atual = datetime.now().minute
+        self.mostrar_mensagem(f"🔹 Esperando o tempo propício para catalogar...")
+        while not self.verificar_stop() and not min_func(minuto_atual):
+            self.esperar_proximo_minuto(segundos = 10)
+            minuto_atual = datetime.now().minute
+
         if is_poshit:
-            self.mostrar_mensagem(f"🔹 Procurando por um ativo com hit...")
+            self.mostrar_mensagem(
+                f"🔹 Procurando por um ativo com hit...")
+        
         while not self.verificar_stop() and not porcentagem:
             porcentagem, paridade, estrategia = self.catalogar_estrategia(
-                self.config["autotime"], self.config["autogale"], 
-                is_poshit, self.config.get("autocycles", 0))
-            if porcentagem == False:
+                auto_timeframe, gales_number, is_poshit, posgale,
+                ciclos, hits, _assert, catalogador)
+
+            if not porcentagem:
                 self.mostrar_mensagem(
                     "🔹 Catalogação: Nenhum atendeu os requisitos...")
                 self.esperar_proximo_minuto(timeframe)
@@ -429,21 +458,24 @@ class Estrategias(Operacao):
                 self.mostrar_mensagem("pegar_catalogacao() not porcentagem", True)
                 return "EURUSD", "mhi minoria"
 
-        payout = round(100 * self.recebe_payout(paridade, timeframe)[1])
+        payout = round(100 * self.recebe_payout(
+            paridade, timeframe)[1])
         self.mostrar_mensagem(f"""
 🔹 {estrategia.upper()} | Paridade: {paridade} ♦️
 🎯 Assertividade: {porcentagem}% | Payout: {payout}% ❇️""")
+        self.esperar_proximo_minuto(0)
         return paridade, estrategia.lower()
 
     def mudar_estrategia(self, paridade, estrategia, 
         timeframe, result = False, force = False):
         self.num_operacoes += 1
-        if (self.num_operacoes == self.config.get('max_trades', 3)
+        if (self.num_operacoes == self.config['max_trades'] 
             or result == "error" or force): 
             if self.config["auto"]:
                 paridade, estrategia = self.pegar_catalogacao()
-            elif self.config['poshit'] == 3:
-                self.esperar_poshit(paridade, estrategia, timeframe)
+            elif self.config["poshit"] > 0:
+                self.esperar_poshit(paridade, estrategia, 
+                    timeframe, self.config["poshit"], False)
             self.num_operacoes = 0
         return paridade, estrategia
 
@@ -465,24 +497,26 @@ class Estrategias(Operacao):
 🔹 {estrategia.capitalize()} | Paridade: {paridade}
 ❇️ Payout: {payout}%""")
 
+            self.mostrar_mensagem("🔹 Iniciando... Esperando próximo minuto...")
+            self.esperar_proximo_minuto()
+
         self.num_operacoes = 0
-        self.mostrar_mensagem("🔹 Iniciando... Esperando próximo minuto...")
-        self.esperar_proximo_minuto()
-        
-        if not self.config["auto"] and self.config['poshit'] == 3:
-            self.esperar_poshit(paridade, estrategia, timeframe)
-         
+        if not self.config["auto"] and self.config["poshit"] > 0:
+            self.esperar_poshit(paridade, estrategia, 
+                timeframe, self.config["poshit"], False)
+            
         self.verifica_entrada(estrategia, timeframe, 
             datetime.now().minute,  True)
         
         while not self.verificar_stop():   
             minutos = datetime.now().minute
-            
+            posgale = self.config.get('posgale', 0)
+
             if self.verifica_entrada(estrategia, timeframe, minutos
-                ) or 0 < self.config['poshit'] < 3: # Filtro Bear
-                if 0 < self.config['poshit'] < 3:
+                ) or posgale > 0: # Filtro Bear
+                if posgale > 0:
                     velas, direcao = self.esperar_poshit(paridade, 
-                        estrategia, timeframe, self.config['poshit'])
+                        estrategia, timeframe, posgale)
                 else:
                     velas, direcao = self.determina_direcao(
                         paridade, estrategia, timeframe)
@@ -490,33 +524,32 @@ class Estrategias(Operacao):
                 if direcao:
                     self.mostrar_mensagem(self.format_dir(
                         f'Direção: {direcao.upper()}'))
-                    if self.verificar_tendencia(
-                            paridade, direcao, timeframe
-                        ) or (self.ativar_noticias and 
-                        not self.verificar_noticias(paridade)):
-                        self.esperar_proximo_minuto()
-                        continue
+                    tipo, payout = self.recebe_payout(paridade, timeframe)
+                    
+                    following_trend = self.verificar_tendencia(
+                        paridade, direcao, timeframe)
+                    following_news = self.verificar_noticias(paridade)
+                    following_payout = self.verificar_payout(
+                        paridade, payout)
 
-                    tipo, payout = self.recebe_payout(
-                        paridade, timeframe)
+                    if following_payout and following_news and following_trend:
+                        gale = False
+                        if estrategia in ["msf", "padrão impar"]: 
+                            gale = estrategia
+                        elif estrategia == "c3": gale = velas
 
-                    gale = False
-                    if estrategia in ["msf", "padrão impar"]: 
-                        gale = estrategia
-                    elif estrategia == "c3": gale = velas
-
-                    if self.config['minimo'] <= payout * 100:
                         result = self.realizar_trade(
                             self.valor, paridade, direcao, 
                             timeframe, payout, tipo, gale)
                         paridade, estrategia = self.mudar_estrategia(
                             paridade, estrategia, timeframe, result)
                     else:
-                        self.mostrar_mensagem(f"{paridade} não atende o payout mínimo {payout * 100}% < {self.config['minimo']}%")
                         paridade, estrategia = self.mudar_estrategia(
                             paridade, estrategia, timeframe, force = True)
+                        self.esperar_proximo_minuto()
+                        continue
 
                 minutos = (datetime.now() + timedelta(minutes = 1)).minute
                 self.verifica_entrada(estrategia, timeframe, minutos, True)
-            self.esperar_proximo_minuto()
+                self.esperar_proximo_minuto()
         self.verificar_stop()
