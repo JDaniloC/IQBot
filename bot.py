@@ -1,9 +1,10 @@
+from admin.schema.users_schema import user as users_schema
 from utils.estrategias import Estrategias
 from utils.lista_taxa import ListaTaxa
 from utils.operar import escreve_erros
 from datetime import datetime
 from sys import argv, exit
-import re, logging
+import re, logging, json
 
 if argv[1:] and argv[1] == "-o":
     from admin.database import Mongo
@@ -16,6 +17,36 @@ LOCALCONFIG = "config/config.txt"
 
 print("\n[Comando para parar: Ctrl + C]\n")
 
+def carregar_config(msg: str) -> dict:
+    try:
+        config = json.loads(msg)
+        remove = ["_id", "email", "lista", "timestamp", 
+            "num_lista", "plano", "operando", "tipo_lista"]
+        
+        for item in remove:
+            if item in users_schema:
+                del users_schema[item]
+        
+        for item in users_schema:
+            if item in config:
+                users_schema[item] = config[item]
+
+        return config
+    except Exception as e: 
+        print(type(e), e)
+        return {}
+
+def salvar_config(config: dict) -> str:
+    config = config.copy()
+    remove = ["_id", "email", "lista", "timestamp", 
+            "num_lista", "plano", "operando", "tipo_lista"]
+        
+    for item in remove:
+        if item in config:
+            del config[item]
+    
+    return json.dumps(config, ensure_ascii=False)
+    
 def datetime_brazil():
     return datetime.fromtimestamp(
         datetime.utcnow().timestamp() - 10800)

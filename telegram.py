@@ -11,7 +11,8 @@ from amanobot.namedtuple import (
 from amanobot.delegate import (pave_event_space,
     per_callback_query_origin, per_chat_id, create_open)
 
-from bot import pegar_comando, escreve_erros
+from bot import (pegar_comando, escreve_erros, 
+    carregar_config, salvar_config)
 from utils.catalogador import Catalogador
 from utils.checador import checa_sinais
 from admin.controlador import Control
@@ -135,6 +136,7 @@ class Assistente(amanobot.helper.ChatHandler):
         self.add_entrada = "-"        
         self.parar_bot = False
         self.operar_lista = True
+        self.esperar_config = False
         self.iniciar_operacao = False
         self.alteracoes_avancadas = {
             "adm_in": False,  # Adicionar novo ADM
@@ -1146,7 +1148,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                     "num_lista", "autogale", "autotime"]:
                     try:
                         novo = int(novo)
-                    except Exception as e:
+                    except:
                         dicionario[key][1] = False
                         self.enviar_mensagem("Deve ser um número.", save = True)
                         return True
@@ -1155,8 +1157,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                         novo = list(map(lambda x: list(
                             map(float, x.strip().split(","))), 
                             novo.strip().split("\n"))) 
-                    except Exception as e:
-                        print(e)
+                    except:
                         self.enviar_mensagem("Não entendi, tente novamente!")
                         return True
                 elif novo == "individual":
@@ -1200,6 +1201,30 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                 self.submenu_configuracoes(self.ultimo_comando)
                 return True
             return result
+        return False
+
+    def carregar_config(self, msg):
+        if not self.autenticacao:
+            return False
+        
+        if msg['text'].lower() == 'carregar config':
+            self.esperar_config = True
+            self.enviar_mensagem("Envie a configuração:")
+            return True
+        elif msg['text'].lower() == "salvar config":
+            config = salvar_config(self.informacoes)
+            self.enviar_mensagem(config, save = True)
+            return True
+        elif self.esperar_config:
+            config = carregar_config(msg['text'])
+            if config != {}:
+                self.informacoes.update(config)
+                account_list[self.id]["informacoes"] = self.informacoes 
+                self.enviar_mensagem("Alteração salva!")
+            else: self.enviar_mensagem("Não foi possível carregar config")
+            self.comandos()
+            self.esperar_config = False
+            return True
         return False
 
     def listar_usuarios(self, msg):
@@ -1276,7 +1301,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.operar(msg)        # [3] Opções
         elif self.salvar_alteracoes_avancadas(msg) in [True, None]:
             if not self.alteracoes_avancadas['plano']:
-                self.gerenciar({"msg": "gerenciar"})    # [4] Avançadas (ADM)
+                self.gerenciar({"text": "gerenciar"})    # [4] Avançadas (ADM)
         elif self.entrar(msg):
             pass # [0] Login
         elif self.voltar(msg):
@@ -1311,6 +1336,8 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             pass # [0] Desligar
         elif self.listar_usuarios(msg):
             pass # [0] Usuários
+        elif self.carregar_config(msg):
+            pass # [0] Configurações
         else: self.entrar({"text": "entrar"})
         
     def on__idle(self, event):

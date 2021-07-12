@@ -111,8 +111,9 @@ class Mongo:
         Modifica as informações do usuário de determinado e-mail
         '''
         user = self.remover_usuario(email)
-        user.update(info)
-        self.users_collection.insert_one(user)
+        if user: 
+            user.update(info)
+            self.users_collection.insert_one(user)
 
     def modifica_avancadas(self, info, valor):
         '''

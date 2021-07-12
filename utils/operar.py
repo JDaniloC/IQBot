@@ -60,7 +60,7 @@ class Operacao(IQ_API):
 💵 Valor da Entrada: $ {self.valor_inicial}
 ❇️ Stop Gain: $ {self.stopwin}
 🚫 Stop Loss: $ {self.stoploss}
-🐔 Tipo de gale: {config["tipo_gale"]}
+🐔 Gerenciamento: {config["tipo_gale"]}
 		""")
 		
 	def salvar_variaveis(self, config):
@@ -494,9 +494,10 @@ class Operacao(IQ_API):
 						elif tipo_gale == "ciclosoros":
 							valor = self.ciclos_soros[ciclo_atual][num_gales]
 						else:
-							if tipo_martin == "percent":
+							if tipo_martin == "percento":
 								lucro_esperado = valor_inicial * round(
 									(self.config['martin_pct'] / 100) - 1, 2)
+								print(valor_inicial, self.config['martin_pct'], lucro_esperado)
 							valor = self.martingale(
 								tipo_martin, payout, perda, 
 								valor, lucro_esperado)
