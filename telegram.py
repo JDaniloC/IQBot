@@ -1182,7 +1182,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             info, valor = result
             MongoDB.modifica_avancadas(info, valor)
             self.enviar_mensagem(f"Valor salvo.")
-            self.gerenciar({"msg": "gerenciar"})
+            self.gerenciar({"text": "gerenciar"})
             return True
         return result
 

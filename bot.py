@@ -23,12 +23,8 @@ def carregar_config(msg: str) -> dict:
         remove = ["_id", "email", "lista", "timestamp", 
             "num_lista", "plano", "operando", "tipo_lista"]
         
-        for item in remove:
-            if item in users_schema:
-                del users_schema[item]
-        
         for item in users_schema:
-            if item in config:
+            if item not in remove and item in config:
                 users_schema[item] = config[item]
 
         return config
@@ -200,17 +196,17 @@ def recebe_comandos(comandos):
             config['senha'] = comandos[2]
   
             # Define o arquivo de entradas a partir do gale máximo/própria
-            if config['tipo_lista'] == "casa":
+            if config.get('tipo_lista', "Propria") == "Da casa":
                 # Une com as informações gerais
                 config.update(MongoDB.get_avancadas())
-                maximo = int(config['max_gale'])
+                maximo = int(config.get('max_gale', 0))
                 if maximo < 1:
                     maximo = 1
                 elif maximo > 3:
                     maximo = 3
                 entradas = MongoDB.get_entradas(maximo)
             else:
-                entradas = config['lista']
+                entradas = config.get('lista', [])
             
             params = config, entradas, int(comandos[3])
 
