@@ -124,6 +124,26 @@ class Estrategias(Operacao):
 
         return list(velas)
 
+    def entrada_estrategias_m5(self, estrategia, minutos, proxima = False):
+        if estrategia in ["três mosqueteiros", 
+            "triplicação", "não triplicação"]:
+            entrada = [9, 24, 39, 54]
+        elif estrategia in ["torres gêmeas", "five flip"]:
+            entrada = [24, 54]
+        elif estrategia in ["power", "gaba"]: 
+            entrada = [14, 29, 44, 59]
+        elif is_in_list(estrategia, ['três vizinhos']):
+            entrada = [19, 49]
+        elif is_in_list(estrategia, ["mhi2"]):
+            entrada = [4, 34]
+        elif is_in_list(estrategia, ["mhi3"]):
+            entrada = [9, 39]
+        else:
+            entrada = [29, 59]
+
+        if proxima: self.proxima_entrada(entrada, estrategia)
+        return minutos in entrada
+
     def velas_por_estrategia_m5(self, par, estrategia, preset = []):
         if "last of five" in estrategia:
             velas = self.pegar_velas(par, 5, 5, velas = preset)
