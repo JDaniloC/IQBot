@@ -82,7 +82,7 @@ class Estrategias(Operacao):
             elif estrategia == "seven flip":
                 entrada = [6]
             elif estrategia == "r7":
-                entrada = [7]
+                entrada = [5]
             else:
                 entrada = [4, 9] # 1° vela
 
