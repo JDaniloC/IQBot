@@ -329,7 +329,7 @@ class IQ_API:
             direcao.lower() == "put" 
             and diferenca < 0) else False
 
-    def pegar_velas(self, par, timeframe, quantidade, fim = None):
+    def pegar_velas(self, par, quantidade, timeframe = 1, fim = None):
         if fim == None:
             fim = time.time()
         return [
