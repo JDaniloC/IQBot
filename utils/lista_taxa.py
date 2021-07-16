@@ -1,4 +1,5 @@
 from utils.operar import Operacao
+from datetime import datetime
 import threading, time
 
 class ListaTaxa(Operacao):
@@ -141,6 +142,12 @@ class ListaTaxa(Operacao):
 
                         if self.config.get("taxas_vela", "atual") != "atual":
                             self.esperar_proximo_minuto()
+
+                        if tipo == "binary" and timeframe == 5:
+                            atual = datetime.utcnow()
+                            if ((atual.minute % 5 == 4 and atual.second < 30) 
+                                or atual.minute % 5 < 4): 
+                                timeframe = 5 - (atual.minute % 5)
 
                         thread = threading.Thread(
                             target = self.realizar_trade, 

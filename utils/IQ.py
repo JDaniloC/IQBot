@@ -229,12 +229,6 @@ class IQ_API:
                 self.verificar_stop(True)
                 return 'error', 0, tipo
 
-        if tipo == "binary" and tempo == 5:
-            atual = datetime.utcnow()
-            if ((atual.minute % 5 == 4 and atual.second < 30) 
-                or atual.minute % 5 < 4): 
-                tempo = 5 - (atual.minute % 5)
-
         with self.cadeado:
             if tipo == "binary":
                 status, identificador = self.API.buy(
@@ -534,7 +528,7 @@ class IQ_API:
             return (abs(perca) + lucro) / payout
         elif tipo_martin == "seguro":
             return round(abs(perca)/payout, 2)
-        elif tipo_martin == "percent":
+        elif tipo_martin == "percento":
             return round((abs(perca) + lucro) / payout, 2)
         else:
             return round((abs(perca) + abs(perca) * lucro)/payout, 2)
@@ -548,6 +542,7 @@ class IQ_API:
         ).timestamp() - time.time()) % 60
         
         time.sleep(espera)
+        print(datetime.now().strftime("%H:%M"))
 
     def is_number(self, number):
         try:

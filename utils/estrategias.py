@@ -66,14 +66,11 @@ class Estrategias(Operacao):
 
     def entrada_estrategias_m1(self, estrategia, minutos, proxima = False):
         if estrategia == "daka":
-            entrada = [3, 7, 11, 15, 19, 23, 
-                27, 31, 35, 39, 43, 47, 51, 59]
+            entrada = [x for x in range(0, 60, 4)]
         else:
             if minutos >= 10: minutos = int(str(minutos)[1])
         
-            if estrategia == "r7":
-                entrada = [5] # quadrante de 10 velas
-            elif estrategia in ['padrão 3x1', 'quinto elemento',
+            if estrategia in ['padrão 3x1', 'quinto elemento',
                 "msf", "hope", "torres gêmeas", 'três vizinhos']:
                 entrada = [3, 8] # 5° vela
             elif estrategia in ["três mosqueteiros"]:
@@ -82,8 +79,10 @@ class Estrategias(Operacao):
                 entrada = [1, 6] # 3° vela
             elif is_in_list(estrategia, ["padrão 23", "mhi2"]):
                 entrada = [0, 5] # 2° vela
-            elif estrategia in ["seven flip"]:
+            elif estrategia == "seven flip":
                 entrada = [6]
+            elif estrategia == "r7":
+                entrada = [5]
             else:
                 entrada = [4, 9] # 1° vela
 
@@ -105,8 +104,10 @@ class Estrategias(Operacao):
             velas = self.pegar_velas(par, 7, velas = preset)[:3]
         elif estrategia == "c3":
             velas = self.pegar_velas(par, 5, velas = preset)[::2]
-        elif estrategia in ["msf", "r7"]:
+        elif estrategia == "msf":
             velas = [self.pegar_velas(par, 9, velas = preset)[0]]
+        elif estrategia == "r7":
+            velas = [self.pegar_velas(par, 7, velas = preset)[0]]
         elif 'seven' in estrategia:
             velas = [self.pegar_velas(par, 7, velas = preset)[-1]]
         elif is_in_list(estrategia, ["mhi3"]):
@@ -123,28 +124,8 @@ class Estrategias(Operacao):
 
         return list(velas)
 
-    def entrada_estrategias_m5(self, estrategia, minutos, proxima = False):
-        if estrategia in ["três mosqueteiros", 
-            "triplicação", "não triplicação"]:
-            entrada = [9, 24, 39, 54]
-        elif estrategia in ["torres gêmeas", "five flip"]:
-            entrada = [24, 54]
-        elif estrategia in ["power", "gaba"]: 
-            entrada = [14, 29, 44, 59]
-        elif is_in_list(estrategia, ['três vizinhos']):
-            entrada = [19, 49]
-        elif is_in_list(estrategia, ["mhi2"]):
-            entrada = [4, 34]
-        elif is_in_list(estrategia, ["mhi3"]):
-            entrada = [9, 39]
-        else:
-            entrada = [29, 59]
-
-        if proxima: self.proxima_entrada(entrada, estrategia)
-        return minutos in entrada
-
     def velas_por_estrategia_m5(self, par, estrategia, preset = []):
-        if estrategia == "last of five":
+        if "last of five" in estrategia:
             velas = self.pegar_velas(par, 5, 5, velas = preset)
         elif estrategia in ["três mosqueteiros", 
             "triplicação", "não triplicação"]:
@@ -163,18 +144,19 @@ class Estrategias(Operacao):
             velas = self.pegar_velas(par, 3, 5, velas = preset)
         
         if len(velas) > 0: 
-            velas, _ = zip(*velas)
+            velas, horarios = zip(*velas)
+            self.chart_control("quadrante", horarios)
 
         return list(velas)
 
     def entrada_estrategias_m15(self, estrategia, minutos, proxima = False):
-        if estrategia == "torres gêmeas":
-            entrada = [44]
-        elif estrategia == "mhi2":
-            entrada = [14]
-        elif is_in_list(estrategia, ["torres gêmeas",  
+        if is_in_list(estrategia, ["torres gêmeas",  
             "mhi ", "milhão", "turn over"]):
             entrada = [59]
+        elif estrategia == "torres gêmeas":
+            entrada = [44]
+        elif "mhi2" in estrategia:
+            entrada = [14]
         else:
             entrada = [29]
 
@@ -189,7 +171,9 @@ class Estrategias(Operacao):
         elif estrategia == "turn over":
             velas = [self.pegar_velas(par, 1, 15, velas = preset)[0]]
         elif "mhi3" in estrategia:
-            velas = self.pegar_velas(par, 5, 15, velas = preset)
+            velas = self.pegar_velas(par, 5, 15, velas = preset)[:3]
+        elif "mhi2" in estrategia:
+            velas = self.pegar_velas(par, 4, 15, velas = preset)[:3]
         elif "mhi " in estrategia:
             velas = self.pegar_velas(par, 3, 15, velas = preset)
         elif estrategia == "torres gêmeas":
@@ -258,8 +242,9 @@ class Estrategias(Operacao):
                 segundo = clear(self.velas_por_estrategia_m5(
                     paridade, "torres gêmeas", velas)[0])
             elif estrategia == "triplicação + torres gêmeas":
-                primeiro = self.pegar_maioria_minoria("minoria",
-                    self.velas_por_estrategia_m5(paridade, "triplicação", velas))
+                a, b = self.velas_por_estrategia_m5(paridade, "triplicação", velas)
+                primeiro = self.pegar_maioria_minoria("minoria", [a, b])
+                if a != b: primeiro = False
                 segundo = clear(self.velas_por_estrategia_m5(
                     paridade, "torres gêmeas", velas)[0])
         
@@ -329,9 +314,9 @@ class Estrategias(Operacao):
         direcao = velas.count('CALL') > velas.count('PUT')
         direcao = "call" if direcao else "put"
         if is_in_list(estrategia, 
-            ["msf", "padrão 3x1", "minoria",
-            "seven flip", "power", "gaba", "elemento",
-            "turn over", "primeiros trocados"]):
+            ["msf", "padrão 3x1", "minoria", "flip",
+            "power", "gaba", "elemento", "turn over", 
+            "primeiros trocados"]):
             direcao = "put" if direcao == "call" else "call"
         return direcao
 
@@ -384,25 +369,29 @@ class Estrategias(Operacao):
         direcao = False
         if len(velas) > 0 and velas.count("DOJI") == 0:
             if is_in_list(estrategia, 
-                ["last", "gaba", "msf", 'padrão 3x1', "power",
+                ["gaba", "msf", 'padrão 3x1', "power",
                 'elemento', "minoria", "maioria", "vituxo",
-                "turn over", "primeiros trocados"]):
+                "turn over", "primeiros trocados", "flip"]):
                 direcao = self.pegar_maioria_minoria(
                     estrategia, velas, False)
                 if (estrategia == "power" and len(velas) > 1 and
                     direcao.upper() != velas[1]):
                     direcao = False
-
+                elif (timeframe == 5 and "milhão" in estrategia and
+                    velas.count("PUT") == velas.count("CALL")):
+                    direcao = False
             elif timeframe == 5 and estrategia == "três mosqueteiros":
                 if velas[0] != velas[1]: direcao = velas[0].lower()
-            elif "triplicação" in estrategia and velas[0] == velas[1]:
-                vela = velas[0].lower()
-                if estrategia == "triplicação":
-                    direcao = vela
-                else: 
-                    direcao = "put" if vela == "call" else "call"
+            elif "triplicação" in estrategia:
+                if velas[0] == velas[1]:
+                    vela = velas[0].lower()
+                    if estrategia == "triplicação": direcao = vela
+                    else: direcao = "put" if vela == "call" else "call"
             else:
-                if estrategia != "hope" or velas[0] == velas[1]:
+                if estrategia == "hope":
+                    primeira, segunda = velas[0].lower(), velas[1].lower()
+                    direcao = primeira if primeira == segunda else segunda
+                else:
                     direcao = velas[0].lower()
         elif len(velas) > 0 and (velas.count("DOJI") < 3 and 
             "milhão" in estrategia and timeframe == 5):
@@ -551,5 +540,5 @@ class Estrategias(Operacao):
 
                 minutos = (datetime.now() + timedelta(minutes = 1)).minute
                 self.verifica_entrada(estrategia, timeframe, minutos, True)
-                self.esperar_proximo_minuto()
+            self.esperar_proximo_minuto()
         self.verificar_stop()

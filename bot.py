@@ -1,9 +1,10 @@
+from admin.schema.users_schema import user as users_schema
 from utils.estrategias import Estrategias
 from utils.lista_taxa import ListaTaxa
 from utils.operar import escreve_erros
 from datetime import datetime
 from sys import argv, exit
-import re, logging
+import re, logging, json
 
 if argv[1:] and argv[1] == "-o":
     from admin.database import Mongo
@@ -16,6 +17,32 @@ LOCALCONFIG = "config/config.txt"
 
 print("\n[Comando para parar: Ctrl + C]\n")
 
+def carregar_config(msg: str) -> dict:
+    try:
+        config = json.loads(msg)
+        remove = ["_id", "email", "lista", "timestamp", 
+            "num_lista", "plano", "operando", "tipo_lista"]
+        
+        for item in users_schema:
+            if item not in remove and item in config:
+                users_schema[item] = config[item]
+
+        return config
+    except Exception as e: 
+        print(type(e), e)
+        return {}
+
+def salvar_config(config: dict) -> str:
+    config = config.copy()
+    remove = ["_id", "email", "lista", "timestamp", 
+            "num_lista", "plano", "operando", "tipo_lista"]
+        
+    for item in remove:
+        if item in config:
+            del config[item]
+    
+    return json.dumps(config, ensure_ascii=False)
+    
 def datetime_brazil():
     return datetime.fromtimestamp(
         datetime.utcnow().timestamp() - 10800)
@@ -169,17 +196,17 @@ def recebe_comandos(comandos):
             config['senha'] = comandos[2]
   
             # Define o arquivo de entradas a partir do gale máximo/própria
-            if config['tipo_lista'] == "casa":
+            if config.get('tipo_lista', "Propria") == "Da casa":
                 # Une com as informações gerais
                 config.update(MongoDB.get_avancadas())
-                maximo = int(config['max_gale'])
+                maximo = int(config.get('max_gale', 0))
                 if maximo < 1:
                     maximo = 1
                 elif maximo > 3:
                     maximo = 3
                 entradas = MongoDB.get_entradas(maximo)
             else:
-                entradas = config['lista']
+                entradas = config.get('lista', [])
             
             params = config, entradas, int(comandos[3])
 

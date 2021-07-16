@@ -60,7 +60,7 @@ class Operacao(IQ_API):
 💵 Valor da Entrada: $ {self.valor_inicial}
 ❇️ Stop Gain: $ {self.stopwin}
 🚫 Stop Loss: $ {self.stoploss}
-🐔 Tipo de gale: {config["tipo_gale"]}
+🐔 Gerenciamento: {config["tipo_gale"]}
 		""")
 		
 	def salvar_variaveis(self, config):
@@ -69,6 +69,7 @@ class Operacao(IQ_API):
 		if config['tipo_conta'] == "treino":
 			self.mudar_treino()
 		else: self.mudar_real()
+		self.minimium_value = 2 if self.API.get_currency() == "BRL" else 1
 
 		if config['tipo_par'] == "auto":
 			self.tipo = config['tipo_par']
@@ -495,13 +496,14 @@ class Operacao(IQ_API):
 						elif tipo_gale == "ciclosoros":
 							valor = self.ciclos_soros[ciclo_atual][num_gales]
 						else:
-							if tipo_martin == "percent":
+							if tipo_martin == "percento":
 								lucro_esperado = valor_inicial * round(
 									(self.config['martin_pct'] / 100) - 1, 2)
+								print(valor_inicial, self.config['martin_pct'], lucro_esperado)
 							valor = self.martingale(
 								tipo_martin, payout, perda, 
 								valor, lucro_esperado)
-						valor = 2 if valor < 2 else valor
+						valor = self.minimium_value if valor < self.minimium_value else valor
 
 					if self.verificar_stop():
 						self.ganhos_perdas[1] += 1
@@ -511,7 +513,8 @@ class Operacao(IQ_API):
 						or estrategia == "padrão impar"):
 						self.esperar_proximo_minuto()
 					elif type(estrategia) == list:
-						ordem = estrategia[num_gales]
+						ordem = estrategia[num_gales % len(estrategia)]
+						self.esperar_proximo_minuto()
 
 					resultado, lucro, tipo = self.ordem(
 						paridade, ordem, tempo, valor, tipo,
@@ -570,7 +573,7 @@ class Operacao(IQ_API):
 					self.valor = self.martingale(
 						tipo_martin, payout, self.perda_atual, 
 						self.valor, lucro_esperado)
-					self.valor = 2 if self.valor < 2 else self.valor
+					self.valor = self.minimium_value if self.valor < self.minimium_value else self.valor
 				else:
 					self.valor = self.valor_inicial
 					self.perda_atual = 0
@@ -582,7 +585,7 @@ class Operacao(IQ_API):
 					self.gale_atual += 1
 					self.perda_atual += abs(valor)
 					self.valor = self.perda_atual / 2
-					self.valor = 2 if self.valor < 2 else round(self.valor, 2)
+					self.valor = self.minimium_value if self.valor < self.minimium_value else round(self.valor, 2)
 					texto_gale = f"🔸 Sorosgale: {round(valor, 2)} para {self.valor}"
 				else:
 					self.gale_atual = 0
