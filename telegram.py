@@ -526,7 +526,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             
             self.add_entrada = "-"
             self.enviar_mensagem("Salvo")
-            self.gerenciar({"msg": "gerenciar"})
+            self.gerenciar({"text": "gerenciar"})
 
     def comandos(self):
         '''
@@ -1275,7 +1275,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.parar_bot = False
             self.enviar_mensagem(
                 "Deixando o bot ligado", save = True)
-            self.gerenciar({"msg": "gerenciar"})
+            self.gerenciar({"text": "gerenciar"})
         return True
 
     def voltar(self, msg):
