@@ -325,6 +325,9 @@ class IQ_API:
             return True
         # Calcula a SMA
         pesos = numpy.repeat(1.0, periodo) / periodo
+        if len(pesos) == 0:
+            self.mostrar_mensagem("❌ Tendência com período problemático")
+            return True
         smas = numpy.convolve(
             dados, pesos, 'valid').tolist()
         diferenca = smas[-1] - smas[-periodo]
