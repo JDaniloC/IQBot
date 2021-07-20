@@ -1,6 +1,6 @@
+import threading, time, traceback
 from utils.operar import Operacao
 from datetime import datetime
-import threading, time
 
 class ListaTaxa(Operacao):
     def __init__(self, config, comandos = [], chat_id = False):
@@ -51,44 +51,37 @@ class ListaTaxa(Operacao):
 
             data = comando["data"]
             horas, minutos = comando["hora"]
-            tempo = comando['timeframe'] if comando['timeframe'] != 0 else self.config["tempo"]
+            timeframe = comando['timeframe'] if comando['timeframe'] != 0 else self.config["tempo"]
             segundos = 0
 
             if self.esperarAte(horas, minutos, segundos, data, 
                 self.config['correcao'] + 1, self.mostrar_mensagem):
 
-                par = comando['par']
-                ordem = comando['ordem']
+                paridade = comando['par']
+                direcao = comando['ordem']
                 valor = self.valor
-                tipo, payout = self.recebe_payout(par, tempo)
 
-                if self.verificar_tendencia(par, ordem, tempo):
-                    continue
-
-                if (self.ativar_noticias and
-                    not self.verificar_noticias(par)):
-                        continue
+                tipo, payout = self.recebe_payout(paridade, timeframe)
+                following_trend = self.verificar_tendencia(
+                    paridade, direcao, timeframe)
+                following_news = self.verificar_noticias(paridade)
+                following_payout = self.verificar_payout(paridade, payout)
+                not_posgale = self.verificar_posgale()
 
                 if self.verificar_stop():
                     break
-
-                if self.ocorreu_gale and self.config.get("no_posgale", False):
-                    self.ocorreu_gale = False
-                    self.mostrar_mensagem(
-                        "Cancelando entrada devido gale na última operação.")
-                    continue
                 
-                if self.config["minimo"] / 100 <= payout:
+                if (following_payout and following_news 
+                    and following_trend and not_posgale):
                     thread = threading.Thread(
                         target = self.realizar_trade, 
                         name = f"{time.time()}", 
-                        args = (valor, par, ordem, tempo, payout, tipo),
+                        args = (valor, paridade, direcao, 
+                            timeframe, payout, tipo),
                         daemon = True)
                     self.espera.append(thread)
                     thread.start()
                     self.valor = self.valor_inicial
-                else:
-                    self.mostrar_mensagem(f"{par} não atende o payout mínimo {payout * 100}% < {self.config['minimo']}%")
                 self.mostrar_mensagem(f"Operando lista: {len(self.comandos) - index} sinais restantes.")
             else:
                 self.mostrar_mensagem(
@@ -106,7 +99,8 @@ class ListaTaxa(Operacao):
         2 - Cria uma thread para o método operar
         '''
         def normalize(number):
-            return int(str(number).replace(".", "")[3:])
+            try: return int(str(number).replace(".", "")[3:])
+            except: return 0
 
         self.API.start_candles_stream(par, 60, 1)
         ultimo = {}
@@ -122,10 +116,15 @@ class ListaTaxa(Operacao):
         chegou_perto = 0
         while not self.verificar_stop() and taxas != []:
             velas = self.API.get_realtime_candles(par, 60)
-            abertura = velas[list(velas.keys())[0]]['open']
-            fechamento = velas[list(velas.keys())[0]]['close']
+            try:
+                abertura = velas[list(velas.keys())[0]]['open']
+                fechamento = velas[list(velas.keys())[0]]['close']
+            except:
+                traceback.print_exc()
+                time.sleep(1)
+                continue
 
-            for taxa, timeframe in taxas:
+            for taxa, timeframe in taxas.copy():
                 timeframe = self.config["tempo"] if timeframe == 0 else timeframe
                 if (fechamento >= taxa and ultimo < taxa or 
                     fechamento <= taxa and ultimo > taxa):
@@ -160,7 +159,8 @@ class ListaTaxa(Operacao):
                     else:
                         self.mostrar_mensagem(f"{par} {taxa} não atende o payout mínimo {payout} {self.config['minimo']}")
 
-                    taxas.remove((taxa, timeframe))
+                    try: taxas.remove((taxa, timeframe))
+                    except: traceback.print_exc()
                 else:
                     if (abs(normalize(taxa) - normalize(fechamento)) <= 2 and 
                         chegou_perto != abs(taxa - fechamento)):

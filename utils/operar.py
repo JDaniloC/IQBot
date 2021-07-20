@@ -281,6 +281,13 @@ class Operacao(IQ_API):
 			return False
 		return True
 
+	def verificar_posgale(self):
+		if self.ocorreu_gale and self.config.get("no_posgale", False):
+			self.ocorreu_gale = False
+			self.mostrar_mensagem("[❗️] Cancelando entrada devido gale na última operação. [❗️]")
+			return False
+		return True
+
 	def win_case(self, in_soros, valor, lucro, gale_text = ""):
 		did_gale = (self.gale_atual > 0 or gale_text != ""
 			or self.config["ciclos"]["gales"] > 0)
