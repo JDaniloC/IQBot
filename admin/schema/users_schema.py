@@ -6,7 +6,7 @@ user = {
     "num_lista": "1",
     "plano": "teste",
     "operando": False,
-    "tipo_lista":"Catalogador",
+    "tipo_lista":"Da casa",
 
     "tipo_conta": "treino",
     "tipo_par": "auto",
