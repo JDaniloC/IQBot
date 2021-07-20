@@ -132,7 +132,7 @@ class Assistente(amanobot.helper.ChatHandler):
 
         self.entrada = False
 
-        self.ultimo_comando = ""
+        self.ultimo_comando = {"text": ""}
         self.add_entrada = "-"        
         self.parar_bot = False
         self.operar_lista = True
