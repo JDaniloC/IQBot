@@ -195,9 +195,12 @@ class IQ_Option:
         country_id = Country.ID[country]
         self.api.Get_Leader_Board(country_id, user_country_id, from_position, to_position,
                                   near_traders_country_count, near_traders_count, top_country_count, top_count, top_type)
-
+        
+        cont = 0
         while self.api.leaderboard_deals_client == None:
-            pass
+            cont += 1
+            time.sleep(0.1)
+            if cont == 10: break
         return self.api.leaderboard_deals_client
 
     def get_instruments(self, type):

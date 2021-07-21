@@ -46,4 +46,8 @@ user = {
     "periodo_tendencia": 21,
     "tipo_tendencia": "sma",
     "tendencia": False,
+    
+    "reverso": False,
+    "ranking-inicio": 1,
+    "ranking-final": 100
 }

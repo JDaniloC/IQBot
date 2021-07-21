@@ -3,6 +3,7 @@ from utils.investing import extrair_noticias
 from datetime import datetime, timedelta
 from configparser import RawConfigParser
 from utils.IQ import IQ_API
+from random import randint
 from pprint import pprint
 
 config = RawConfigParser()
@@ -70,8 +71,8 @@ class Operacao(IQ_API):
 				self.stoploss = config["stoploss"]
 				self.max_gale = config["max_gale"]
 				self.ativar_noticias = (
-					config["noticias_hora"] > 0 or 
-					config["noticias_minuto"] > 0)
+					config.get("noticias_hora", 0) > 0 or 
+					config.get("noticias_minuto", 0) > 0)
 
 				empty = lambda x: x != []
 				self.ciclos_gale = list(filter(empty, config["ciclos_gale"]))
@@ -1000,3 +1001,42 @@ class Operacao(IQ_API):
 				verifica_entrada(estrategia, timeframe, True)
 			self.esperar_proximo_minuto()
 		self.verificar_stop()
+
+	def operar_top_ranking(self):
+		reverso = self.config.get("reverso", False)
+		inicio = self.config.get("ranking-inicio", 1)
+		final = self.config.get("ranking-final", 1000)
+		self.last_user_id = 0
+		if inicio < 1: inicio = 1
+		if final <= inicio: final = inicio + 1
+
+		self.mostrar_mensagem(f"🔹 Esperando entradas do top ranking ({inicio} - {final}) operando {'conta' if reverso else 'a favor'}")
+		while not self.verificar_stop():
+			time.sleep(randint(0, 300))
+			try:
+				trader, paridade = self.online_top_ranking(inicio, final)
+				if trader:
+					direcao = "CALL" if randint(0, 1) else "PUT"
+					if reverso:
+						direcao = "CALL" if direcao == "PUT" else "PUT"
+
+					tipo, payout = self.recebe_payout(paridade, self.tempo)
+
+					if self.verificar_tendencia(paridade, direcao, self.tempo):
+						continue
+
+					if (self.ativar_noticias and
+						not self.verificar_noticias(paridade)):
+							continue
+
+					if self.verificar_stop():
+						break
+					
+					if self.config["minimo"] / 100 <= payout:
+						threading.Thread(
+							target = self.ordem, daemon = True,
+							args=(paridade, direcao, self.tempo, 
+								self.valor, tipo)).start()
+						self.mostrar_mensagem(
+							f"{trader}\n{paridade} M{self.tempo}\nDireção: {direcao}")
+			except Exception as e: print(type(e), e)
