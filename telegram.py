@@ -79,6 +79,7 @@ cache_catalogador = ()
 if os.name != "nt":
     controlador = Control()
 rodando = True
+account_list = {}
 
 mapeamento_avancado = {
     "Tipo de paridade": ["tipo_par", False, tuple],
@@ -181,13 +182,17 @@ class Assistente(amanobot.helper.ChatHandler):
             )]
         ])
         
-        self.sender.sendMessage(
-            "Não se esqueça dos links importantes", reply_markup = teclado)
+        if self.id in account_list:
+            self.entrada = True
+            self.login({ "text": account_list[self.id]["email"] })
+        else:
+            self.sender.sendMessage(
+                "Não se esqueça dos links importantes", reply_markup = teclado)
 
-        self.enviar_mensagem(
-           f"Olá, eu sou seu assistente do {BOTNAME}.",
-            delete = False, reply_markup = ReplyKeyboardMarkup(
-                keyboard = [[KeyboardButton(text = "Entrar")]]))
+            self.enviar_mensagem(
+            f"Olá, eu sou seu assistente do {BOTNAME}.",
+                delete = False, reply_markup = ReplyKeyboardMarkup(
+                    keyboard = [[KeyboardButton(text = "Entrar")]]))
 
     def enviar_mensagem(self, message, reply_markup = None, edit = False, delete = True, save = False):
         if edit:
@@ -212,8 +217,7 @@ class Assistente(amanobot.helper.ChatHandler):
             self.enviar_mensagem("Digite o seu e-mail para continuar:", 
                 reply_markup = ReplyKeyboardRemove())
             self.entrada = True
-        else:
-            self.enviar_mensagem("Você já está logado")
+        else: 
             self.comandos()
 
     def login(self, msg):
@@ -222,7 +226,6 @@ class Assistente(amanobot.helper.ChatHandler):
         Está em análise ou já aprovado.
         '''
         if self.autenticacao:
-            self.enviar_mensagem("Você já está logado.")
             self.comandos()
             return False
 
@@ -233,6 +236,11 @@ class Assistente(amanobot.helper.ChatHandler):
         if usuario: 
             # Verifica se está no banco de dados e entra na conta
             self.email, self.informacoes = email, usuario
+            account_list[self.id] = {
+                "email": self.email, 
+                "mapping": self.mapeamento,
+                "informacoes": self.informacoes 
+            }
             restante = self.informacoes['timestamp'] - time.time()
             if restante > 0:
                 self.entrada = False
@@ -454,7 +462,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Sair da conta" )]
             ])
 
-            self.enviar_mensagem("O que deseja?", 
+            self.enviar_mensagem("O que deseja?",
                 reply_markup = teclado)
         else:
             self.enviar_mensagem("Usuário não autenticado")
@@ -506,6 +514,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         elif texto == "Ver lista de sinais":
             return self.ver_lista()
         elif texto == "Sair da conta":
+            del account_list[self.id]
             self.close()
             return True
         return False
@@ -1062,6 +1071,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             if result and type(result) == tuple:
                 info, valor = result
                 self.informacoes[info] = valor
+                account_list[self.id]["informacoes"] = self.informacoes
                 self.enviar_mensagem("Alteração salva!")
                 self.editar_configuracoes()
                 return True
@@ -1190,7 +1200,7 @@ if __name__ == "__main__":
     problema = False
     bot = amanobot.DelegatorBot(TOKEN, [
         pave_event_space()(
-            per_chat_id(), create_open, Assistente, timeout = 180),
+            per_chat_id(), create_open, Assistente, timeout = 10),
     ])
 
     try:
