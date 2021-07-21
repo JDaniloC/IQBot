@@ -22,6 +22,12 @@ def escreve_log(email, mensagem):
 	with open(LOCALLOG + email + ".txt", "a", encoding = "utf-8") as file:
 		file.write(mensagem + "\n")
 
+def is_in_list(estrategia, lista):
+    for item in lista:
+        if item in estrategia:
+            return True
+    return False
+
 class Operacao(IQ_API): 
 	def __init__(self, config, comandos = [], verboso = False, 
 		tipo_operacao = "lista", tentativas = 0):
@@ -756,7 +762,8 @@ class Operacao(IQ_API):
 			return resultado
 
 		def proxima_entrada(min_list, estrategia, timeframe, isM1 = False):
-			minutos = str(datetime.now().minute).zfill(2)
+			minutos = str((datetime.now() + timedelta(minutes = 1)).minute).zfill(2)
+
 			is_the_last = False
 			for i in range(len(min_list)):
 				if isM1:
@@ -769,7 +776,9 @@ class Operacao(IQ_API):
 					entrar = option
 					break
 				elif i == len(min_list) - 1:
-					entrar = min_list[0]
+					entrar = min_list[0] if (
+						not isM1 or estrategia == "daka"
+					) else int(f"{minutos[0]}{min_list[0]}")
 					is_the_last = True
 
 			maisUm = timeframe * 60 if estrategia not in [
@@ -789,62 +798,71 @@ class Operacao(IQ_API):
 			self.mostrar_mensagem(f"⏰ Próxima entrada será às {horario} ⏰")
 
 		def entrada_estrategias_m1(estrategia, minutos, proxima = False):
-			if estrategia == "DAKA":
-				entrada = [3, 7, 11, 15, 19, 23, 
-					27, 31, 35, 39, 43, 47, 51, 59]
+			estrategia = estrategia.lower()
+			if estrategia == "daka":
+				entrada = [x for x in range(0, 60, 4)]
 			else:
 				if minutos >= 10: minutos = int(str(minutos)[1])
 			
-			if estrategia == "R7":
-				entrada = [5] # Quadrante de 10 velas
-			elif estrategia in [
-				"MSF", "HOPE", "Torres Gêmeas", 'Três Vizinhos']:
-				entrada = [3, 8] # 5° vela
-			elif estrategia in ["Três Mosqueteiros"]:
-				entrada = [2, 7] # 4° vela
-			elif estrategia in ["Melhor de 3"]:
-				entrada = [1, 6] # 3° vela
-			elif estrategia in ["Padrão 23"]:
-				entrada = [0, 5] # 2° vela
-			else:
-				entrada = [4, 9] # 1° vela
+				if estrategia in ['padrão 3x1', 'quinto elemento',
+					"msf", "hope", "torres gêmeas", 'três vizinhos']:
+					entrada = [3, 8] # 5° vela
+				elif estrategia in ["três mosqueteiros"]:
+					entrada = [2, 7] # 4° vela
+				elif is_in_list(estrategia, ["melhor de 3", "vituxo"]):
+					entrada = [1, 6] # 3° vela
+				elif is_in_list(estrategia, ["padrão 23"]):
+					entrada = [0, 5] # 2° vela
+				elif estrategia == "seven flip":
+					entrada = [6]
+				elif estrategia == "r7":
+					entrada = [5]
+				else:
+					entrada = [4, 9] # 1° vela
 
 			if proxima: proxima_entrada(entrada, estrategia, proxima, True)
 			return minutos in entrada
 
 		def velas_por_estrategia_m1(par, estrategia):
-			if estrategia in ["MHI", "MHI2", "MHI3"]:
-				velas = pegar_velas(par, 3)
-			elif estrategia == "Padrão Impar":
+			estrategia = estrategia.lower()
+			if "impar" in estrategia:
 				velas = [pegar_velas(par, 3)[0]]
-			elif estrategia == "HOPE":
+			elif estrategia == "hope":
 				velas = pegar_velas(par, 4)[::2]
-			elif estrategia == "Torres Gêmeas":
+			elif estrategia == "torres gêmeas":
 				velas = [pegar_velas(par, 4)[0]]
-			elif estrategia == "Melhor de 3":
-				velas = pegar_velas(par, 6)[:-3]
-			elif estrategia == "Milhão":
+			elif estrategia == "melhor de 3":
+				velas = pegar_velas(par, 6)[:3]
+			elif "milhão" in estrategia:
 				velas = pegar_velas(par, 5)
-			elif estrategia == "Vituxo":
-				velas = pegar_velas(par, 5)[:3]
-			elif estrategia == "C3":
+			elif estrategia == "vituxo":
+				velas = pegar_velas(par, 7)[:3]
+			elif estrategia == "c3":
 				velas = pegar_velas(par, 5)[::2]
-			elif estrategia in ["MSF", "R7"]:
+			elif estrategia == "msf":
 				velas = [pegar_velas(par, 9)[0]]
+			elif estrategia == "r7":
+				velas = [pegar_velas(par, 7)[0]]
+			elif 'seven' in estrategia:
+				velas = [pegar_velas(par, 7)[-1]]
+			elif is_in_list(estrategia, ['padrão 3x1']):
+				velas = pegar_velas(par, 4)[:3]
+			elif is_in_list(estrategia, ["mhi"]):
+				velas = pegar_velas(par, 3)
 			else:
 				velas = pegar_velas(par, 1)
 			return velas
 
 		def entrada_estrategias_m5(estrategia, minutos, proxima = False):
-			if estrategia in ["Três Mosqueteiros", "Triplicação"]:
+			estrategia = estrategia.lower()
+			if estrategia in ["três mosqueteiros", 
+            "triplicação", "não triplicação"]:
 				entrada = [9, 24, 39, 54]
-			elif estrategia == "Milhão":
-				entrada = [59]
-			elif estrategia in ["Torres Gêmeas", "Five Flip"]:
+			elif estrategia in ["torres gêmeas", "five flip"]:
 				entrada = [24, 54]
-			elif estrategia in ["Power", "GABA"]: 
+			elif estrategia in ["power", "gaba"]: 
 				entrada = [14, 29, 44, 59]
-			elif estrategia == 'Três Vizinhos':
+			elif is_in_list(estrategia, ['três vizinhos']):
 				entrada = [19, 49]
 			else:
 				entrada = [29, 59]
@@ -853,26 +871,28 @@ class Operacao(IQ_API):
 			return minutos in entrada
 
 		def velas_por_estrategia_m5(par, estrategia):
-			if estrategia == "Last of five":
+			estrategia = estrategia.lower()
+			if "last of five" in estrategia:
 				velas = pegar_velas(par, 5, 5)
-			elif estrategia in ["Três Mosqueteiros", "Triplicação"]:
+			elif estrategia in ["três mosqueteiros", 
+				"triplicação", "não triplicação"]:
 				velas = pegar_velas(par, 2, 5)
-			elif estrategia in ["Milhão"]:
+			elif "milhão" in estrategia:
 				velas = pegar_velas(par, 6, 5)
-			elif estrategia in ["Torres Gêmeas"]:
+			elif estrategia in ["torres gêmeas"]:
 				velas = [pegar_velas(par, 6, 5)[0]]
-			elif estrategia in ["Five Flip", 'Três Vizinhos']:
+			elif estrategia in ["five flip", 'três vizinhos']:
 				velas = [pegar_velas(par, 1, 5)[0]]
 			else:
 				velas = pegar_velas(par, 3, 5)
 			return velas
 
 		def entrada_estrategias_m15(estrategia, minutos, proxima = False):
-			if estrategia in ["MHI", "MHI2", "MHI3", 
-				"Torres Gêmeas", "Hora do equilibrio", 
-				"Turn Over"]:
+			estrategia = estrategia.lower()
+			if is_in_list(estrategia, ["torres gêmeas",  
+				"mhi", "milhão", "turn over"]):
 				entrada = [59]
-			elif estrategia == "Torres Gêmeas":
+			elif estrategia == "torres gêmeas":
 				entrada = [44]
 			else:
 				entrada = [29]
@@ -881,17 +901,17 @@ class Operacao(IQ_API):
 			return minutos in entrada
 
 		def velas_por_estrategia_m15(par, estrategia):
-			if estrategia == "Half hour":
+			if estrategia == "half hour":
 				velas = [pegar_velas(par, 2, 15)[0]]
-			elif estrategia == "Primeiros trocados":
+			elif estrategia == "primeiros trocados":
 				velas = pegar_velas(par, 2, 15)[0]
-				velas = ["call"] if velas == "put" else ["put"]
-			elif estrategia == "Turn Over":
+				velas = ["call"] if velas.lower() == "put" else ["put"]
+			elif estrategia == "turn over":
 				velas = pegar_velas(par, 1, 15)[0]
-				velas = ["call"] if velas == "put" else ["put"]
-			elif estrategia in ["MHI", "MHI2", "MHI3"]:
+				velas = ["call"] if velas.lower() == "put" else ["put"]
+			elif "mhi" in estrategia:
 				velas = pegar_velas(par, 3, 15)
-			elif estrategia == "Torres Gêmeas":
+			elif estrategia == "torres gêmeas":
 				velas = [pegar_velas(par, 4, 15)[0]]
 			else:
 				velas = pegar_velas(par, 4, 15)
@@ -963,14 +983,15 @@ class Operacao(IQ_API):
 				direcao = False
 				if velas.count("DOJI") == 0 and not (
 					estrategia == "Milhão" and timeframe == 5):
-					if estrategia in ["MSF",  
-						"Last of five", "GABA", "Power",
-						"Milhão", "MHI", "MHI2", "MHI3",
-						"Vituxo", "Hora do equilibrio"]:	
+					if is_in_list(estrategia, ["MSF",  
+						'Padrão 3x1', "Last of five", "GABA", 
+						"Power", "Milhão", "MHI", "Flip",
+						"Vituxo", "Hora do equilibrio"]):	
 						direcao = velas.count('CALL') > velas.count('PUT')
 						direcao = "call" if direcao else "put"
 						if tipo_milhao == "Minoria" or estrategia in [
-							"Hora do equilibrio", "MSF", "Power", "GABA"]:
+							"Hora do equilibrio", "MSF", "Power", "GABA",
+							"Five Flip", 'Padrão 3x1']:
 							direcao = "put" if direcao == "call" else "call"
 							if (estrategia == "Power" and 
 								direcao.upper() != velas[1]):
