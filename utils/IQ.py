@@ -217,12 +217,6 @@ class IQ_API:
             (resultado, lucro)
         '''
         direcao = direcao.lower()
-        if tipo == "binary" and tempo == 5:
-            atual = datetime.utcnow()
-            if ((atual.minute % 5 == 4 and atual.second < 30) 
-                or atual.minute % 5 < 4): 
-                tempo = 5 - (atual.minute % 5)
-
         with self.cadeado:
             if tipo == "binary":
                 status, identificador = self.API.buy(

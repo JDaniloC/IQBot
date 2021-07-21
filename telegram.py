@@ -104,7 +104,7 @@ class Assistente(amanobot.helper.ChatHandler):
         self.add_entrada = "-"        
         self.iniciar_operacao = False
         self.parar_bot = False
-        self.operar_lista = True
+        self.tipo_operacao = "lista"
         self.alteracoes_avancadas = {
             "adm_in": False,  # Adicionar novo ADM
             "adm_out": False,  # Remover um ADM
@@ -474,15 +474,15 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         texto = msg['text']
         if texto == "Operar Lista/Taxas":
-            self.operar_lista = True
+            self.tipo_operacao = "lista"
             return self.operar(msg)
         elif texto == "Operar Estratégias":
             self.informacoes["auto"] = False
-            self.operar_lista = False
+            self.tipo_operacao = "estrategia"
             return self.operar(msg)
         elif texto == "Operar Auto VIP":
             self.informacoes["auto"] = True
-            self.operar_lista = False
+            self.tipo_operacao = "estrategia"
             return self.operar(msg)
         elif texto == "Catalogar sinais":
             self.enviar_mensagem("Carregando...")
@@ -537,10 +537,10 @@ EURJPY 31/12/2000 CALL M5 02:30
                     self.informacoes, self.email)
                 
                 if os.name == "nt": # No windows 
-                    os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}, {self.chat_id}, {self.operar_lista}")
+                    os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}, {self.chat_id}, {self.tipo_operacao}")
                 else:
                     controlador.adicionar_pessoa(
-                        self.email, msg['text'], self.id, self.operar_lista)
+                        self.email, msg['text'], self.id, self.tipo_operacao)
                 self.enviar_mensagem("Operação iniciada. Se em 5min eu não avisar que está conectado, reincie a operação.")
                 self.comandos()
             else:
@@ -648,7 +648,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                 if value[0] not in ["lista", "tipo_lista", "num_lista"]:
                     if key in headers:
                         mensagem += f"\n⚙️ {headers[key]} ⚙️\n"
-                    mensagem += f"{key}: {str(self.informacoes[value[0]]).replace('True', 'Sim').replace('False', 'Não')}\n"
+                    value = str(self.informacoes.get(value[0], 'Não configurado'))
+                    mensagem += f"{key}: {value.replace('True', 'Sim').replace('False', 'Não')}\n"
             return mensagem
         else:
             self.enviar_mensagem("Usuário não autenticado")
@@ -1200,7 +1201,7 @@ if __name__ == "__main__":
     problema = False
     bot = amanobot.DelegatorBot(TOKEN, [
         pave_event_space()(
-            per_chat_id(), create_open, Assistente, timeout = 10),
+            per_chat_id(), create_open, Assistente, timeout = 300),
     ])
 
     try:

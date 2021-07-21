@@ -79,7 +79,16 @@ def pegar_comando_taxas(texto):
     }
     '''
     try:
-        primeiro, segundo = re.split(r"[^\w.-]", texto.strip())
+        timeframe = re.search(r'[MH][1-6]?[0-5]', texto.upper())
+        if timeframe: 
+            texto = re.sub(r'[MH][1-6]?[0-5]', r'', texto.upper())
+            if "M" in timeframe[0].upper(): 
+                timeframe = int(timeframe[0].strip("M"))
+            else: 
+                timeframe = int(timeframe[0].strip("H")) * 60
+        else: timeframe = 0
+
+        primeiro, segundo = re.split(r"[^\w.-]+", texto.strip())
         par = re.search(r'[A-Za-z]{6}(-OTC)?', 
             primeiro.upper().replace("/", ""))
         if not par:
@@ -98,6 +107,7 @@ def pegar_comando_taxas(texto):
         "par": par, 
         "taxa": taxa, 
         "tipo": "taxas",
+        "timeframe": timeframe,
         "timestamp": datetime_brazil()
     }
 
@@ -273,7 +283,7 @@ def recebe_comandos(comandos):
                 entradas = MongoDB.get_entradas(maximo)
             else:
                 entradas = config['lista']
-            Operacao(config, entradas, int(comandos[3]), comandos[4] == "True")
+            Operacao(config, entradas, int(comandos[3]), comandos[4])
         else:
             print('''
             [COMANDOS]

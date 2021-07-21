@@ -24,7 +24,7 @@ def escreve_log(email, mensagem):
 
 class Operacao(IQ_API): 
 	def __init__(self, config, comandos = [], verboso = False, 
-		operacao_lista = True, tentativas = 0):
+		tipo_operacao = "lista", tentativas = 0):
 		self.cadeado = threading.Lock()
 		self.comandos = comandos
 		self.verboso = verboso
@@ -116,9 +116,12 @@ class Operacao(IQ_API):
 🚫 Stop Loss: $ {self.stoploss}
 				""")
 
-				if operacao_lista: 
+				if tipo_operacao == "lista": 
 					self.operar_lista()
-				else: self.operar_estrategia()
+				elif tipo_operacao == "estrategia": 
+					self.operar_estrategia()
+				else: self.operar_top_ranking()
+
 			except KeyboardInterrupt:
 				sys.exit(0)
 			except Exception as e:
@@ -134,7 +137,7 @@ class Operacao(IQ_API):
 					self.tentativas += 1
 					self.__init__(
 						self.config, self.comandos, self.verboso, 
-						operacao_lista, self.tentativas)
+						tipo_operacao, self.tentativas)
 				except:
 					print("Deu erro novamente! Finalizando o programa.")
 					escreve_erros(e)
@@ -589,15 +592,16 @@ class Operacao(IQ_API):
 			return str(number) if len(str(number)) != 1 else "0" + str(number)
 
 		self.espera = []
-
+		print("Operando lista/taxas")
 		par_taxa = {}  
 		for comando in self.comandos:
 			if comando["tipo"] == "taxas":
 				paridade = comando['par']
+				valor = (comando['taxa'], comando['timeframe'])
 				if paridade not in par_taxa:
-					par_taxa[paridade] = [comando['taxa']]
+					par_taxa[paridade] = [valor]
 				else:
-					par_taxa[paridade].append(comando['taxa'])
+					par_taxa[paridade].append(valor)
 		
 		for paridade, taxas in par_taxa.items():
 			thread = threading.Thread(
@@ -662,6 +666,10 @@ class Operacao(IQ_API):
 		1 - Verifica se a taxa atual ultrapassou alguma das especificadas
 		2 - Cria uma thread para o método operar
 		'''
+		def normalize(number):
+			try: return int(str(number).replace(".", "")[3:])
+			except: return 0
+
 		self.API.start_candles_stream(par, 60, 1)
 		ultimo = {}
 		while ultimo == {}:
@@ -669,20 +677,28 @@ class Operacao(IQ_API):
 			ultimo = ultimo[list(ultimo.keys())[0]]['close']
 			time.sleep(1)
 
-		self.mostrar_mensagem(f"{par.upper()} esperando bater nas taxas:")
-		self.mostrar_mensagem('\n'.join(list(map(str, taxas))))
+		taxa_time = lambda x: f"{x[0]} M{x[1]}".replace(
+			"M0", f"M{self.config['tempo']}")
+		self.mostrar_mensagem(f"{par.upper()} esperando bater nas taxas:\n" + 
+			'\n'.join(list(map(taxa_time, taxas))))
 		chegou_perto = 0
 		while not self.verificar_stop() and taxas != []:
 			velas = self.API.get_realtime_candles(par, 60)
-			abertura = velas[list(velas.keys())[0]]['open']
-			fechamento = velas[list(velas.keys())[0]]['close']
+			try:
+				abertura = velas[list(velas.keys())[0]]['open']
+				fechamento = velas[list(velas.keys())[0]]['close']
+			except:
+				traceback.print_exc()
+				time.sleep(1)
+				continue
 
-			for taxa in taxas:
+			for taxa, timeframe in taxas.copy():
+				timeframe = self.tempo if timeframe == 0 else timeframe
 				if (fechamento >= taxa and ultimo < taxa or 
 					fechamento <= taxa and ultimo > taxa):
 
 					direcao = "call" if abertura > fechamento else "put"
-					tipo, payout = self.recebe_payout(par, self.tempo)
+					tipo, payout = self.recebe_payout(par, timeframe)
 
 					if (self.ativar_noticias and
 						not self.verificar_noticias(par)):
@@ -690,21 +706,31 @@ class Operacao(IQ_API):
 
 					if self.config["minimo"] / 100 <= payout:
 						self.mostrar_mensagem(f"Taxas: {par} {taxa} ")
+
+						if self.config.get("taxas_vela", "atual") != "atual":
+							self.esperar_proximo_minuto()
+
+						if tipo == "binary" and timeframe == 5:
+							atual = datetime.utcnow()
+							if ((atual.minute % 5 == 4 and atual.second < 30) 
+								or atual.minute % 5 < 4): 
+								timeframe = 5 - (atual.minute % 5)
+
 						thread = threading.Thread(
-							target = self.operar, 
+							target = self.realizar_trade, 
 							name = f"{time.time()}", 
 							args = (self.valor, par, direcao, 
-								self.tempo, payout, tipo),
-							daemon = True
-						)
+								timeframe, payout, tipo),
+							daemon = True)
 						self.espera.append(thread)
 						thread.start()
 					else:
 						self.mostrar_mensagem(f"{par} {taxa} não atende o payout mínimo {payout} {self.config['minimo']}")
 
-					taxas.remove(taxa)
+					try: taxas.remove((taxa, timeframe))
+					except: traceback.print_exc()
 				else:
-					if (abs(taxa - fechamento) < 0.00001 and 
+					if (abs(normalize(taxa) - normalize(fechamento)) <= 2 and 
 						chegou_perto != abs(taxa - fechamento)):
 						chegou_perto = abs(taxa - fechamento)
 						self.mostrar_mensagem(f"{par} perto da taxa {taxa}")
@@ -1039,4 +1065,4 @@ class Operacao(IQ_API):
 								self.valor, tipo)).start()
 						self.mostrar_mensagem(
 							f"{trader}\n{paridade} M{self.tempo}\nDireção: {direcao}")
-			except Exception as e: print(type(e), e)
+			except Exception as e: traceback.print_exc()
