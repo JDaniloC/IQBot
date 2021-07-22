@@ -1062,7 +1062,7 @@ class Operacao(IQ_API):
 			time.sleep(randint(0, 300))
 			try:
 				trader, paridade = self.online_top_ranking(inicio, final)
-			except Exception as e: 
+			except: 
 				trader = False
 				traceback.print_exc()
 			

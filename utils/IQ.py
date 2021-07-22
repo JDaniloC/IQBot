@@ -361,7 +361,7 @@ class IQ_API:
                     asset_id = info["statuses"][0]["selected_asset_id"]
                     paridade = key_list[value_list.index(asset_id)]
                     if paridade not in paridades_abertas: 
-                        paridade = random.choice(paridades_abertas)
+                        paridade = random.choice(list(paridades_abertas))
                     return f"[{trader['flag']}] {position}° {trader['user_name']}", paridade
         return [], ""
 
