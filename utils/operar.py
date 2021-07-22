@@ -958,7 +958,7 @@ class Operacao(IQ_API):
 			paridade, estrategia, tipo_milhao = pegar_catalogacao()
 			timeframe = self.config["autotime"]
 		else:
-			tipo_milhao = self.config['tipo_milhao']
+			tipo_milhao = self.config.get('tipo_milhao', "Minoria")
 			paridade = self.config['paridade']
 			estrategia = self.config['estrategia']
 			timeframe = 5 if (estrategia in [
@@ -1062,28 +1062,31 @@ class Operacao(IQ_API):
 			time.sleep(randint(0, 300))
 			try:
 				trader, paridade = self.online_top_ranking(inicio, final)
-				if trader:
-					direcao = "CALL" if randint(0, 1) else "PUT"
-					if reverso:
-						direcao = "CALL" if direcao == "PUT" else "PUT"
+			except Exception as e: 
+				trader = False
+				traceback.print_exc()
+			
+			if trader:
+				direcao = "CALL" if randint(0, 1) else "PUT"
+				if reverso:
+					direcao = "CALL" if direcao == "PUT" else "PUT"
 
-					tipo, payout = self.recebe_payout(paridade, self.tempo)
+				tipo, payout = self.recebe_payout(paridade, self.tempo)
 
-					if self.verificar_tendencia(paridade, direcao, self.tempo):
+				if self.verificar_tendencia(paridade, direcao, self.tempo):
+					continue
+
+				if (self.ativar_noticias and
+					not self.verificar_noticias(paridade)):
 						continue
 
-					if (self.ativar_noticias and
-						not self.verificar_noticias(paridade)):
-							continue
-
-					if self.verificar_stop():
-						break
-					
-					if self.config["minimo"] / 100 <= payout:
-						threading.Thread(
-							target = self.ordem, daemon = True,
-							args=(paridade, direcao, self.tempo, 
-								self.valor, tipo)).start()
-						self.mostrar_mensagem(
-							f"{trader}\n{paridade} M{self.tempo}\nDireção: {direcao}")
-			except Exception as e: traceback.print_exc()
+				if self.verificar_stop():
+					break
+				
+				if self.config["minimo"] / 100 <= payout:
+					threading.Thread(
+						target = self.ordem, daemon = True,
+						args=(paridade, direcao, self.tempo, 
+							self.valor, tipo)).start()
+					self.mostrar_mensagem(
+						f"{trader}\n{paridade} M{self.tempo}\nDireção: {direcao}")

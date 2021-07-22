@@ -345,8 +345,7 @@ class IQ_API:
             ranking = self.API.get_leader_board(filtro, inicio, final, 0)
             contador += 1
 
-        if ranking == []: return [], ""
-        else:
+        if ranking != [] and ranking is not None:
             for position in ranking['result']['positional']:
                 trader = ranking['result']['positional'][position]
                 user_id = trader['user_id']

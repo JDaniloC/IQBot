@@ -121,6 +121,11 @@ class Assistente(amanobot.helper.ChatHandler):
             "Tipo de lista": ["tipo_lista", False, tuple],
             "Lista escolhida": ["num_lista", False, tuple],
             "Valor de entrada": ["valor", False, float],
+            "Tipo par": ["tipo_par", False, tuple],
+            "Timeframe": ["tempo", False, tuple],
+            "Correção": ["correcao", False, int],
+            "Delay": ["delay", False, float],
+
             "Tipo de gale": ["tipo_gale", False, tuple], 
             "Tipo de Stoploss": ["tipo_stop", False, tuple], 
             "Scalper Loss": ["scalper_loss", False, int],
@@ -150,10 +155,10 @@ class Assistente(amanobot.helper.ChatHandler):
             "Auto VIP: Timeframe": ["autotime", False, tuple],
             "Auto VIP: Gales": ["autogale", False, tuple],
 
-            "Tipo par": ["tipo_par", False, tuple],
-            "Timeframe": ["tempo", False, tuple],
-            "Correção": ["correcao", False, int],
-            "Delay": ["delay", False, float],
+            "Taxas: próxima vela": ["taxas_vela", False, tuple],
+            "Ranking: inicio": ['ranking-inicio', False, int],
+            "Ranking: final": ['ranking-final', False, int],
+            "Trader reverso": ["reverso", False, bool],
         }
 
         self.informacoes = {}
@@ -453,7 +458,8 @@ EURJPY 31/12/2000 CALL M5 02:30
         if self.autenticacao:
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Operar Lista/Taxas" ),
-                 KeyboardButton( text = "Operar Estratégias" )],
+                 KeyboardButton( text = "Operar Estratégias" ),
+                 KeyboardButton( text = "Operar Top ranking")],
                 [KeyboardButton( text = "Catalogar sinais"),
                  KeyboardButton( text = "Operar Auto VIP")],
                 [KeyboardButton( text = "Editar configurações" ),
@@ -484,6 +490,9 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.informacoes["auto"] = True
             self.tipo_operacao = "estrategia"
             return self.operar(msg)
+        elif texto == "Operar Top ranking":
+            self.tipo_operacao = "ranking"
+            return self.operar(msg)
         elif texto == "Catalogar sinais":
             self.enviar_mensagem("Carregando...")
             sinais = MongoDB.get_entradas(3)
@@ -497,7 +506,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                 cache_catalogador != conf_catalogador):
                 if self.id not in ADMS:
                     self.enviar_mensagem(
-                        "Peça para o admnistrador catalogar os sinais de hoje!", save = True)
+                        "Peça para o administrador catalogar os sinais de hoje!", save = True)
                     return True
                 self.catalogar_sinais()
             self.informacoes["lista"] = MongoDB.get_entradas(3)
@@ -636,11 +645,11 @@ EURJPY 31/12/2000 CALL M5 02:30
         if self.autenticacao:
             
             headers = {
-                "Tipo de conta": "Conta e listas",
+                "Tipo de conta": "Geral e listas",
                 "Tipo de gale": "Gerenciamento",
                 "Tipo de martingale": "Martingale e Soros",
                 "Seguir tendência": "Tendência e notícias",
-                "Tipo par": "Ajustes",
+                "Taxas: próxima vela": "Taxas e Copytrader",
                 "Paridade": "Auto Trade"
             }
             mensagem = ""
@@ -664,8 +673,8 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.enviar_mensagem(
                 self.ver_configuracoes(), 
                 reply_markup = ReplyKeyboardMarkup( keyboard = [
-                    [KeyboardButton( text = "Conta e listas" ),
-                     KeyboardButton( text = "Ajustes" )],
+                    [KeyboardButton( text = "Geral e listas" ),
+                     KeyboardButton( text = "Taxas e Copytrader" )],
                     [KeyboardButton( text = "Gerenciamento" ),
                      KeyboardButton( text = "Martingale e Soros" )],
                     [KeyboardButton( text = "Tendência e notícias" ),
@@ -680,12 +689,16 @@ EURJPY 31/12/2000 CALL M5 02:30
 
     def submenu_configuracoes(self, msg):
         verificador, teclado = False, []
-        if msg['text'] == 'Conta e listas':
+        if msg['text'] == 'Geral e listas':
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Tipo de conta" ),
                  KeyboardButton( text = "Valor de entrada" )],
-                [KeyboardButton( text = "Adicionar lista" )],
-                [KeyboardButton( text = "Editar configurações" )]])
+                [KeyboardButton( text = "Tipo par" ),
+                 KeyboardButton( text = "Timeframe" )],
+                [KeyboardButton( text = "Correção" ),
+                 KeyboardButton( text = "Delay" )],
+                [KeyboardButton( text = "Adicionar lista" ),
+                 KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == 'Gerenciamento':
             teclado = ReplyKeyboardMarkup(keyboard = [
@@ -721,12 +734,12 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "Editar configurações" )]
                 ])
             verificador = True
-        elif msg['text'] == "Ajustes":
+        elif msg['text'] == "Taxas e Copytrader":
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Tipo par" ),
-                 KeyboardButton( text = "Timeframe" )],
-                [KeyboardButton( text = "Correção" ),
-                 KeyboardButton( text = "Delay" )],
+                [KeyboardButton( text = "Trader reverso" ),
+                 KeyboardButton( text = "Taxas: próxima vela" )],
+                [KeyboardButton( text = "Ranking: inicio" ),
+                 KeyboardButton( text = "Ranking: final" )],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == "Estratégias":
