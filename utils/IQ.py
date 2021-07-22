@@ -338,7 +338,6 @@ class IQ_API:
         '''
         Procura o primeiro dos X traders online.
         '''
-
         ranking = []
         contador = 0
         while contador < 2 and ranking == []:
@@ -346,6 +345,7 @@ class IQ_API:
             contador += 1
 
         if ranking != [] and ranking is not None:
+            paridades_abertas = self.abertas()['turbo']
             for position in ranking['result']['positional']:
                 trader = ranking['result']['positional'][position]
                 user_id = trader['user_id']
@@ -359,11 +359,9 @@ class IQ_API:
                     key_list = list(ativos.keys())
                     value_list = list(ativos.values())
                     asset_id = info["statuses"][0]["selected_asset_id"]
-                    while not (1 <= asset_id <= 8 or (
-                            76 <= asset_id <= 86
-                        ) or 99 <= asset_id <= 108):
-                        asset_id = (asset_id + random.randint(1, 100)) % len(value_list)
                     paridade = key_list[value_list.index(asset_id)]
+                    if paridade not in paridades_abertas: 
+                        paridade = random.choice(paridades_abertas)
                     return f"[{trader['flag']}] {position}° {trader['user_name']}", paridade
         return [], ""
 
