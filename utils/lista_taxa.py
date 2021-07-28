@@ -114,7 +114,8 @@ class ListaTaxa(Operacao):
         self.mostrar_mensagem(f"{par.upper()} esperando bater nas taxas:\n" + 
             '\n'.join(list(map(taxa_time, taxas))))
         chegou_perto = 0
-        while not self.verificar_stop() and taxas != []:
+        taxas = { taxa: timeframe for taxa, timeframe in taxas}
+        while not self.verificar_stop() and len(taxas) > 0:
             velas = self.API.get_realtime_candles(par, 60)
             try:
                 abertura = velas[list(velas.keys())[0]]['open']
@@ -124,7 +125,7 @@ class ListaTaxa(Operacao):
                 time.sleep(1)
                 continue
 
-            for taxa, timeframe in taxas.copy():
+            for taxa, timeframe in taxas.copy().items():
                 timeframe = self.config["tempo"] if timeframe == 0 else timeframe
                 if (fechamento >= taxa and ultimo < taxa or 
                     fechamento <= taxa and ultimo > taxa):
@@ -159,7 +160,8 @@ class ListaTaxa(Operacao):
                     else:
                         self.mostrar_mensagem(f"{par} {taxa} não atende o payout mínimo {payout} {self.config['minimo']}")
 
-                    try: taxas.remove((taxa, timeframe))
+                    try: 
+                        del taxas[taxa]
                     except: traceback.print_exc()
                 else:
                     if (abs(normalize(taxa) - normalize(fechamento)) <= 2 and 
