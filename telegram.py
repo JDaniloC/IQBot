@@ -1144,7 +1144,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                     novo = self.pegar_entrada(novo.split("\n"))
                 elif value[2] == bool:
                     novo = bool(novo.strip() == "Sim")
-                elif value[0] in ["tempo", "toros",
+                elif value[0] in ["tempo", "toros", "hits",
                     "num_lista", "autogale", "autotime"]:
                     try:
                         novo = int(novo)

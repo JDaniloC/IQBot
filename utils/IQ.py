@@ -407,7 +407,7 @@ class IQ_API:
             ciclos, hits, posgale, _assert):
 
         data = requests.get(
-            f"http://34.121.79.212:5000/api/catalogacao/{timeframe}/{gale}/",
+            f"http://34.123.76.131:5000/api/catalogacao/{timeframe}/{gale}/",
             headers = { 
                 "poshit": str(hits), 
                 "cycles": str(ciclos),
