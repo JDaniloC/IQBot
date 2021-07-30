@@ -38,7 +38,8 @@ user = {
 
     "auto": False,           
     "autogale": 2,            
-    "autotime": 1,    
+    "autotime": 1,
+    "poshit": False,
     "estrategia": "MHI",      
     "paridade": "EURUSD",        
     "tipo_milhao": "Minoria", 

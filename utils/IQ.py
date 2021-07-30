@@ -366,30 +366,48 @@ class IQ_API:
         return [], ""
 
     @staticmethod
-    def catalogar_estrategia(timeframe, gale):
-        def traduzir(estrategia):
-            maioria = "Minoria"
-            pedaco = estrategia.capitalize().split()
+    def catalogar_estrategia(timeframe, gale, poshit):
+        def is_hit(candles):
+            hit = True
+            for candle in candles:
+                if candle in ["W", "D"] or (
+                    candle == "G1" and gale != "0"
+                ) or (candle == "G2" and gale == "2"):
+                    hit = False
+            print("Deu hit", hit)
+            return hit
+
+        def traduzir(response):
+            pct, par, estrategia = response[:3]
+
+            maioria = "minoria"
+            pedaco = estrategia.lower().split()
             if len(pedaco) == 2 and pedaco[1] == "maioria":
                 estrategia = pedaco[0]
-                maioria = "Maioria"
-            if pedaco[0] == "Milhão":
-                estrategia = "Milhão"
-            elif "Mhi" == estrategia[:3]:
+                maioria = "maioria"
+            if pedaco[0] == "milhão":
+                estrategia = "milhão"
+            elif "mhi" == estrategia[:3].lower():
                 estrategia = estrategia.upper()
-            return estrategia, maioria
+            return pct, par.upper(), (estrategia, maioria)
 
         if   gale == 2:   gale = "porcentagemGale2"
         elif gale == 1:   gale = "porcentagemGale1"
         else:             gale = "porcentagemWinDePrimeira"
-        data = requests.get(f"https://ocatalogador.com/api/{gale}/M{timeframe}")
+        data = requests.get(
+            f"https://ocatalogador.com/api/{gale}/M{timeframe}")
         try:
             resultado = json.loads(data.text)['Todos']
-            for estrategia in resultado:
-                return estrategia[0], estrategia[1].upper(), traduzir(estrategia[2])
+            for analise in resultado:
+                candles = analise[3][0][-1:]
+                print(candles)
+                if (poshit and is_hit(candles)) or not poshit:
+                    print(analise)
+                    return traduzir(analise)
+            return False, False, False
         except Exception as e:
             print("Catalogar:", e) 
-            return 50, "EURUSD", ("MHI", "maioria")
+            return False, False, False
 
     @staticmethod
     def esperarAte(horas, minutos, segundos = 0, 

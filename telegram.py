@@ -150,6 +150,7 @@ class Assistente(amanobot.helper.ChatHandler):
             "Período da tendência": ["periodo_tendencia", False, int],
 
             "Paridade": ["paridade", False, str],
+            "Pós hit": ["poshit", False, bool],
             "Estratégia": ["estrategia", False, tuple],
             "Tipo milhão": ["tipo_milhao", False, tuple],
             "Auto VIP: Timeframe": ["autotime", False, tuple],
@@ -747,7 +748,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "Paridade" ),
                  KeyboardButton( text = "Estratégia" ),
                  KeyboardButton( text = "Tipo milhão" )],
-                [KeyboardButton( text = "Auto VIP: Gales" ),
+                [KeyboardButton( text = "Pós hit" ),
+                 KeyboardButton( text = "Auto VIP: Gales" ),
                  KeyboardButton( text = "Auto VIP: Timeframe")],
                 [KeyboardButton( text = "Editar configurações" )]])
             verificador = True

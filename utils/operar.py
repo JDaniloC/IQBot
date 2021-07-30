@@ -768,7 +768,7 @@ class Operacao(IQ_API):
 			for i in range(len(min_list)):
 				if isM1:
 					option = int(f"{minutos[0]}{min_list[i]}"
-						) if estrategia != "DAKA" else min_list[i]
+						) if estrategia != "daka" else min_list[i]
 				else:
 					option = min_list[i]
 				
@@ -782,9 +782,9 @@ class Operacao(IQ_API):
 					is_the_last = True
 
 			maisUm = timeframe * 60 if estrategia not in [
-				"MHI2", "MHI3", "Vituxo"
+				"mhi2", "mhi3", "vituxo"
 			] else timeframe * 60 * 2 + 60 if (
-				estrategia == "MHI2"
+				estrategia == "mhi2"
 			) else timeframe * 60 * 3 + 60
 
 			agora = datetime.fromtimestamp(
@@ -798,7 +798,6 @@ class Operacao(IQ_API):
 			self.mostrar_mensagem(f"⏰ Próxima entrada será às {horario} ⏰")
 
 		def entrada_estrategias_m1(estrategia, minutos, proxima = False):
-			estrategia = estrategia.lower()
 			if estrategia == "daka":
 				entrada = [x for x in range(0, 60, 4)]
 			else:
@@ -824,7 +823,6 @@ class Operacao(IQ_API):
 			return minutos in entrada
 
 		def velas_por_estrategia_m1(par, estrategia):
-			estrategia = estrategia.lower()
 			if "impar" in estrategia:
 				velas = [pegar_velas(par, 3)[0]]
 			elif estrategia == "hope":
@@ -854,7 +852,6 @@ class Operacao(IQ_API):
 			return velas
 
 		def entrada_estrategias_m5(estrategia, minutos, proxima = False):
-			estrategia = estrategia.lower()
 			if estrategia in ["três mosqueteiros", 
             "triplicação", "não triplicação"]:
 				entrada = [9, 24, 39, 54]
@@ -871,7 +868,6 @@ class Operacao(IQ_API):
 			return minutos in entrada
 
 		def velas_por_estrategia_m5(par, estrategia):
-			estrategia = estrategia.lower()
 			if "last of five" in estrategia:
 				velas = pegar_velas(par, 5, 5)
 			elif estrategia in ["três mosqueteiros", 
@@ -888,7 +884,6 @@ class Operacao(IQ_API):
 			return velas
 
 		def entrada_estrategias_m15(estrategia, minutos, proxima = False):
-			estrategia = estrategia.lower()
 			if is_in_list(estrategia, ["torres gêmeas",  
 				"mhi", "milhão", "turn over"]):
 				entrada = [59]
@@ -944,30 +939,36 @@ class Operacao(IQ_API):
 			return velas
 
 		def pegar_catalogacao():
-			porcentagem, paridade, estramilhao = self.catalogar_estrategia(
-				self.config["autotime"], 
-				self.config["autogale"])
-			estrategia, tipo_milhao = estramilhao
+			percent = False
+			while not self.verificar_stop() and not percent:
+				percent, paridade, strategy = self.catalogar_estrategia(
+					self.config["autotime"], self.config["autogale"],
+					self.config.get("poshit", False))
+				if not percent:
+					self.mostrar_mensagem(
+						"🔹 Catalogação: Sem resultados...")
+					self.esperar_proximo_minuto()
+			estrategia, tipo_milhao = strategy
 			payout = 100 * self.recebe_payout(paridade, self.config["autotime"])[1]
 			self.mostrar_mensagem(f"""
 🔹 {estrategia} pela {tipo_milhao.capitalize()} | Paridade: {paridade} ♦️
-🎯 Assertividade: {porcentagem}% | Payout: {payout}% ❇️""")
-			return paridade, estrategia, tipo_milhao
+🎯 Assertividade: {percent}% | Payout: {payout}% ❇️""")
+			return paridade, estrategia.lower(), tipo_milhao
 
 		if self.config["auto"]:
 			paridade, estrategia, tipo_milhao = pegar_catalogacao()
 			timeframe = self.config["autotime"]
 		else:
-			tipo_milhao = self.config.get('tipo_milhao', "Minoria")
-			paridade = self.config['paridade']
+			tipo_milhao = self.config.get('tipo_milhao', "minoria")
+			paridade = self.config['paridade'].lower()
 			estrategia = self.config['estrategia']
 			timeframe = 5 if (estrategia in [
-				"Power", "Last of five", 
-				"Five Flip", "Triplicação"
+				"power", "last of five", 
+				"five flip", "triplicação"
 			] or "M5" in estrategia) else 15 if (
 			estrategia in [
-				"Half hour", "Primeiros trocados", 
-				"Hora do equilibrio"
+				"half hour", "primeiros trocados", 
+				"hora do equilibrio"
 			] or "M15" in estrategia) else 1
 			estrategia = estrategia.replace("M5: ", "").replace("M15: ", "")
 			payout = 100 * self.recebe_payout(paridade, self.config["autotime"])[1]
@@ -982,33 +983,33 @@ class Operacao(IQ_API):
 
 				direcao = False
 				if velas.count("DOJI") == 0 and not (
-					estrategia == "Milhão" and timeframe == 5):
-					if is_in_list(estrategia, ["MSF",  
-						'Padrão 3x1', "Last of five", "GABA", 
-						"Power", "Milhão", "MHI", "Flip",
-						"Vituxo", "Hora do equilibrio"]):	
+					estrategia == "milhão" and timeframe == 5):
+					if is_in_list(estrategia, ["msf",  
+						'padrão 3x1', "last of five", "gaba", 
+						"power", "milhão", "mhi", "flip",
+						"vituxo", "hora do equilibrio"]):	
 						direcao = velas.count('CALL') > velas.count('PUT')
 						direcao = "call" if direcao else "put"
-						if tipo_milhao == "Minoria" or estrategia in [
-							"Hora do equilibrio", "MSF", "Power", "GABA",
-							"Five Flip", 'Padrão 3x1']:
+						if tipo_milhao == "minoria" or estrategia in [
+							"hora do equilibrio", "msf", "power", "gaba",
+							"five flip", 'padrão 3x1']:
 							direcao = "put" if direcao == "call" else "call"
-							if (estrategia == "Power" and 
+							if (estrategia == "power" and 
 								direcao.upper() != velas[1]):
 								direcao = False
-					elif timeframe == 5 and estrategia == "Três Mosqueteiros":
+					elif timeframe == 5 and estrategia == "três mosqueteiros":
 						if velas[0] != velas[1]: direcao = velas[0].lower()
-					elif timeframe == 5 and estrategia == "Triplicação":
+					elif timeframe == 5 and estrategia == "triplicação":
 						if velas[0] == velas[1]: direcao = velas[0].lower()
 					else:
-						if estrategia != "HOPE" or velas[0] == velas[1]:
+						if estrategia != "hope" or velas[0] == velas[1]:
 							direcao = velas[0].lower()
 				elif (velas.count("DOJI") > 2 and 
-					estrategia == "Milhão" and timeframe == 5):
+					estrategia == "milhão" and timeframe == 5):
 					if velas.count("CALL") != velas.count("PUT"):
 						direcao = velas.count('CALL') > velas.count('PUT')
 						direcao = "call" if direcao else "put"
-						if tipo_milhao == "Minoria": 
+						if tipo_milhao == "minoria": 
 							direcao = "put" if direcao == "call" else "call"
 				else:
 					self.mostrar_mensagem("⏰ A entrada foi cancelada: DOJI")
@@ -1025,16 +1026,16 @@ class Operacao(IQ_API):
 						not self.verificar_noticias(paridade)):
 						continue
 
-					if estrategia == "MHI2":
+					if estrategia == "mhi2":
 						self.esperar_proximo_minuto(timeframe)
-					elif estrategia in ["MHI3", "Vituxo"]:
+					elif estrategia in ["mhi3", "vituxo"]:
 						self.esperar_proximo_minuto(timeframe * 2)
 
 					tipo, payout = self.recebe_payout(
 						paridade, timeframe)
 					gale = False
-					if estrategia == "MSF": gale = "MSF"
-					elif estrategia == "C3": gale = velas
+					if estrategia == "msf": gale = "msf"
+					elif estrategia == "c3": gale = velas
 
 					if self.config["minimo"] / 100 <= payout:
 						result = self.operar(self.valor, paridade, direcao, 
