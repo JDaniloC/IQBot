@@ -960,8 +960,8 @@ class Operacao(IQ_API):
 			timeframe = self.config["autotime"]
 		else:
 			tipo_milhao = self.config.get('tipo_milhao', "minoria")
-			paridade = self.config['paridade'].lower()
-			estrategia = self.config['estrategia']
+			paridade = self.config['paridade']
+			estrategia = self.config['estrategia'].lower()
 			timeframe = 5 if (estrategia in [
 				"power", "last of five", 
 				"five flip", "triplicação"
@@ -982,7 +982,7 @@ class Operacao(IQ_API):
 				velas = recebe_velas(paridade, estrategia, timeframe)
 
 				direcao = False
-				if velas.count("DOJI") == 0 and not (
+				if len(velas) > 0 and velas.count("DOJI") == 0 and not (
 					estrategia == "milhão" and timeframe == 5):
 					if is_in_list(estrategia, ["msf",  
 						'padrão 3x1', "last of five", "gaba", 
