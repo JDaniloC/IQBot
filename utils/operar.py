@@ -965,15 +965,15 @@ class Operacao(IQ_API):
 			timeframe = 5 if (estrategia in [
 				"power", "last of five", 
 				"five flip", "triplicação"
-			] or "M5" in estrategia) else 15 if (
+			] or "m5" in estrategia) else 15 if (
 			estrategia in [
 				"half hour", "primeiros trocados", 
 				"hora do equilibrio"
-			] or "M15" in estrategia) else 1
-			estrategia = estrategia.replace("M5: ", "").replace("M15: ", "")
+			] or "m15" in estrategia) else 1
+			estrategia = estrategia.replace("m5: ", "").replace("m15: ", "")
 			payout = 100 * self.recebe_payout(paridade, self.config["autotime"])[1]
 			self.mostrar_mensagem(f"""
-🔹 {estrategia} pela {tipo_milhao.capitalize()} | Paridade: {paridade} ♦️
+🔹 {estrategia.capitalize()} pela {tipo_milhao.capitalize()} | Paridade: {paridade} ♦️
 ❇️ Payout: {payout}%""")
 
 		verifica_entrada(estrategia, timeframe, True)

@@ -371,38 +371,36 @@ class IQ_API:
             hit = True
             for candle in candles:
                 if candle in ["W", "D"] or (
-                    candle == "G1" and gale != "0"
-                ) or (candle == "G2" and gale == "2"):
+                    candle == "G1" and gale != 0
+                ) or (candle == "G2" and gale == 2):
                     hit = False
-            print("Deu hit", hit)
             return hit
 
         def traduzir(response):
             pct, par, estrategia = response[:3]
 
             maioria = "minoria"
-            pedaco = estrategia.lower().split()
-            if len(pedaco) == 2 and pedaco[1] == "maioria":
-                estrategia = pedaco[0]
+            fatias = estrategia.lower().split()
+            if len(fatias) == 2 and fatias[1] == "maioria":
+                estrategia = fatias[0]
                 maioria = "maioria"
-            if pedaco[0] == "milhão":
+            if fatias[0] == "milhão":
                 estrategia = "milhão"
             elif "mhi" == estrategia[:3].lower():
                 estrategia = estrategia.upper()
             return pct, par.upper(), (estrategia, maioria)
 
-        if   gale == 2:   gale = "porcentagemGale2"
-        elif gale == 1:   gale = "porcentagemGale1"
-        else:             gale = "porcentagemWinDePrimeira"
+        if   gale == 2: _gale = "porcentagemGale2"
+        elif gale == 1: _gale = "porcentagemGale1"
+        else:           _gale = "porcentagemWinDePrimeira"
         data = requests.get(
-            f"https://ocatalogador.com/api/{gale}/M{timeframe}")
+            f"https://ocatalogador.com/api/{_gale}/M{timeframe}")
         try:
             resultado = json.loads(data.text)['Todos']
             for analise in resultado:
                 candles = analise[3][0][-1:]
                 print(candles)
                 if (poshit and is_hit(candles)) or not poshit:
-                    print(analise)
                     return traduzir(analise)
             return False, False, False
         except Exception as e:
