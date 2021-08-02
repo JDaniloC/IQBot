@@ -399,7 +399,6 @@ class IQ_API:
             resultado = json.loads(data.text)['Todos']
             for analise in resultado:
                 candles = analise[3][0][-1:]
-                print(candles)
                 if (poshit and is_hit(candles)) or not poshit:
                     return traduzir(analise)
             return False, False, False

@@ -598,7 +598,6 @@ class Operacao(IQ_API):
 			return str(number) if len(str(number)) != 1 else "0" + str(number)
 
 		self.espera = []
-		print("Operando lista/taxas")
 		par_taxa = {}  
 		for comando in self.comandos:
 			if comando["tipo"] == "taxas":
@@ -609,7 +608,13 @@ class Operacao(IQ_API):
 				else:
 					par_taxa[paridade].append(valor)
 		
+		taxa_time = lambda x: f"{x[0]} M{x[1]}".replace(
+			"M0", f"M{self.config.get('tempo', 1)}")
+		mensagem = ""
 		for paridade, taxas in par_taxa.items():
+			mensagem += f"{paridade.upper()} esperando bater nas taxas:\n" + \
+				'\n'.join(list(map(taxa_time, taxas))) + "\n\n"
+			print(mensagem)
 			thread = threading.Thread(
 				target = self.esperar_taxa, 
 				name = f"{time.time()}", 
@@ -617,6 +622,10 @@ class Operacao(IQ_API):
 				daemon = True)
 			self.espera.append(thread)
 			thread.start()
+
+		linhas = mensagem.split("\n")
+		for i in range(0, len(linhas), 50):
+			self.mostrar_mensagem("\n".join(linhas[i:i+50]))
 
 		# Lista
 		self.comandos.sort(key = lambda x: x["timestamp"])
@@ -672,10 +681,6 @@ class Operacao(IQ_API):
 		1 - Verifica se a taxa atual ultrapassou alguma das especificadas
 		2 - Cria uma thread para o método operar
 		'''
-		def normalize(number):
-			try: return int(str(number).replace(".", "")[3:])
-			except: return 0
-
 		self.API.start_candles_stream(par, 60, 1)
 		ultimo = {}
 		while ultimo == {}:
@@ -683,11 +688,6 @@ class Operacao(IQ_API):
 			ultimo = ultimo[list(ultimo.keys())[0]]['close']
 			time.sleep(1)
 
-		taxa_time = lambda x: f"{x[0]} M{x[1]}".replace(
-			"M0", f"M{self.config['tempo']}")
-		self.mostrar_mensagem(f"{par.upper()} esperando bater nas taxas:\n" + 
-			'\n'.join(list(map(taxa_time, taxas))))
-		chegou_perto = 0
 		while not self.verificar_stop() and taxas != []:
 			velas = self.API.get_realtime_candles(par, 60)
 			try:
@@ -735,11 +735,6 @@ class Operacao(IQ_API):
 
 					try: taxas.remove((taxa, timeframe))
 					except: traceback.print_exc()
-				else:
-					if (abs(normalize(taxa) - normalize(fechamento)) <= 2 and 
-						chegou_perto != abs(taxa - fechamento)):
-						chegou_perto = abs(taxa - fechamento)
-						self.mostrar_mensagem(f"{par} perto da taxa {taxa}")
 			ultimo = fechamento
 			time.sleep(self.config['correcao'])
 		self.API.stop_candles_stream(par, 60)
