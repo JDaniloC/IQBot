@@ -698,7 +698,8 @@ class Operacao(IQ_API):
 				time.sleep(1)
 				continue
 
-			for taxa, timeframe in taxas.copy():
+			
+			for index, (taxa, timeframe) in enumerate(taxas.copy()):
 				timeframe = self.tempo if timeframe == 0 else timeframe
 				if (fechamento >= taxa and ultimo < taxa or 
 					fechamento <= taxa and ultimo > taxa):
@@ -723,7 +724,7 @@ class Operacao(IQ_API):
 								timeframe = 5 - (atual.minute % 5)
 
 						thread = threading.Thread(
-							target = self.realizar_trade, 
+							target = self.operar, 
 							name = f"{time.time()}", 
 							args = (self.valor, par, direcao, 
 								timeframe, payout, tipo),
@@ -733,7 +734,7 @@ class Operacao(IQ_API):
 					else:
 						self.mostrar_mensagem(f"{par} {taxa} não atende o payout mínimo {payout} {self.config['minimo']}")
 
-					try: taxas.remove((taxa, timeframe))
+					try: taxas.pop(index)
 					except: traceback.print_exc()
 			ultimo = fechamento
 			time.sleep(self.config['correcao'])
