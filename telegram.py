@@ -262,12 +262,12 @@ class Assistente(amanobot.helper.ChatHandler):
                 self.enviar_mensagem("Sua licença expirou, peça para o administrador renovar.", save = True)
                 self.close()
         elif (MongoDB.verifica_cadastro(email)):
-            if self.id in self.account_list: del self.account_list[self.id]
+            if self.id in account_list: del account_list[self.id]
             self.enviar_mensagem("Seu e-mail ainda está em análise...", save = True)
             self.close()
         else:
             # Caso o usuário não estiver na lista de espera ele adiciona
-            if self.id in self.account_list: del self.account_list[self.id]
+            if self.id in account_list: del account_list[self.id]
             if len(email) > 10 and "@" in email and "." in email:
                 MongoDB.adicionar_cadastro(email)
                 self.enviar_mensagem(
