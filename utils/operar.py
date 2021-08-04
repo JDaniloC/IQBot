@@ -13,10 +13,9 @@ BOTTOKEN = config.get("TELEGRAM", "token")
 LOCALERROR = "errors.log"
 LOCALLOG = ""
 
-def escreve_erros(erro):
-	linhas = " -> ".join(re.findall(r'line \d+', str(traceback.extract_tb(erro.__traceback__))))
+def escreve_erros():
 	with open(LOCALERROR, "a") as file:
-		file.write(f"{type(erro)} - {erro}:\n{linhas}\n")
+		traceback.print_exc(file = file)
 
 def escreve_log(email, mensagem):
 	with open(LOCALLOG + email + ".txt", "a", encoding = "utf-8") as file:
@@ -121,7 +120,7 @@ class Operacao(IQ_API):
 ❇️ Stop Gain: $ {self.stopwin}
 🚫 Stop Loss: $ {self.stoploss}
 				""")
-
+				
 				if tipo_operacao == "lista": 
 					self.operar_lista()
 				elif tipo_operacao == "estrategia": 
@@ -134,19 +133,14 @@ class Operacao(IQ_API):
 				if type(e) == ConnectionError:
 					self.mostrar_mensagem("Não conseguiu se conectar na conta")
 					self.tentativas = 3
-				else:
-					print("Aconteceu um erro na API, tentando novamente.")
-				escreve_erros(e)
+				escreve_erros()
 				
 				try:
 					print("Continuando as operações...")
 					self.tentativas += 1
-					self.__init__(
-						self.config, self.comandos, self.verboso, 
-						tipo_operacao, self.tentativas)
-				except:
-					print("Deu erro novamente! Finalizando o programa.")
-					escreve_erros(e)
+					self.__init__(self.config, self.comandos, 
+						self.verboso, tipo_operacao, self.tentativas)
+				except: escreve_erros()
 		else:
 			self.mostrar_mensagem("Ultrapassou o máximo de tentativas.")
 
@@ -714,8 +708,12 @@ class Operacao(IQ_API):
 					if self.config["minimo"] / 100 <= payout:
 						self.mostrar_mensagem(f"Taxas: {par} {taxa} ")
 
-						if self.config.get("taxas_vela", "atual") != "atual":
-							self.esperar_proximo_minuto()
+						if self.config.get("taxas_vela", "retração") != "retração":
+							self.esperar_proximo_minuto(seconds = 59)
+							velas = self.API.get_candles(par, 
+								60 * timeframe, 1, time.time())
+							direcao = velas[0]["close"] - velas[0]["open"]
+							direcao = "call" if direcao < 0 else "put"
 
 						if tipo == "binary" and timeframe == 5:
 							atual = datetime.utcnow()

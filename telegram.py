@@ -262,10 +262,12 @@ class Assistente(amanobot.helper.ChatHandler):
                 self.enviar_mensagem("Sua licença expirou, peça para o administrador renovar.", save = True)
                 self.close()
         elif (MongoDB.verifica_cadastro(email)):
+            if self.id in self.account_list: del self.account_list[self.id]
             self.enviar_mensagem("Seu e-mail ainda está em análise...", save = True)
             self.close()
         else:
             # Caso o usuário não estiver na lista de espera ele adiciona
+            if self.id in self.account_list: del self.account_list[self.id]
             if len(email) > 10 and "@" in email and "." in email:
                 MongoDB.adicionar_cadastro(email)
                 self.enviar_mensagem(
@@ -785,6 +787,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                     "tipo_conta": ["treino", "real"],
                     "tipo_soros": ["normal", "ciclos"],
                     "tipo_stop": ["movel", "fixo"],
+                    "taxas_vela": ["retração", "reversão"],
                     "tipo_milhao": ["Minoria", "Maioria"],
                     "tipo_gale": [
                         "martingale", "sorosgale", "ciclos", "nenhum"],

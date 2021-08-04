@@ -473,11 +473,11 @@ class IQ_API:
         else:
             return round((abs(perca) + abs(perca) * lucro)/payout, 2)
 
-    def esperar_proximo_minuto(self, minutos = 1):
+    def esperar_proximo_minuto(self, minutos = 1, seconds = 56):
         correcao = self.config.get('correcao', 0)
         espera = (((datetime.now() + timedelta(
             seconds = 50 * minutos)
-        ).replace(second = 56) - timedelta(seconds = correcao)
+        ).replace(second = seconds) - timedelta(seconds = correcao)
         ).timestamp() - time.time()) % 60
 
         time.sleep(espera)
