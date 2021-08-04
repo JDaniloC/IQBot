@@ -531,7 +531,7 @@ class IQ_API:
             return (abs(perca) + lucro) / payout
         elif tipo_martin == "seguro":
             return round(abs(perca)/payout, 2)
-        elif tipo_martin == "percento":
+        elif tipo_martin == "porcento":
             return round((abs(perca) + lucro) / payout, 2)
         else:
             return round((abs(perca) + abs(perca) * lucro)/payout, 2)
