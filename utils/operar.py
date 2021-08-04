@@ -276,8 +276,9 @@ class Operacao(IQ_API):
 		return True
 
 	def verificar_payout(self, paridade, payout): 
-		if not self.config.get("minimo", 0) <= payout * 100:
-			self.mostrar_mensagem(f"{paridade} não atende o payout mínimo {payout * 100}% < {self.config['minimo']}%")
+		payout_minimo = self.config.get("minimo", 0)
+		if not payout_minimo <= payout * 100:
+			self.mostrar_mensagem(f"{paridade} não atende o payout mínimo {payout * 100}% < {payout_minimo}%")
 			return False
 		return True
 
@@ -371,8 +372,6 @@ class Operacao(IQ_API):
 
 		def desconta_perda(resultado, lucro, 
 			in_gale = "", entrada = None):
-			inicial = self.saldo_inicial
-			atual = round(self.saldo_inicial + self.ganho_total, 2)
 			if entrada == None: entrada = valor
 			mensagem = "⚪️"
 			if resultado == "win":
