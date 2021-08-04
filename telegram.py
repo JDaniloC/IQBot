@@ -236,7 +236,6 @@ class Assistente(amanobot.helper.ChatHandler):
                 keyboard = [[KeyboardButton(text = "Entrar")]]))
 
         if self.id in account_list:
-            print(account_list[self.id]['email'])
             self.entrada = True
             self.login({ "text": account_list[self.id]["email"] })
 
@@ -312,9 +311,11 @@ class Assistente(amanobot.helper.ChatHandler):
                     "Sua licença expirou, peça para o administrador renovar.", save = True)
                 self.close()
         elif (MongoDB.verifica_cadastro(email)):
+            if self.id in account_list: del account_list[self.id]
             self.enviar_mensagem("Seu e-mail ainda está em análise...", save = True)
             self.close()
         else:
+            if self.id in account_list: del account_list[self.id]
             # Caso o usuário não estiver na lista de espera ele adiciona
             if len(email) > 10 and "@" in email and "." in email:
                 MongoDB.adicionar_cadastro(email)
@@ -831,7 +832,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                     "tipo_conta": ["treino", "real"],
                     "tipo_soros": ["normal", "ciclos"],
                     "tipo_stop": ["movel", "fixo"], "hits": [1, 2, 3], 
-                    "taxas_vela": ["atual", "próxima"],
+                    "taxas_vela": ["retração", "reversão"],
                     "catalogador": ["velho", "novo"], "tipo_gale": [
                         "martingale", "sorosgale", "ciclos", "nenhum"],  
                     "tipo_martin": ["seguro", "leve", 

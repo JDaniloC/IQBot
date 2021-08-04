@@ -128,8 +128,12 @@ class ListaTaxa(Operacao):
                     if self.config["minimo"] / 100 <= payout:
                         self.mostrar_mensagem(f"Taxas: {par} {taxa} ")
 
-                        if self.config.get("taxas_vela", "atual") != "atual":
-                            self.esperar_proximo_minuto()
+                        if self.config.get("taxas_vela", "retração") != "retração":
+                            self.esperar_proximo_minuto(seconds = 59)
+                            velas = self.API.get_candles(par, 
+                                60 * timeframe, 1, time.time())
+                            direcao = velas[0]["close"] - velas[0]["open"]
+                            direcao = "call" if direcao < 0 else "put"
 
                         if tipo == "binary" and timeframe == 5:
                             atual = datetime.utcnow()
