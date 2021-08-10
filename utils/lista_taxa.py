@@ -23,6 +23,18 @@ class ListaTaxa(Operacao):
 
         taxa_time = lambda x: f"{x[0]} M{x[1]}".replace(
             "M0", f"M{self.config.get('tempo', 1)}")
+        self.espera = []
+        par_taxa = {}  
+
+        for comando in self.comandos:
+            if comando["tipo"] == "taxas":
+                paridade = comando['par']
+                valor = (comando['taxa'], comando['timeframe'])
+                if paridade not in par_taxa:
+                    par_taxa[paridade] = [valor]
+                else:
+                    par_taxa[paridade].append(valor)
+        
         mensagem = ""
         for paridade, taxas in par_taxa.items():
             mensagem += f"{paridade.upper()} esperando bater nas taxas:\n" + \
