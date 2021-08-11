@@ -1,4 +1,4 @@
-import threading, traceback, time, re, sys, amanobot
+import threading, traceback, time, sys, amanobot
 from utils.investing import extrair_noticias
 from datetime import datetime, timedelta
 from configparser import RawConfigParser
@@ -305,7 +305,9 @@ class Operacao(IQ_API):
 				self.config["ciclos"]["soros"] = 0
 				self.soros_atual = 0
 				self.valor = self.valor_inicial
-		elif self.soros_atual < self.config['max_soros']:
+		elif (self.soros_atual < self.config['max_soros'] or 
+			(self.config["tipo_gale"] == "sorosgale" 
+				and self.perda_atual > 0)):
 			# Caso estiver em sorosgale
 			fazer_soros = True
 			if self.perda_atual > 0:
@@ -314,6 +316,8 @@ class Operacao(IQ_API):
 					# Caso terminou o sorosgale
 					fazer_soros = False
 					self.perda_atual = 0
+					self.gale_atual = 0
+					self.valor = self.valor_inicial
 			if fazer_soros:
 				novo = valor + lucro
 				gale_text = f"🔸 Soros: $ {round(valor, 2)} para $ {round(novo, 2)}"
@@ -369,7 +373,10 @@ class Operacao(IQ_API):
 					self.ganho_total += round(lucro, 2)
 					self.ganhos_perdas[0] += 1
 					mensagem = (num_gales * "🐔 ") + "✅"
-					if self.config['tipo_stop'] == "fixo":
+					if self.config['tipo_stop'] == "fixo" or (
+						self.config['vez_gale'] != "vela" and
+						tipo_gale == "martingale" and num_gales > 0
+					):
 						self.perda_total += round(lucro, 2)
 				else:
 					if resultado == 'loose':
@@ -473,7 +480,7 @@ class Operacao(IQ_API):
 					if self.perda_total <= -(self.stoploss):
 						self.ganhos_perdas[1] += 1
 						self.mostrar_mensagem(f"🥵 Stop Loss 🥵\n💲 Perca: R$ {round(self.perda_total, 2)}\n⚠️ Bot parado ⚠️")
-						return exit()
+						sys.exit(0)
 
 					if estrategia == "MSF" and num_gales == 0:
 						self.esperar_proximo_minuto()
@@ -519,6 +526,7 @@ class Operacao(IQ_API):
 					self.valor = 2 if self.valor < 2 else self.valor
 				else:
 					self.valor = self.valor_inicial
+					self.perda_atual = 0
 					self.gale_atual = 0
 
 			elif tipo_gale == 'sorosgale':
@@ -608,7 +616,6 @@ class Operacao(IQ_API):
 		for paridade, taxas in par_taxa.items():
 			mensagem += f"{paridade.upper()} esperando bater nas taxas:\n" + \
 				'\n'.join(list(map(taxa_time, taxas))) + "\n\n"
-			print(mensagem)
 			thread = threading.Thread(
 				target = self.esperar_taxa, 
 				name = f"{time.time()}", 
@@ -978,15 +985,15 @@ class Operacao(IQ_API):
 				direcao = False
 				if len(velas) > 0 and velas.count("DOJI") == 0 and not (
 					estrategia == "milhão" and timeframe == 5):
-					if is_in_list(estrategia, ["msf",  
+					if is_in_list(estrategia, ["msf", "five flip",
 						'padrão 3x1', "last of five", "gaba", 
 						"power", "milhão", "mhi", "flip",
 						"vituxo", "hora do equilibrio"]):	
 						direcao = velas.count('CALL') > velas.count('PUT')
 						direcao = "call" if direcao else "put"
-						if tipo_milhao == "minoria" or estrategia in [
-							"hora do equilibrio", "msf", "power", "gaba",
-							"five flip", 'padrão 3x1']:
+						if tipo_milhao == "minoria" or is_in_list(estrategia, 
+							["hora do equilibrio", "msf", "power", 
+							"gaba", "five flip", 'padrão 3x1']):
 							direcao = "put" if direcao == "call" else "call"
 							if (estrategia == "power" and 
 								direcao.upper() != velas[1]):
@@ -1006,7 +1013,7 @@ class Operacao(IQ_API):
 						if tipo_milhao == "minoria": 
 							direcao = "put" if direcao == "call" else "call"
 				else:
-					self.mostrar_mensagem("⏰ A entrada foi cancelada: DOJI")
+					self.mostrar_mensagem("⏰ A entrada foi cancelada: Sem ciclo")
 
 				if direcao:
 					self.mostrar_mensagem(self.format_dir(
@@ -1019,11 +1026,11 @@ class Operacao(IQ_API):
 					if (self.ativar_noticias and 
 						not self.verificar_noticias(paridade)):
 						continue
-
+					
 					if estrategia == "mhi2":
-						self.esperar_proximo_minuto(timeframe)
-					elif estrategia in ["mhi3", "vituxo"]:
 						self.esperar_proximo_minuto(timeframe * 2)
+					elif is_in_list(estrategia, ["mhi3", "vituxo"]):
+						self.esperar_proximo_minuto(timeframe * 3)
 
 					tipo, payout = self.recebe_payout(
 						paridade, timeframe)
@@ -1080,8 +1087,8 @@ class Operacao(IQ_API):
 				
 				if self.config["minimo"] / 100 <= payout:
 					threading.Thread(
-						target = self.ordem, daemon = True,
-						args=(paridade, direcao, self.tempo, 
-							self.valor, tipo)).start()
+						target = self.operar, daemon = True,
+						args=(self.valor, paridade, direcao, 
+							self.tempo, payout, tipo)).start()
 					self.mostrar_mensagem(
 						f"{trader}\n{paridade} M{self.tempo}\nDireção: {direcao}")

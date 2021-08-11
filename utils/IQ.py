@@ -257,15 +257,15 @@ class IQ_API:
             f" 🔸 {paridade} | {tipo.capitalize()} | M{tempo} | $ {round(valor, 2)} | {direcao.upper()}"))
         
         lucro = 0
-        if delay == False:
+        if delay == False:            
             # Versão que pega no histórico
             if tipo == "binary":
                 resultado, lucro = self.API.check_win_v4(identificador) 
             else:
-                if scalper:
-                    self.API.subscribe_strike_list(paridade, 1)
-                    self.scalper(identificador, valor, scalper)
-                    self.API.unsubscribe_strike_list(paridade, 1)
+                if scalper: pass
+                    # self.API.subscribe_strike_list(paridade, 1)
+                    # self.scalper(identificador, valor, scalper)
+                    # self.API.unsubscribe_strike_list(paridade, 1)
                 status = False
                 time.sleep((tempo * 60) - 10)
                 while not status:
@@ -278,7 +278,6 @@ class IQ_API:
                 else:
                     resultado = "equal"
         else:
-            # Versão que pega na hora
             resultado, lucro = self.API.check_win_v5(
                 identificador, tipo, delay)
 
@@ -294,8 +293,7 @@ class IQ_API:
             if (round(atual, 2) >= round(win, 2) or 
                 round(atual, 2) <= round(-loss, 2)):
                 self.API.close_digital_option(identificador)
-            aberto = self.API.get_async_order(
-                identificador
+            aberto = self.API.get_async_order(identificador
             )['position-changed']['msg']['status'] == 'open'
             time.sleep(0.3)
 
@@ -354,14 +352,18 @@ class IQ_API:
 
                 if info["statuses"][0]["status"] == "online":    
                     self.last_user_id = user_id
-
                     ativos = self.API.get_all_ACTIVES_OPCODE()
                     key_list = list(ativos.keys())
                     value_list = list(ativos.values())
-                    asset_id = info["statuses"][0]["selected_asset_id"]
+
+                    if "selected_asset_id" in info["statuses"][0]:
+                        asset_id = info["statuses"][0]["selected_asset_id"]
+                    else: asset_id = 1
+
                     paridade = key_list[value_list.index(asset_id)]
                     if paridade not in paridades_abertas: 
                         paridade = random.choice(list(paridades_abertas))
+                        print(paridade)
                     return f"[{trader['flag']}] {position}° {trader['user_name']}", paridade
         return [], ""
 
@@ -479,7 +481,7 @@ class IQ_API:
             seconds = 50 * minutos)
         ).replace(second = seconds) - timedelta(seconds = correcao)
         ).timestamp() - time.time()) % 60
-
+        print("espera", espera)
         time.sleep(espera)
 
     def is_number(self, number):

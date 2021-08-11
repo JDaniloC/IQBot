@@ -1161,6 +1161,10 @@ class IQ_Option:
         start_duration = position["instrument_id"].find("PT") + 2
         end_duration = start_duration + \
             position["instrument_id"][start_duration:].find("M")
+        if start_duration > end_duration:
+            start_duration = position['instrument_id'].find("00T") + 3
+            end_duration = start_duration + \
+                position["instrument_id"][start_duration:].find("M")
 
         duration = int(position["instrument_id"][start_duration:end_duration])
         z2 = False
