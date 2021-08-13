@@ -50,8 +50,8 @@ class Operacao(IQ_API):
 				escreve_erros(e)
 		
 		if self.entrou:
-			self.salvar_variaveis(config)
 			self.resetar_status()
+			self.salvar_variaveis(config)
 
 			self.mostrar_mensagem(f"""
 📝Revise as suas configurações:
