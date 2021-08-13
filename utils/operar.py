@@ -949,6 +949,8 @@ class Operacao(IQ_API):
 					self.mostrar_mensagem(
 						"🔹 Catalogação: Sem resultados...")
 					self.esperar_proximo_minuto()
+			if not self.verificar_stop(): sys.exit(0)
+
 			estrategia, tipo_milhao = strategy
 			payout = 100 * self.recebe_payout(paridade, self.config["autotime"])[1]
 			self.mostrar_mensagem(f"""
