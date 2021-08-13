@@ -69,6 +69,8 @@ class Operacao(IQ_API):
 		if config['tipo_conta'] == "treino":
 			self.mudar_treino()
 		else: self.mudar_real()
+		
+		self.saldo_inicial = self.API.get_balance()
 		self.minimium_value = 2 if self.API.get_currency() == "BRL" else 1
 
 		if config['tipo_par'] == "auto":
@@ -140,7 +142,6 @@ class Operacao(IQ_API):
 		}.get(self.config['posgale'], 0)
 		
 	def resetar_status(self):
-		self.saldo_inicial = self.API.get_balance()
 		self.valor = self.config["valor"]
 		self.fim_da_operacao = False
 		self.ganhos_perdas = [0, 0]      
