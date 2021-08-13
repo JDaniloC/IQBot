@@ -284,7 +284,10 @@ class Operacao(IQ_API):
 	def verificar_payout(self, paridade, payout): 
 		payout_minimo = self.config.get("minimo", 0)
 		if not payout_minimo <= payout * 100:
-			self.mostrar_mensagem(f"{paridade} não atende o payout mínimo {payout * 100}% < {payout_minimo}%")
+			if payout < 0.5:
+				self.mostrar_mensagem(f"{paridade} fechada para o timeframe. Ou IQ não devolveu payout.")
+			else:
+				self.mostrar_mensagem(f"{paridade} não atende o payout mínimo {payout * 100}% < {payout_minimo}%")
 			return False
 		return True
 
