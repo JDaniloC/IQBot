@@ -150,6 +150,7 @@ class Assistente(amanobot.helper.ChatHandler):
 
         self.mapeamento = {
             "Tipo de conta": ["tipo_conta", False, tuple], 
+            "Usar porcentagem": ["porcentagem", False, bool],
             "Valor de entrada": ["valor", False, float],
             "StopWin": ["stopwin", False, float],
             "StopLoss": ["stoploss", False, float],
@@ -161,7 +162,7 @@ class Assistente(amanobot.helper.ChatHandler):
             "Tipo de Stoploss": ["tipo_stop", False, tuple], 
             "Scalper Loss": ["scalper_loss", False, int],
             "Scalper Win": ["scalper_win", False, int],
-            "Martingale porcentagem": ["martin_pct", False, int],
+            "Gale porcentagem": ["gale_pct", False, int],
 
             "Tipo de martingale": ["tipo_martin", False, tuple],
             "Martingale na próxima": ["vez_gale", False, tuple],
@@ -195,7 +196,7 @@ class Assistente(amanobot.helper.ChatHandler):
             "Timeframe lista/taxa": ["tempo", False, tuple],
             "Antecipar resultado": ["delay", False, float],
             "Antecipar entrada": ["correcao", False, int],
-            "Adicionar lista": ["lista", False, list],
+            "☑️ Adicionar lista 📝": ["lista", False, list],
             "Tipo de lista": ["tipo_lista", False, tuple],
             "Lista escolhida": ["num_lista", False, tuple],
             "Taxas: próxima vela": ["taxas_vela", False, tuple],
@@ -538,7 +539,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "▶️ Operar Lista/Taxas 📝" ),
                  KeyboardButton( text = "▶️ Operar Estratégias ✳️" )],
                 [KeyboardButton( text = "🗂 Catalogar Sinais 📝" ),
-                 KeyboardButton( text = "☑️ Verificar Lista 📝" )],
+                 KeyboardButton( text = "☑️ Adicionar lista 📝" )],
                 [KeyboardButton( text = "⚙️ Editar configurações ⚙️" ),
                  KeyboardButton( text = "🔍 Ver lista de Sinais 📝" )],
                 [KeyboardButton( text = "⏹ Parar Bot 🤖" ),
@@ -564,7 +565,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             return self.operar(msg)
         elif texto == "🗂 Catalogar Sinais 📝":
             return self.adicionar_catalogados()
-        elif texto == "☑️ Verificar Lista 📝":
+        elif texto == "Verificar Lista":
             return self.verificar_sinais()
         elif texto == "Ver configurações":
             self.enviar_mensagem(
@@ -682,7 +683,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                         self.informacoes['lista']))
             else:
                 self.enviar_mensagem(
-                    "Nenhuma lista registrada. Para adicionar: Conta > Adicionar lista.\
+                    "Nenhuma lista registrada.\
                     Ou considere clicar em 🗂 Catalogar Sinais 📝.", 
                     save = True)
             self.comandos()
@@ -732,6 +733,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         if msg['text'] == '🧾 Geral 🌐':
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Tipo de conta" ),
+                 KeyboardButton( text = "Usar porcentagem" ),
                  KeyboardButton( text = "Valor de entrada" )],
                 [KeyboardButton( text = "StopWin" ),
                  KeyboardButton( text = "StopLoss" )],
@@ -746,7 +748,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Tipo de Stoploss" )],
                 [KeyboardButton( text = "Scalper Win" ),
                  KeyboardButton( text = "Scalper Loss" )],
-                [KeyboardButton( text = "Martingale porcentagem" ),
+                [KeyboardButton( text = "Gale porcentagem" ),
                  KeyboardButton( text = "⚙️ Editar configurações ⚙️" )]])
             verificador = True
         elif msg['text'] == '⚠️ Martingale e Soros ✅':
@@ -795,7 +797,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Timeframe lista/taxa" )],
                 [KeyboardButton( text = "Antecipar resultado" ),
                  KeyboardButton( text = "Antecipar entrada" )],
-                [KeyboardButton( text = "Adicionar lista" ),
+                [KeyboardButton( text = "Verificar Lista" ),
                  KeyboardButton( text = "Tipo de lista" )], 
                 [KeyboardButton( text = "Taxas: próxima vela" ),
                  KeyboardButton( text = "⚙️ Editar configurações ⚙️" )]])
@@ -834,7 +836,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                     "tipo_stop": ["movel", "fixo"], "hits": [1, 2, 3], 
                     "taxas_vela": ["retração", "reversão"],
                     "catalogador": ["velho", "novo"], "tipo_gale": [
-                        "martingale", "sorosgale", "ciclos", "nenhum"],  
+                        "sorosgale porcentagem", "martingale", 
+                        "sorosgale", "ciclos", "nenhum"],  
                     "tipo_martin": ["seguro", "leve", 
                         "porcento", "agressivo", "individual"],
                     "estrategia": ['c3', 'daka','five flip',
@@ -1006,16 +1009,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         
         if len(sinais) == 0 or sinais_antigos or (
             not lista_da_casa and conf_alterada):
-            if self.id not in ADMS:
-                self.enviar_mensagem(
-                    "Peça para o administrador catalogar os sinais de hoje!", 
-                    save = True)
-                return True
-            if not lista_da_casa:
-                self.catalogar_sinais()
-            else: 
-                self.enviar_mensagem("Atualize a lista!", save = True)
-                return True
+            self.catalogar_sinais()
         
         if lista_da_casa:
             nova_lista = MongoDB.get_entradas(1)
@@ -1139,10 +1133,12 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                         if value[0] == "delay":
                             novo = False
                         else:
-                            self.enviar_mensagem("Deve ser um número! Tente novamente", save = True)
+                            self.enviar_mensagem(
+                                "Deve ser um número! Tente novamente", save = True)
                             return True
                 elif value[2] == list:
                     novo = self.pegar_entrada(novo.split("\n"))
+                    self.comandos()
                 elif value[2] == bool:
                     novo = bool(novo.strip() == "Sim")
                 elif value[0] in ["tempo", "toros", "hits",

@@ -169,8 +169,7 @@ class Estrategias(Operacao):
         return list(velas)
 
     def entrada_estrategias_m15(self, estrategia, minutos, proxima = False):
-        if is_in_list(estrategia, ["torres gêmeas",  
-            "mhi ", "milhão", "turn over"]):
+        if is_in_list(estrategia, ["mhi ", "milhão", "turn over"]):
             entrada = [59]
         elif estrategia == "torres gêmeas":
             entrada = [44]
@@ -207,10 +206,12 @@ class Estrategias(Operacao):
 
     def velas_por_entrada_dupla(self, paridade, estrategia, preset = []):
         clear = lambda x: False if x == "DOJI" else x
+        is_dupla = False
 
         if estrategia in ["mhi + padrão impar", "mhi2 + r7",
             "mhi3 + seven flip", "torres gêmeas + padrão 3x1",
             "três vizinhos + torres gêmeas"]:
+            is_dupla = True
             if preset == []:
                 velas = self.pegar_velas(paridade, 10, 1, "pure")
             else: velas = preset
@@ -246,6 +247,7 @@ class Estrategias(Operacao):
                     paridade, "torres gêmeas", velas)[0])
             
         elif estrategia != "turn over + mhi":
+            is_dupla = True
             if preset == []:
                 velas = self.pegar_velas(paridade, 10, 5, "pure")
             else: velas = preset
@@ -268,19 +270,21 @@ class Estrategias(Operacao):
                     paridade, "torres gêmeas", velas)[0])
         
         elif estrategia == "turn over + mhi":
+            is_dupla = True
             primeiro = self.pegar_maioria_minoria("minoria",
                 self.velas_por_estrategia_m15(paridade, "turn over", preset))
             segundo = self.pegar_maioria_minoria("minoria",
                 self.velas_por_estrategia_m15(paridade, "mhi", preset))
 
-        if not primeiro or not segundo:
+        if is_dupla and (not primeiro or not segundo):
             self.mostrar_mensagem("⏰ A entrada foi cancelada: DOJI")
-            self.esperar_proximo_minuto()
+            if not self.catalogando: self.esperar_proximo_minuto()
             return [], False
 
-        estr1, estr2 = estrategia.split("+")
-        self.mostrar_mensagem(self.format_candles(
-            f"➡️ {estr1.upper()}: {primeiro.upper()} | {estr2.upper()}: {segundo.upper()}"))
+        estrategia1, estrategia2 = estrategia.split("+")
+        texto1 = f"{estrategia1.upper()}: {primeiro.upper()}"
+        texto2 = f"{estrategia2.upper()}: {segundo.upper()}"
+        self.mostrar_mensagem(self.format_candles(f"➡️ {texto1} | {texto2} "))
         return ([primeiro.lower()], primeiro.lower()) if (
             primeiro.lower() == segundo.lower()
         ) else ([], False)
@@ -466,8 +470,7 @@ class Estrategias(Operacao):
                 self.mostrar_mensagem("pegar_catalogacao() not porcentagem", True)
                 return "EURUSD", "mhi minoria"
 
-        payout = round(100 * self.recebe_payout(
-            paridade, timeframe)[1])
+        payout = round(100 * self.recebe_payout(paridade, timeframe)[1])
         self.mostrar_mensagem(f"""
 🔹 {estrategia.upper()} | Paridade: {paridade} ♦️
 🎯 Assertividade: {porcentagem}% | Payout: {payout}% ❇️""")
