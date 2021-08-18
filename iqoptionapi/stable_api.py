@@ -1263,9 +1263,10 @@ class IQ_Option:
                     return data["msg"]["position"]["pnl_realized"] - data["msg"]["position"]["buy_amount"]
 
     def check_win_digital_v2(self, buy_order_id):
-
+        start = time.time()
         while self.get_async_order(buy_order_id)["position-changed"] == {}:
-            pass
+            time.sleep(0.1)
+            if time.time() - start >= 60 * 30: break
         order_data = self.get_async_order(
             buy_order_id)["position-changed"]["msg"]
         if order_data != None:

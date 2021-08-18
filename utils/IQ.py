@@ -279,10 +279,13 @@ class IQ_API:
                     self.scalper(identificador, valor, scalper)
                     self.API.unsubscribe_strike_list(paridade, 1)
                 status = False
+                start = time.time()
                 time.sleep((tempo * 60) - 10)
                 while not status:
                     status, lucro = self.API.check_win_digital_v2(identificador)
                     time.sleep(0.5)
+                    if time.time() - start > ((tempo + 1) * 60):
+                        raise Exception('Não consegui pegar o resultado...')
                 if lucro > 0:
                     resultado = "win"
                 elif lucro < 0:

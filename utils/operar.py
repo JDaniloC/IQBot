@@ -84,7 +84,9 @@ class Operacao(IQ_API):
 		self.stoploss = config["stoploss"]
 		self.max_gale = config["max_gale"]
 		self.valor_inicial = config["valor"]
-		
+		self.antecipar_result = -config["delay"]
+		self.gale_porcentagem = config.get('gale_pct', 0) / 100
+
 		empty = lambda x: x != []      
 		self.ciclos_gale = list(
 			filter(empty, config["ciclos_gale"]))
@@ -438,7 +440,7 @@ class Operacao(IQ_API):
 			try:
 				resultado, lucro, tipo = self.ordem(
 					paridade, ordem, tempo, valor, tipo, 
-					self.config['delay'], self.config["scalper"])
+					self.antecipar_result, self.config["scalper"])
 				break
 			except Exception as e:
 				self.mostrar_mensagem(
@@ -513,7 +515,7 @@ class Operacao(IQ_API):
 						else:
 							if tipo_martin == "porcento":
 								lucro_esperado = valor_inicial * round(
-									(self.config['gale_pct'] / 100) - 1, 2)
+									self.gale_porcentagem - 1, 2)
 							valor = self.martingale(
 								tipo_martin, payout, perda, 
 								valor, lucro_esperado)
@@ -532,7 +534,7 @@ class Operacao(IQ_API):
 
 					resultado, lucro, tipo = self.ordem(
 						paridade, ordem, tempo, valor, tipo,
-						self.config['delay'])
+						self.antecipar_result)
 
 					if resultado == "loose" or (
 						resultado == "equal" and tipo == "digital"):
@@ -583,7 +585,7 @@ class Operacao(IQ_API):
 					self.gale_atual += 1
 					if tipo_martin == "porcento":
 						lucro_esperado = self.perda_inicial * round(
-							(self.config['gale_pct'] / 100) - 1, 2)
+							self.gale_porcentagem - 1, 2)
 					self.valor = self.martingale(
 						tipo_martin, payout, self.perda_atual, 
 						self.valor, lucro_esperado)
@@ -607,8 +609,7 @@ class Operacao(IQ_API):
 						total_sum = win_amount + win_soros_amount
 						if self.gale_atual == 1:
 							self.sorosgale_ratio = win_amount / total_sum / payout
-							percent = self.config.get("gale_pct", 0) / 100
-							offert = valor * percent
+							offert = valor * self.gale_porcentagem
 							self.valor = (offert + valor) * self.sorosgale_ratio
 							self.valor_desejado = offert
 						else:

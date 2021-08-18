@@ -718,7 +718,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                     [KeyboardButton( text = "🧮 Gerenciamento 🖍" ),
                      KeyboardButton( text = "⚠️ Martingale e Soros ✅" )],
                     [KeyboardButton( text = "✳️ Estratégias ❇️"),
-                     KeyboardButton( text = "✳️ Opções de estratégias ⚙️")],
+                     KeyboardButton( text = "✳️ Opções de estratégias")],
                     [KeyboardButton( text = "🔩 Outras Opções ⚙️" ),
                      KeyboardButton( text = "↪️ Voltar ao menu ⏪" )]
             ], resize_keyboard = True))
@@ -782,7 +782,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "Máximo de trades" ),
                  KeyboardButton( text = "⚙️ Editar configurações ⚙️" )]])
             verificador = True
-        elif msg['text'] == "✳️ Opções de estratégias ⚙️":
+        elif msg['text'] == "✳️ Opções de estratégias":
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Estratégias: Automático" ),
                  KeyboardButton( text = "Estratégias: Catalogador" )],
