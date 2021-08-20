@@ -226,8 +226,7 @@ class Operacao(IQ_API):
 		'''
 		with self.cadeado:
 			if (-self.stoploss >= self.perda_total or 
-				self.ganho_total >= self.stopwin) and not self.fim_da_operacao:
-				self.fim_da_operacao = True
+				self.ganho_total >= self.stopwin) or self.fim_da_operacao:
 				mensagem = "🔰 Placar Final 🔰"
 				if self.ganho_total >= self.stopwin:
 					mensagem = "🤑 Stop WIN batido! 🤑"
@@ -239,13 +238,15 @@ class Operacao(IQ_API):
 				
 				perda_total = self.perda_total
 				if perda_total > 0: perda_total = 0
-				self.mostrar_mensagem(f'''
+				if self.fim_da_operacao:
+					self.mostrar_mensagem(f'''
 {mensagem}
 {placar.center(32, " ")}
 💰 Saldo: $ {round(self.ganho_total, 2)} | $ {self.stopwin}
 💲 Perca: $ {round(perda_total, 2)} | $ {-self.stoploss}
 ✴️ Assertividade: {round(assertividade, 2)}%
 					⚠️ Bot parado ⚠️''')
+				self.fim_da_operacao = True
 				return True
 		return False
 
