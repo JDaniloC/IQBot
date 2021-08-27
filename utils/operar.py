@@ -84,7 +84,7 @@ class Operacao(IQ_API):
 		self.stoploss = config["stoploss"]
 		self.max_gale = config["max_gale"]
 		self.valor_inicial = config["valor"]
-		self.antecipar_result = -config["delay"]
+		self.antecipar_result = -config["delay"] if config["delay"] != False else False
 		self.gale_porcentagem = config.get('gale_pct', 0) / 100
 
 		empty = lambda x: x != []      

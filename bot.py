@@ -197,13 +197,6 @@ def recebe_comandos(comandos):
   
             # Define o arquivo de entradas a partir do gale máximo/própria
             if config.get('tipo_lista', "Propria") == "Da casa":
-                # Une com as informações gerais
-                config.update(MongoDB.get_avancadas())
-                # maximo = int(config.get('max_gale', 0))
-                # if maximo < 1:
-                #     maximo = 1
-                # elif maximo > 3:
-                #     maximo = 3
                 entradas = MongoDB.get_entradas(1)
             else:
                 entradas = config.get('lista', [])
