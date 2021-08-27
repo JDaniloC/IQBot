@@ -1031,9 +1031,9 @@ class Operacao(IQ_API):
 						continue
 					
 					if estrategia == "mhi2":
-						self.esperar_proximo_minuto(timeframe * 2)
+						self.esperar_proximo_minuto(timeframe)
 					elif is_in_list(estrategia, ["mhi3", "vituxo"]):
-						self.esperar_proximo_minuto(timeframe * 3)
+						self.esperar_proximo_minuto(timeframe * 2)
 
 					tipo, payout = self.recebe_payout(
 						paridade, timeframe)
