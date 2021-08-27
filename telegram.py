@@ -1090,12 +1090,10 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             if value[1]:
                 if value[2] in [int, float]:
                     novo = numerization(novo, value[2])
-                    if novo != 0 and not novo:
-                        if value[0] == "delay":
-                            novo = False
-                        else:
-                            self.enviar_mensagem("Deve ser um número! Tente novamente", save = True)
-                            return True
+                    if type(novo) not in [int, float
+                        ] and value[0] != "delay":
+                        self.enviar_mensagem("Deve ser um número! Tente novamente", save = True)
+                        return True
                 elif value[2] == list:
                     novo = self.pegar_entrada(novo.split("\n"))
                 elif value[2] == bool:
@@ -1114,7 +1112,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                             map(float, x.strip().split(","))), 
                             novo.strip().split("\n"))) 
                     except Exception as e:
-                        print(e)
+                        print(type(e), e)
                         self.enviar_mensagem("Não entendi, tente novamente!")
                         return True
                 elif novo == "individual":
