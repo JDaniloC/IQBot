@@ -480,7 +480,7 @@ class IQ_API:
         espera = (((datetime.now() + timedelta(
             seconds = 50 * minutos)
         ).replace(second = seconds) - timedelta(seconds = correcao)
-        ).timestamp() - time.time()) % 60
+        ).timestamp() - time.time())
         print("espera", espera)
         time.sleep(espera)
 

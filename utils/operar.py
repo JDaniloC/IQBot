@@ -23,7 +23,7 @@ def escreve_log(email, mensagem):
 
 def is_in_list(estrategia, lista):
     for item in lista:
-        if item in estrategia:
+        if item.lower() in estrategia.lower():
             return True
     return False
 
