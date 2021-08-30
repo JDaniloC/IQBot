@@ -309,10 +309,12 @@ class IQ_API:
             ]
         except:
             return True
+        if periodo <= 0:
+            self.mostrar_mensagem("Aumente o período da tendência!")
+            return True
         # Calcula a SMA
         pesos = numpy.repeat(1.0, periodo) / periodo
-        smas = numpy.convolve(
-            dados, pesos, 'valid').tolist()
+        smas = numpy.convolve(dados, pesos, 'valid').tolist()
         diferenca = smas[-1] - smas[-periodo]
 
         return True if (
