@@ -177,23 +177,30 @@ class Assistente(amanobot.helper.ChatHandler):
             self.nome_usuario = msg['chat']['username']
         print(f"Usuário {self.nome_usuario} começou conversa.\n")
         
-        teclado = InlineKeyboardMarkup(inline_keyboard = [
-            [InlineKeyboardButton(
-                text = MongoDB.infos["campo1"]["titulo"],
-                url = MongoDB.infos["campo1"]["link"]
-            ),
-            InlineKeyboardButton(
-                text = MongoDB.infos["campo2"]["titulo"],
-                url = MongoDB.infos["campo2"]["link"]
-            )]
-        ])
+        inline_list = []
+
+        campo = MongoDB.infos["campo1"]
+        if campo["link"] != "":
+            inline_list.append(InlineKeyboardButton(
+                text = campo["titulo"],
+                url = campo["link"]
+            ))
+        campo = MongoDB.infos["campo2"]
+        if campo["link"] != "":
+            inline_list.append(InlineKeyboardButton(
+                text = campo["titulo"],
+                url = campo["link"]
+            ))
+
         
         if self.id in account_list:
             self.entrada = True
             self.login({ "text": account_list[self.id]["email"] })
         else:
-            self.sender.sendMessage(
-                "Não se esqueça dos links importantes", reply_markup = teclado)
+            if len(inline_list) > 0:
+                self.sender.sendMessage("Não se esqueça dos links importantes", 
+                    reply_markup = InlineKeyboardMarkup(
+                        inline_keyboard = [inline_list]))
 
             self.enviar_mensagem(
             f"Olá, eu sou seu assistente do {BOTNAME}.",

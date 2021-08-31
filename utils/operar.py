@@ -972,7 +972,7 @@ class Operacao(IQ_API):
 			] or "m5" in estrategia) else 15 if (
 			estrategia in [
 				"half hour", "primeiros trocados", 
-				"hora do equilibrio"
+				"hora do equilibrio", "turn over"
 			] or "m15" in estrategia) else 1
 			estrategia = estrategia.replace("m5: ", "").replace("m15: ", "")
 			payout = 100 * self.recebe_payout(paridade, self.config["autotime"])[1]
