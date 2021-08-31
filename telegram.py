@@ -182,13 +182,13 @@ class Assistente(amanobot.helper.ChatHandler):
         
         teclado = InlineKeyboardMarkup(inline_keyboard = [
             [InlineKeyboardButton(
-                text = MongoDB.infos["campo1"]["titulo"],
-                url = MongoDB.infos["campo1"]["link"]
+                text = MongoDB.infos['anuncios'][i]["titulo"],
+                url = MongoDB.infos['anuncios'][i]["link"]
             ),
             InlineKeyboardButton(
-                text = MongoDB.infos["campo2"]["titulo"],
-                url = MongoDB.infos["campo2"]["link"]
-            )]
+                text = MongoDB.infos['anuncios'][i+1]["titulo"],
+                url = MongoDB.infos['anuncios'][i+1]["link"]
+            )] for i in range(0, len(MongoDB.infos['anuncios']), 2)
         ])
         
         self.sender.sendMessage(
