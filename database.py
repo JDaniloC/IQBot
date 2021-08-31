@@ -64,7 +64,7 @@ class Mongo:
             user = users_schema.user
             user['email'] = email
             if plano == "teste":
-                user['timestamp'] = time.time() + 43200
+                user['timestamp'] = time.time() + 86400
             elif plano == "semanal":
                 user['timestamp'] = time.time() + 604800
             elif plano == "mensal":
@@ -84,7 +84,7 @@ class Mongo:
         Aumenta a licença de determinado e-mail
         '''
         if plano == "teste":
-            data = time.time() + 43200
+            data = time.time() + 86400
         elif plano == "semanal":
             data = time.time() + 604800
         elif plano == "mensal":
