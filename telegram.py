@@ -1047,12 +1047,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         elif self.alteracoes_avancadas['aprovar']:
             aprovado = MongoDB.aprovar(
                 self.alteracoes_avancadas['plano'], msg)
-            if aprovado:
-                self.enviar_mensagem("Usuário aprovado.")
-            else:
-                self.enviar_mensagem(
-                    "Você já atingiu o limite de usuários. \
-                        Sua VPS já não suporta.", save = True)
+            self.enviar_mensagem("Usuário aprovado.")
             self.alteracoes_avancadas["aprovar"] = False
             self.alteracoes_avancadas['plano'] = False
             return True
