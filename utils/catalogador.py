@@ -111,6 +111,7 @@ class Catalogador(IQ_API):
             datas_testadas = []
             time_ = time.time()
             sair = False
+            conta_erros = 0
             while sair == False:
                 velas = self.API.get_candles(
                     par, (timeframe * 60), 1000, time_)
@@ -129,7 +130,14 @@ class Catalogador(IQ_API):
                 
                 if len(velas) > 0:
                     time_ = int(velas[-1]['from'] - 1)
-                else: pass
+                else:
+                    conta_erros += 1
+                    if conta_erros == 5:
+                        self.mostrar_mensagem(f"""
+Não consegui pegar as velas, verifique as configurações:
+Catalogando {dias} dias de M{timeframe} até {limite} sinais com {porcentagem}% até {martingale} gales das {inicio} - {final}
+                        """)
+                        return
 
             analise = {}
             for velas in data:
