@@ -63,12 +63,12 @@ class Mongo:
             user['email'] = email
             if plano == "teste":
                 user['timestamp'] = time.time() + 86400
-            elif plano == "semanal":
-                user['timestamp'] = time.time() + 604800
             elif plano == "mensal":
                 user['timestamp'] = time.time() + 2592000
             elif plano == "trimestral":
                 user['timestamp'] = time.time() + 7776000
+            elif plano == "semestral":
+                user['timestamp'] = time.time() + 15552000
             else:
                 user['timestamp'] = time.time() + 31104000
             user['plano'] = plano
@@ -83,12 +83,12 @@ class Mongo:
         '''
         if plano == "teste":
             data = time.time() + 86400
-        elif plano == "semanal":
-            data = time.time() + 604800
         elif plano == "mensal":
             data = time.time() + 2592000
         elif plano == "trimestral":
             data = time.time() + 7776000
+        elif plano == "semestral":
+            data = time.time() + 15552000
         else:
             data = time.time() + 31104000
         self.users_collection.find_one_and_update(

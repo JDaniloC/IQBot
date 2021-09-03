@@ -1038,9 +1038,9 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.enviar_mensagem("Escolha o tipo de plano",
                 reply_markup = ReplyKeyboardMarkup(keyboard = [
                     [KeyboardButton( text = "teste" ),
-                    KeyboardButton( text = "semanal" )],
-                    [KeyboardButton( text = "mensal" ),
-                    KeyboardButton( text = "trimestral" )],
+                     KeyboardButton( text = "mensal" )],
+                    [KeyboardButton( text = "trimestral" ),
+                     KeyboardButton( text = "semestral" )],
                     [KeyboardButton( text = "anual" )]]))
             self.alteracoes_avancadas['plano'] = msg
             return None
