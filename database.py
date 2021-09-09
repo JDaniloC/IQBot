@@ -70,7 +70,7 @@ class Mongo:
             elif plano == "semestral":
                 user['timestamp'] = time.time() + 15552000
             else:
-                user['timestamp'] = time.time() + 31104000
+                user['timestamp'] = time.time() + 31536000
             user['plano'] = plano
             user["_id"] = time.time()
             self.users_collection.insert_one(user)
@@ -90,7 +90,7 @@ class Mongo:
         elif plano == "semestral":
             data = time.time() + 15552000
         else:
-            data = time.time() + 31104000
+            data = time.time() + 31536000
         self.users_collection.find_one_and_update(
             {'email':email}, {'$set': {
                 'timestamp': data,

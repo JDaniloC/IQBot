@@ -248,7 +248,7 @@ class IQ_API:
                 
                 opcoes_modalidade = self.payout_cache.get(paridade.upper())
                 payout_modalidade = opcoes_modalidade.get(tipo) if opcoes_modalidade else 1
-                payout_atual = round(payout_modalidade * 100) if payout_modalidade else -1
+                payout_atual = round(payout_modalidade * 100) if payout_modalidade else 0
                 if payout_atual >= self.config['minimo']:
                     return self.ordem(paridade, direcao, tempo, valor, 
                         tipo, bloqueador, delay, scalper, True)
