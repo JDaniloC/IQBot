@@ -21,11 +21,8 @@ class ListaTaxa(Operacao):
             '''
             return str(number) if len(str(number)) != 1 else "0" + str(number)
 
-        taxa_time = lambda x: f"{x[0]} M{x[1]}".replace(
-            "M0", f"M{self.config.get('tempo', 1)}")
         self.espera = []
         par_taxa = {}  
-
         for comando in self.comandos:
             if comando["tipo"] == "taxas":
                 paridade = comando['par']
@@ -35,6 +32,8 @@ class ListaTaxa(Operacao):
                 else:
                     par_taxa[paridade].append(valor)
         
+        self.tempo = self.config.get("tempo", 5)
+        taxa_time = lambda x: f"{x[0]} M{x[1]}".replace("M0", f"M{self.tempo}")
         mensagem = ""
         for paridade, taxas in par_taxa.items():
             mensagem += f"{paridade.upper()} esperando bater nas taxas:\n" + \
@@ -167,5 +166,5 @@ class ListaTaxa(Operacao):
                     try: taxas.pop(index)
                     except: traceback.print_exc()
             ultimo = fechamento
-            time.sleep(self.config['correcao'])
+            time.sleep(self.config.get('correcao', 0) + 0.1)
         self.API.stop_candles_stream(par, 60)

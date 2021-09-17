@@ -28,7 +28,6 @@ class Operacao(IQ_API):
 		self.comandos = comandos
 		self.config = config
 		self.entrou = False
-		self.operacoes_ativas = {}	
 
 		# Mostra a configuração sem a senha
 		senha = self.config['senha']
@@ -36,8 +35,7 @@ class Operacao(IQ_API):
 		from pprint import pprint; pprint(self.config)
 		self.config['senha'] = senha
 
-		self.mostrar_mensagem(
-			f"📝 Entrando na {config['email']}")
+		self.mostrar_mensagem(f"📝 Entrando na {config['email']}")
 		for _ in range(3):
 			try:
 				super().__init__(
@@ -91,8 +89,7 @@ class Operacao(IQ_API):
 		self.ciclos_gale = list(
 			filter(empty, config["ciclos_gale"]))
 		if len(self.ciclos_gale) == 0 and config["tipo_gale"] == "ciclos":
-			self.mostrar_mensagem(
-				"🌀 Nenhum ciclo detectado, mudando para martingale 🌀")
+			self.mostrar_mensagem("🌀 Nenhum ciclo detectado, mudando para martingale 🌀")
 			self.config["tipo_gale"] = "martingale"
 		
 		self.ciclos_soros = list(
@@ -247,10 +244,9 @@ class Operacao(IQ_API):
 		self.mostrar_mensagem(f"Payout de {paridade}: {tipo} {payout * 100}%", True)
 		return tipo, payout
 
-	def verificar_stop(self, parar = False):
+	def verificar_stop(self, parar = False) -> bool:
 		'''
 		Verifica se bateu no stopwin/loss
-		Devolve um booleano
 		'''
 		if (-self.stoploss >= self.perda_total or 
 			self.ganho_total >= self.stopwin or parar):

@@ -505,8 +505,7 @@ class IQ_API:
         return False
     
     @staticmethod
-    def martingale(tipo_martin, payout, 
-        perca, valor = 1, lucro = 1):
+    def martingale(tipo_martin, payout, perca, valor = 1, lucro = 1):
         '''
         Calcula o martingale onde:
             tipo_martin:
