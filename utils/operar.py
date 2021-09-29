@@ -125,7 +125,10 @@ class Operacao(IQ_API):
 					self.operar_lista()
 				elif tipo_operacao == "estrategia": 
 					self.operar_estrategia()
-				else: self.operar_top_ranking()
+				elif tipo_operacao == "ranking": 
+					self.operar_top_ranking()
+				else: 
+					self.operar_chinesa()
 
 			except KeyboardInterrupt:
 				sys.exit(0)
@@ -146,9 +149,11 @@ class Operacao(IQ_API):
 
 	def mostrar_mensagem(self, mensagem):
 		'''
-		Mostra a mensagem em tela
-		Se self.verboso tenta enviar para o telegram
+		O método mostra a mensagem em tela
+		Se self.verboso então envia para o telegram
 		'''
+		if mensagem == "": return
+		
 		print(mensagem)
 		if self.verboso:
 			try:
@@ -947,8 +952,7 @@ class Operacao(IQ_API):
 					self.config["autotime"], self.config["autogale"],
 					self.config.get("poshit", False))
 				if not percent:
-					self.mostrar_mensagem(
-						"🔹 Catalogação: Sem resultados...")
+					self.mostrar_mensagem("🔹 Catalogação: Sem resultados...")
 					self.esperar_proximo_minuto()
 			if self.verificar_stop(): sys.exit(0)
 
@@ -1043,9 +1047,9 @@ class Operacao(IQ_API):
 					elif estrategia == "c3": gale = velas
 
 					if self.config["minimo"] / 100 <= payout:
-						result = self.operar(self.valor, paridade, direcao, 
+						self.operar(self.valor, paridade, direcao, 
 							timeframe, payout, tipo, gale)
-						if result != "win" and self.config["auto"]:
+						if self.config["auto"]:
 							paridade, estrategia, tipo_milhao = pegar_catalogacao()
 					else:
 						self.mostrar_mensagem(f"{paridade} não atende o payout mínimo {payout * 100}% < {self.config['minimo']}%")
@@ -1082,8 +1086,8 @@ class Operacao(IQ_API):
 				if self.verificar_tendencia(paridade, direcao, self.tempo):
 					continue
 
-				if (self.ativar_noticias and
-					not self.verificar_noticias(paridade)):
+				if (self.ativar_noticias and not 
+					self.verificar_noticias(paridade)):
 						continue
 
 				if self.verificar_stop():
@@ -1096,3 +1100,55 @@ class Operacao(IQ_API):
 							self.tempo, payout, tipo)).start()
 					self.mostrar_mensagem(
 						f"{trader}\n{paridade} M{self.tempo}\nDireção: {direcao}")
+
+	def operar_chinesa(self):
+		def update_abertas() -> tuple:
+			abertas = self.abertas()
+			last_update = time.time()
+			paridades = set(abertas["turbo"]).union(abertas["binary"])
+			return last_update, paridades
+
+		last_update, paridades = update_abertas()
+		SSMA_1 = self.config.get("chinesa_1", 3)
+		SSMA_2 = self.config.get("chinesa_2", 50)
+		MOAVDE = self.config.get("chinesa_mad", 20)
+
+		self.mostrar_mensagem(f"""Operando estratégia chinesa
+		Timeframe: M{self.tempo}
+		SSMA curto: {SSMA_1}
+		SSMA longo: {SSMA_2}
+		Moving Average Deviation: {MOAVDE}
+		""")
+		while not self.verificar_stop():
+			for paridade in paridades:
+				dataframe = self.get_dataframe_candles(
+					paridade, self.tempo, MOAVDE * 10)
+				if len(dataframe) == 0: continue
+
+				dev_direction = self.moving_average_deviation(dataframe, MOAVDE)
+				indicator_ssma_3_line = self.get_SSMA(dataframe, SSMA_1)
+				indicator_ssma_50_line = self.get_SSMA(dataframe, SSMA_2)
+				
+				was_collision, col_direction = self.indicator_lines_colision(
+					indicator_ssma_3_line, indicator_ssma_50_line)
+				is_confluence = dev_direction == col_direction
+
+				if was_collision and is_confluence:
+					tipo, payout = self.recebe_payout(paridade, self.tempo)
+					payout_minimo = self.config.get("minimo", 0) / 100
+					
+					if (self.ativar_noticias and not 
+						self.verificar_noticias(paridade)):
+						continue
+
+					if payout_minimo <= payout:
+						threading.Thread(
+							target = self.operar, daemon = True,
+							args=(self.valor, paridade, dev_direction, 
+								self.tempo, payout, tipo)).start()
+						time.sleep(10)
+				time.sleep(0.1)
+			time.sleep(5)
+
+			if (time.time() - last_update) > 600:
+				last_update, paridades = update_abertas()

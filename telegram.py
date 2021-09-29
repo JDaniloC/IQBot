@@ -301,7 +301,7 @@ class Assistente(amanobot.helper.ChatHandler):
             [KeyboardButton( text = "Voltar ao menu" )]
         ])
 
-        self.enviar_mensagem("Configurações avançadas para admnistradores:",
+        self.enviar_mensagem("Configurações avançadas para administradores:",
             reply_markup = teclado)
 
 
@@ -471,6 +471,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Operar Estratégias" ),
                  KeyboardButton( text = "Operar Top ranking")],
                 [KeyboardButton( text = "Catalogar sinais"),
+                 KeyboardButton( text = "Operar Chinesa"),
                  KeyboardButton( text = "Operar Auto VIP")],
                 [KeyboardButton( text = "Editar configurações" ),
                  KeyboardButton( text = "Ver lista de sinais" )],
@@ -502,6 +503,9 @@ EURJPY 31/12/2000 CALL M5 02:30
             return self.operar(msg)
         elif texto == "Operar Top ranking":
             self.tipo_operacao = "ranking"
+            return self.operar(msg)
+        elif texto == "Operar Chinesa":
+            self.tipo_operacao = "chinesa"
             return self.operar(msg)
         elif texto == "Catalogar sinais":
             self.enviar_mensagem("Carregando...")

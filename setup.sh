@@ -18,6 +18,6 @@ asdf global python 3.8.0
 pip install --upgrade pip
 
 # Instalar dependências do python
-pip install amanobot pymongo requests websocket-client==0.56 dnspython bs4 numpy==1.19.3
+pip install amanobot pymongo requests websocket-client==0.56 dnspython bs4 numpy==1.19.3 pandas finta
 
 # Instalações finalizadas

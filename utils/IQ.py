@@ -1,4 +1,4 @@
-import time, numpy, requests, json, threading, random
+import time, numpy, requests, json, threading, random, finta, pandas
 from iqoptionapi.stable_api import IQ_Option
 from datetime import datetime, timedelta
 
@@ -241,14 +241,11 @@ class IQ_API:
                 opcoes_modalidade = self.payout_cache.get(paridade.upper())
                 payout_modalidade = opcoes_modalidade.get(tipo) if opcoes_modalidade else -1
                 payout_atual = round(payout_modalidade * 100) if payout_modalidade else -1
-                if payout_atual >= self.config['minimo']:
+                if payout_atual >= self.config['minimo'] or -1:
                     return self.ordem(paridade, direcao, tempo, 
                         valor, tipo, delay, scalper, True)
                 else:
-                    if payout_atual < 0:
-                        payout_atual = " Não encontrado"
-                    else:
-                        payout_atual = f"{payout_atual}% < {self.config['minimo']}%"
+                    payout_atual = f"{payout_atual}% < {self.config['minimo']}%"
                     self.mostrar_mensagem(
                         f"Payout na {tipo} está abaixo do aceitável: {payout_atual}")
             return "error", 0, tipo
@@ -368,6 +365,69 @@ class IQ_API:
                         print(paridade)
                     return f"[{trader['flag']}] {position}° {trader['user_name']}", paridade
         return [], ""
+
+    def get_dataframe_candles(self, asset: str, 
+            timeframe: int, periods: int = 200
+        ) -> pandas.DataFrame:
+        """
+        Recebe X velas e transforma em um dataframe
+        Por fim renomeia as colunas max e min
+        """
+        velas = self.API.get_candles(
+            asset, timeframe * 60, 
+            periods, time.time())
+        
+        dataframe = pandas.DataFrame(velas)
+        dataframe.rename(columns={ 
+            "max": "high", "min": "low" 
+        }, inplace=True)
+        
+        return dataframe
+        
+    @staticmethod
+    def moving_average_deviation(
+        dataframe: pandas.DataFrame, 
+        periods: int = 20) -> str:
+        '''
+        Devolve a direção do indicador moving average deviation
+        Com base na diferença do penúltimo com o último MAD
+        '''
+        src = finta.TA.SSMA(dataframe, periods)
+        
+        diff_right_now = dataframe.iloc[-1]['close'] - src.iloc[-1]
+        diff_before_now = dataframe.iloc[-2]['close'] - src.iloc[-2]
+        is_increasing = diff_right_now >= diff_before_now
+
+        return 'CALL' if is_increasing else 'PUT'			
+        
+    @staticmethod
+    def indicator_lines_colision(
+            first: pandas.core.series.Series, 
+            second: pandas.core.series.Series
+        ) -> tuple:
+        """
+        Devolve se as linhas colidiram e o sentido
+        """
+        BEFORE, NOW = -2, -1
+        is_greater_before = first.iloc[BEFORE] > second.iloc[BEFORE]
+        is_less_right_now = first.iloc[NOW] <= second.iloc[NOW]
+        is_decreasing = is_greater_before and is_less_right_now
+
+        if is_decreasing:
+            return True, "PUT"
+
+        is_less_before = first.iloc[BEFORE] < second.iloc[BEFORE]
+        is_greater_now = first.iloc[NOW] >= second.iloc[NOW]
+        is_increasing = is_less_before and is_greater_now
+
+        if is_increasing:
+            return True, "CALL"
+
+        return False, "DOJI"
+
+    @staticmethod
+    def get_SSMA(dataframe: pandas.DataFrame, period: int):
+        return finta.TA.SSMA(dataframe, period)
 
     @staticmethod
     def catalogar_estrategia(timeframe, gale, poshit):
