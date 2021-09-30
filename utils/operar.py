@@ -1142,11 +1142,8 @@ class Operacao(IQ_API):
 						continue
 
 					if payout_minimo <= payout:
-						threading.Thread(
-							target = self.operar, daemon = True,
-							args=(self.valor, paridade, dev_direction, 
-								self.tempo, payout, tipo)).start()
-						time.sleep(10)
+						self.operar(self.valor, paridade, 
+							dev_direction, self.tempo, payout, tipo)
 				time.sleep(0.1)
 			time.sleep(5)
 

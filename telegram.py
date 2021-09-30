@@ -474,6 +474,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Operar Chinesa"),
                  KeyboardButton( text = "Operar Auto VIP")],
                 [KeyboardButton( text = "Editar configurações" ),
+                 KeyboardButton( text = "Operar Berman" ),
                  KeyboardButton( text = "Ver lista de sinais" )],
                 [KeyboardButton( text = "Parar Bot" ),
                  KeyboardButton( text = "Sair da conta" )]
@@ -507,6 +508,9 @@ EURJPY 31/12/2000 CALL M5 02:30
         elif texto == "Operar Chinesa":
             self.tipo_operacao = "chinesa"
             return self.operar(msg)
+        elif texto == "Operar Berman":
+            self.enviar_mensagem("Em desenvolvimento...")
+            return True
         elif texto == "Catalogar sinais":
             self.enviar_mensagem("Carregando...")
             sinais = MongoDB.get_entradas(3)
