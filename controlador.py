@@ -1,10 +1,11 @@
 from configparser import RawConfigParser
 from subprocess import check_output
+from utils import ENV_NAME
 from os import system 
 import time
 
 config = RawConfigParser()
-config.read(".env")
+config.read(ENV_NAME)
 
 project_name = config.get("CLOUD", "project")
 account_name = config.get("CLOUD", "account")

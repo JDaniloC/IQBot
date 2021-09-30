@@ -6,18 +6,18 @@ class ListaTaxa(Operacao):
         super().__init__(config, comandos, chat_id)
 
     def operar(self):
-        '''
+        """
         1 - Percorre todos os comandos.
         2 - Pausa o script até a próxima hora:min
         3 - Calcula o payout da paridade
         4 - Cria uma thread para o método operar
-        '''
+        """
         def formatHour(number):
-            '''
+            """
             Converte números de 1 dígito para 2 dígitos:
                 0:0 -> 00:00
                 2/1/2000 -> 02/01/2000
-            '''
+            """
             return str(number) if len(str(number)) != 1 else "0" + str(number)
 
         self.espera = []
@@ -25,18 +25,23 @@ class ListaTaxa(Operacao):
         par_taxa = {}  
         for comando in self.comandos:
             if comando["tipo"] == "taxas":
-                paridade = comando['par']
-                valor = (comando['taxa'], comando['timeframe'])
+                paridade = comando["par"]
+                valor = (
+                    comando["taxa"], 
+                    comando["ordem"],
+                    comando["timeframe"]
+                )
                 if paridade not in par_taxa:
                     par_taxa[paridade] = [valor]
                 else:
                     par_taxa[paridade].append(valor)
         
-        for paridade, taxas in par_taxa.items():
+        for paridade, infos in par_taxa.items():
+
             thread = threading.Thread(
                 target = self.esperar_taxa, 
                 name = f"{time.time()}", 
-                args = (paridade, taxas),
+                args = (paridade, infos),
                 daemon = True)
             self.espera.append(thread)
             thread.start()
@@ -99,45 +104,47 @@ class ListaTaxa(Operacao):
         time.sleep(1)
         self.verificar_stop(True)
 
-    def esperar_taxa(self, par, taxas):
-        '''
+    def esperar_taxa(self, paridade: str, taxas: float):
+        """
         1 - Verifica se a taxa atual ultrapassou alguma das especificadas
         2 - Cria uma thread para o método operar
-        '''
+        """
         def normalize(number):
             return int(str(number).replace(".", "")[3:])
 
-        self.API.start_candles_stream(par, 60, 1)
+        self.API.start_candles_stream(paridade, 60, 1)
         ultimo = {}
         while ultimo == {}:
-            ultimo = self.API.get_realtime_candles(par, 60)
+            ultimo = self.API.get_realtime_candles(paridade, 60)
             ultimo = ultimo[list(ultimo.keys())[0]]['close']
             time.sleep(1)
 
-        taxa_time = lambda x: f"{x[0]} M{x[1]}".replace(
+        taxa_time = lambda x: f"{x[0]} M{x[2]}".replace(
             "M0", f"M{self.config['tempo']}")
-        self.mostrar_mensagem(f"{par.upper()} esperando bater nas taxas:\n" + 
+        self.mostrar_mensagem(
+            f"{paridade} esperando bater nas taxas:\n" + 
             '\n'.join(list(map(taxa_time, taxas))))
         chegou_perto = 0
         while not self.verificar_stop() and taxas != []:
-            velas = self.API.get_realtime_candles(par, 60)
+            velas = self.API.get_realtime_candles(paridade, 60)
             abertura = velas[list(velas.keys())[0]]['open']
             fechamento = velas[list(velas.keys())[0]]['close']
 
-            for taxa, timeframe in taxas:
+            for index, (taxa, direcao, timeframe) in enumerate(taxas.copy()):
                 timeframe = self.config["tempo"] if timeframe == 0 else timeframe
                 if (fechamento >= taxa and ultimo < taxa or 
                     fechamento <= taxa and ultimo > taxa):
 
-                    direcao = "call" if abertura > fechamento else "put"
-                    tipo, payout = self.recebe_payout(par, timeframe)
+                    if direcao == "":
+                        direcao = "call" if abertura > fechamento else "put"
+                    tipo, payout = self.recebe_payout(paridade, timeframe)
 
                     if (self.ativar_noticias and
-                        not self.verificar_noticias(par)):
+                        not self.verificar_noticias(paridade)):
                         continue
 
                     if self.config["minimo"] / 100 <= payout:
-                        self.mostrar_mensagem(f"Taxas: {par} {taxa} ")
+                        self.mostrar_mensagem(f"Taxas: {paridade} {taxa} ")
 
                         if self.config.get("taxas_vela", "atual") != "atual":
                             self.esperar_proximo_minuto()
@@ -145,20 +152,21 @@ class ListaTaxa(Operacao):
                         thread = threading.Thread(
                             target = self.realizar_trade, 
                             name = f"{time.time()}", 
-                            args = (self.valor, par, direcao, 
+                            args = (self.valor, paridade, direcao, 
                                 timeframe, payout, tipo),
                             daemon = True)
                         self.espera.append(thread)
                         thread.start()
                     else:
-                        self.mostrar_mensagem(f"{par} {taxa} não atende o payout mínimo {payout} {self.config['minimo']}")
+                        self.mostrar_mensagem(f"{paridade} {taxa} não atende o payout mínimo {payout} {self.config['minimo']}")
 
-                    taxas.remove((taxa, timeframe))
+                    try: taxas.pop(index)
+                    except: pass
                 else:
                     if (abs(normalize(taxa) - normalize(fechamento)) <= 2 and 
                         chegou_perto != abs(taxa - fechamento)):
                         chegou_perto = abs(taxa - fechamento)
-                        self.mostrar_mensagem(f"{par} perto da taxa {taxa}")
+                        self.mostrar_mensagem(f"{paridade} perto da taxa {taxa}")
             ultimo = fechamento
             time.sleep(self.config['correcao'])
-        self.API.stop_candles_stream(par, 60)
+        self.API.stop_candles_stream(paridade, 60)

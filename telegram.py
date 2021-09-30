@@ -1,6 +1,6 @@
-import time, pprint, amanobot, os, sys, json
 from configparser import RawConfigParser
 from datetime import timedelta, datetime
+import time, pprint, amanobot, os, sys
 
 from amanobot.loop import MessageLoop
 from amanobot.namedtuple import (
@@ -15,10 +15,11 @@ from utils.catalogador import Catalogador
 from utils.checador import checa_sinais
 from controlador import Control
 from database import Mongo
+from utils import ENV_NAME
 
 
 config = RawConfigParser()
-config.read(".env")
+config.read(ENV_NAME)
 MongoDB = Mongo()
 
 TOKEN = config.get("TELEGRAM", "token")
@@ -53,20 +54,23 @@ def carregar_entradas(opcao):
             timeframe = "Padrão"
         else:
             timeframe = f"M{linha['timeframe']}"
+        direcao = linha["ordem"].upper()
+        direcao_sign = '⬆' if direcao == "CALL" else '⬇'
 
         if linha["tipo"] == "taxas": 
             lista_entradas.append(f"""
 📊 Ativo: {linha['par']}
 📈 Taxa: {linha['taxa']}
 ⏰ Período: {timeframe}
+{f'{direcao_sign} Direção {direcao}' if direcao != "" else ""}
             """)
             continue
-        direcao = linha["ordem"].lower()
+
         lista_entradas.append(f'''
 📊 Ativo: {linha["par"]}
 📅 Dia: {"/".join(list(map(strDateHour, linha["data"])))}
 ⏱ Hora: {":".join(list(map(strDateHour, linha["hora"])))}   
-{'⬆' if direcao == "call" else '⬇'} Direção: {direcao.upper()} 
+{direcao_sign} Direção: {direcao} 
 ⏰ Período: {timeframe}
         ''')
     return lista_entradas

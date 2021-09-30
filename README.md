@@ -20,7 +20,7 @@ project = gcloud-project-name
 account = gcloud@account.gserviceaccount.com
 
 [DATABASE]
-autentication = mongodb+srv://mongoauth
+authentication = mongodb+srv://mongoauth
 
 [TELEGRAM]
 token = 123456789:TELEGRAMTOKEN

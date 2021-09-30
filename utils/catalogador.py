@@ -1,63 +1,15 @@
+from configparser import RawConfigParser
 from datetime import datetime, timedelta
 from datetime import time as time_day
-from configparser import RawConfigParser
+from bot import pegar_comando_lista
 from utils.IQ import IQ_API
-import time, re, amanobot
+from utils import ENV_NAME
+import time, amanobot
 
 config = RawConfigParser()
-config.read(".env")
+config.read(ENV_NAME)
 
 BOTTOKEN = config.get("TELEGRAM", "token")
-
-def pegar_comando_lista(texto):
-    '''
-    Recebe um texto e devolve:
-    {
-        "data": [dia, mes, ano],
-        "hora": [hora, minuto]
-        "par": paridade,
-        "ordem": ordem,
-        "timeframe": int
-        "tipo": "lista"
-    }
-    No qual o conteúdo das listas são inteiros
-    '''
-    def timestamp(data, hora):
-        return datetime(
-            data[2], data[1], data[0], hora[0], hora[1]
-        ).timestamp()
-    try:
-        data = re.search(r'\d{2}\W\d{2}\W\d{4}', texto)
-        if data:
-            data = [int(x) for x in re.split(r"\W", data[0])]
-        else:
-            hoje = datetime.datetime.now()
-            data = [hoje.day, hoje.month, hoje.year]
-        hora = re.search(r'\d{2}:\d{2}', texto)[0]
-        hora = [int(x) for x in re.split(r'\W', hora)]
-        par = re.search(r'[A-Za-z]{6}(-OTC)?', 
-            texto.upper().replace("/", ""))[0]
-        ordem = re.search(r'CALL|PUT', texto.upper())[0].lower()
-        timeframe = re.search(r'[MH][1-6]?[0-5]', texto.upper())
-        if timeframe: 
-            if "M" in timeframe[0].upper(): 
-                timeframe = int(timeframe[0].strip("M"))
-            else: 
-                timeframe = int(timeframe[0].strip("H")) * 60
-        else: timeframe = 0
-    except Exception as e:
-        print(f"Erro na catalogação: {texto}", type(e), e)
-        return {}
-
-    return {
-        "data": data,
-        "hora": hora,
-        "par": par,
-        "ordem": ordem,
-        "timeframe": timeframe,
-        "tipo": "lista",
-        "timestamp": timestamp(data, hora)
-    }
 
 def strDateHour(number:int) -> str:
     '''
