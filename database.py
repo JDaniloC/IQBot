@@ -1,13 +1,13 @@
 from configparser import RawConfigParser
-from schema import waiting_schema
 from schema import users_schema
 from schema import adms_schema
 from pymongo import MongoClient
+from utils import ENV_NAME
 import time
 
 
 config = RawConfigParser()
-config.read(".env")
+config.read(ENV_NAME)
 
 autenticacao = config.get("DATABASE", "autentication")
 

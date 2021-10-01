@@ -1,11 +1,13 @@
 from configparser import RawConfigParser
 from subprocess import check_output
+from utils import ENV_NAME
 from os import system 
 import time
 
 config = RawConfigParser()
-config.read(".env")
+config.read(ENV_NAME)
 
+BOT_FOLDER = "iqbot"
 project_name = config.get("CLOUD", "project")
 account_name = config.get("CLOUD", "account")
 regions = [
@@ -123,7 +125,7 @@ class Control:
         system(f'yes "Y" | gcloud beta compute --project={project_name} instances create {name} --zone={regiao} --machine-type=e2-medium --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE --service-account={account_name} --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server,https-server --image=padrao --image-project={project_name} --boot-disk-size=10GB --boot-disk-type=pd-standard --boot-disk-device-name={name} --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any')
         status = -1
         while status != 0:
-            status = system(f"gcloud compute ssh {name} --zone {regiao} --command='chmod 777 iqbot/setup.sh;./iqbot/setup.sh'")
+            status = system(f"gcloud compute ssh {name} --zone {regiao} --command='chmod 777 {BOT_FOLDER}/setup.sh;./{BOT_FOLDER}/setup.sh'")
             print("Status:", status)
             if status == 256:
                 self.regiao += 1
@@ -145,7 +147,7 @@ class Control:
         '''
         if not instancia.on_instance(email):
             instancia.set_people(email)
-        caminho_python = "/home/jdsc/.asdf/installs/python/3.8.0/bin/python iqbot/bot.py"
+        caminho_python = f"/home/jdsc/.asdf/installs/python/3.8.0/bin/python {BOT_FOLDER}/bot.py"
         if not ao_vivo:
             comando = f"{email} -L -Logfile {email}.log {caminho_python} -o"
         else:

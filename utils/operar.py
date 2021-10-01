@@ -4,10 +4,11 @@ from datetime import datetime, timedelta
 from configparser import RawConfigParser
 from utils.IQ import IQ_API
 from random import randint
+from utils import ENV_NAME
 from pprint import pprint
 
 config = RawConfigParser()
-config.read(".env")
+config.read(ENV_NAME)
 
 BOTTOKEN = config.get("TELEGRAM", "token")
 LOCALERROR = "errors.log"

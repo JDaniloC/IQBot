@@ -14,10 +14,10 @@ from bot import pegar_comando, escreve_erros
 from utils.catalogador import Catalogador
 from controlador import Control
 from database import Mongo
-
+from utils import ENV_NAME
 
 config = RawConfigParser()
-config.read(".env")
+config.read(ENV_NAME)
 MongoDB = Mongo()
 
 TOKEN = config.get("TELEGRAM", "token")

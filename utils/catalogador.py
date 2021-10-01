@@ -3,9 +3,10 @@ from datetime import time as time_day
 from configparser import RawConfigParser
 from utils.IQ import IQ_API
 import time, re, amanobot
+from utils import ENV_NAME
 
 config = RawConfigParser()
-config.read(".env")
+config.read(ENV_NAME)
 
 BOTTOKEN = config.get("TELEGRAM", "token")
 
