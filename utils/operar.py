@@ -127,8 +127,10 @@ class Operacao(IQ_API):
 					self.operar_estrategia()
 				elif tipo_operacao == "ranking": 
 					self.operar_top_ranking()
-				else: 
+				elif tipo_operacao == "chinesa": 
 					self.operar_chinesa()
+				else:
+					self.operar_berman()
 
 			except KeyboardInterrupt:
 				sys.exit(0)
@@ -1102,22 +1104,16 @@ class Operacao(IQ_API):
 						f"{trader}\n{paridade} M{self.tempo}\nDireção: {direcao}")
 
 	def operar_chinesa(self):
-		def update_abertas() -> tuple:
-			abertas = self.abertas()
-			last_update = time.time()
-			paridades = set(abertas["turbo"]).union(abertas["binary"])
-			return last_update, paridades
-
-		last_update, paridades = update_abertas()
+		last_update, paridades = self.update_abertas()
 		SSMA_1 = self.config.get("chinesa_1", 3)
 		SSMA_2 = self.config.get("chinesa_2", 50)
 		MOAVDE = self.config.get("chinesa_mad", 20)
 
-		self.mostrar_mensagem(f"""Operando estratégia chinesa
-		Timeframe: M{self.tempo}
-		SSMA curto: {SSMA_1}
-		SSMA longo: {SSMA_2}
-		Moving Average Deviation: {MOAVDE}
+		self.mostrar_mensagem(f"""🔸 Operando Estratégia Chinesa 🔸
+		⏰ Timeframe: M{self.tempo}
+		📊 SSMA curto: {SSMA_1}
+		📊 SSMA longo: {SSMA_2}
+		📊 Moving Average Deviation: {MOAVDE}
 		""")
 		while not self.verificar_stop():
 			for paridade in paridades:
@@ -1148,4 +1144,30 @@ class Operacao(IQ_API):
 			time.sleep(5)
 
 			if (time.time() - last_update) > 600:
-				last_update, paridades = update_abertas()
+				last_update, paridades = self.update_abertas()
+
+	def operar_berman(self):
+		last_update, paridades = self.update_abertas()
+		
+		while not self.verificar_stop():
+			for paridade in paridades:
+				taxa_atual, up, low, emma = self.berman_strategy(paridade)
+
+				if (taxa_atual >= up and emma > up) or (
+					taxa_atual <= low and emma < low):
+					tipo, payout = self.recebe_payout(paridade, self.tempo)
+					payout_minimo = self.config.get("minimo", 0) / 100
+					direcao = 'put' if taxa_atual >= up else 'call'
+
+					if (self.ativar_noticias and not 
+						self.verificar_noticias(paridade)):
+						continue
+					
+					if payout_minimo <= payout:
+						self.operar(self.valor, paridade, 
+							direcao, self.tempo, payout, tipo)
+				time.sleep(0.1)
+			time.sleep(5)
+
+			if (time.time() - last_update) > 600:
+				last_update, paridades = self.update_abertas()

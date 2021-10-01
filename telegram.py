@@ -509,8 +509,8 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.tipo_operacao = "chinesa"
             return self.operar(msg)
         elif texto == "Operar Berman":
-            self.enviar_mensagem("Em desenvolvimento...")
-            return True
+            self.tipo_operacao = "berman"
+            return self.operar(msg)
         elif texto == "Catalogar sinais":
             self.enviar_mensagem("Carregando...")
             sinais = MongoDB.get_entradas(3)

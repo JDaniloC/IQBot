@@ -2,6 +2,7 @@ config/
 iqcoding/
 .vscode
 .env
+talib/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -366,6 +366,39 @@ class IQ_API:
                     return f"[{trader['flag']}] {position}° {trader['user_name']}", paridade
         return [], ""
 
+    def berman_strategy(self, paridade: str) -> tuple:
+        from talib.abstract import BBANDS, EMA
+
+        quantidade = 1000
+        velas = self.API.get_candles(
+            paridade, self.tempo * 60, 
+            quantidade, time.time())
+        dados = {
+            'open': numpy.empty(quantidade),
+            'high': numpy.empty(quantidade), 
+            'low': numpy.empty(quantidade),
+            'close': numpy.empty(quantidade),
+            'volume': numpy.empty(quantidade)
+        }
+        
+        for x in range(0, quantidade):
+            for key in dados:
+                new_key = key.replace(
+                    "high", "max"
+                ).replace("low", "min")
+                dados[key][x] = velas[x][new_key]
+
+        saida = EMA(dados, timeperiod=100)
+        up, _, low = BBANDS(dados, timeperiod=20, 
+            nbdevup=2.5, nbdevdn=2.5, matype=0)
+        
+        up = round(up[len(up) - 2], 5)
+        low = round(low[len(low) - 2], 5)
+        taxa_atual = round(velas[-1]['close'], 5)
+        emma = round(saida[-1], 5)
+
+        return taxa_atual, up, low, emma
+
     def get_dataframe_candles(self, asset: str, 
             timeframe: int, periods: int = 200
         ) -> pandas.DataFrame:
@@ -384,6 +417,12 @@ class IQ_API:
         
         return dataframe
         
+    def update_abertas(self) -> tuple:
+        abertas = self.abertas()
+        last_update = time.time()
+        paridades = set(abertas["turbo"]).union(abertas["binary"])
+        return last_update, paridades
+
     @staticmethod
     def moving_average_deviation(
         dataframe: pandas.DataFrame, 
@@ -428,7 +467,7 @@ class IQ_API:
     @staticmethod
     def get_SSMA(dataframe: pandas.DataFrame, period: int):
         return finta.TA.SSMA(dataframe, period)
-
+    
     @staticmethod
     def catalogar_estrategia(timeframe, gale, poshit):
         def is_hit(candles):
