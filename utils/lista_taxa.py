@@ -22,7 +22,6 @@ class ListaTaxa(Operacao):
             return str(number) if len(str(number)) != 1 else "0" + str(number)
 
         self.espera = []
-
         par_taxa = {}  
         for comando in self.comandos:
             if comando["tipo"] == "taxas":
@@ -33,7 +32,12 @@ class ListaTaxa(Operacao):
                 else:
                     par_taxa[paridade].append(valor)
         
+        self.tempo = self.config.get("tempo", 5)
+        taxa_time = lambda x: f"{x[0]} M{x[1]}".replace("M0", f"M{self.tempo}")
+        mensagem = ""
         for paridade, taxas in par_taxa.items():
+            mensagem += f"{paridade.upper()} esperando bater nas taxas:\n" + \
+                '\n'.join(list(map(taxa_time, taxas))) + "\n\n"
             thread = threading.Thread(
                 target = self.esperar_taxa, 
                 name = f"{time.time()}", 
@@ -41,6 +45,10 @@ class ListaTaxa(Operacao):
                 daemon = True)
             self.espera.append(thread)
             thread.start()
+
+        linhas = mensagem.split("\n")
+        for i in range(0, len(linhas), 50):
+            self.mostrar_mensagem("\n".join(linhas[i:i+50]))
 
         # Lista
         self.comandos.sort(key = lambda x: x["timestamp"])
@@ -98,10 +106,6 @@ class ListaTaxa(Operacao):
         1 - Verifica se a taxa atual ultrapassou alguma das especificadas
         2 - Cria uma thread para o método operar
         '''
-        def normalize(number):
-            try: return int(str(number).replace(".", "")[3:])
-            except: return 0
-
         self.API.start_candles_stream(par, 60, 1)
         ultimo = {}
         while ultimo == {}:
@@ -109,13 +113,7 @@ class ListaTaxa(Operacao):
             ultimo = ultimo[list(ultimo.keys())[0]]['close']
             time.sleep(1)
 
-        taxa_time = lambda x: f"{x[0]} M{x[1]}".replace(
-            "M0", f"M{self.config['tempo']}")
-        self.mostrar_mensagem(f"{par.upper()} esperando bater nas taxas:\n" + 
-            '\n'.join(list(map(taxa_time, taxas))))
-        chegou_perto = 0
-        taxas = { taxa: timeframe for taxa, timeframe in taxas}
-        while not self.verificar_stop() and len(taxas) > 0:
+        while not self.verificar_stop() and taxas != []:
             velas = self.API.get_realtime_candles(par, 60)
             try:
                 abertura = velas[list(velas.keys())[0]]['open']
@@ -125,8 +123,9 @@ class ListaTaxa(Operacao):
                 time.sleep(1)
                 continue
 
-            for taxa, timeframe in taxas.copy().items():
-                timeframe = self.config["tempo"] if timeframe == 0 else timeframe
+            
+            for index, (taxa, timeframe) in enumerate(taxas.copy()):
+                timeframe = self.tempo if timeframe == 0 else timeframe
                 if (fechamento >= taxa and ultimo < taxa or 
                     fechamento <= taxa and ultimo > taxa):
 
@@ -140,8 +139,12 @@ class ListaTaxa(Operacao):
                     if self.config["minimo"] / 100 <= payout:
                         self.mostrar_mensagem(f"Taxas: {par} {taxa} ")
 
-                        if self.config.get("taxas_vela", "atual") != "atual":
-                            self.esperar_proximo_minuto()
+                        if self.config.get("taxas_vela", "retração") != "retração":
+                            self.esperar_proximo_minuto(seconds = 59)
+                            velas = self.API.get_candles(par, 
+                                60 * timeframe, 1, time.time())
+                            direcao = velas[0]["close"] - velas[0]["open"]
+                            direcao = "call" if direcao < 0 else "put"
 
                         if tipo == "binary" and timeframe == 5:
                             atual = datetime.utcnow()
@@ -160,14 +163,8 @@ class ListaTaxa(Operacao):
                     else:
                         self.mostrar_mensagem(f"{par} {taxa} não atende o payout mínimo {payout} {self.config['minimo']}")
 
-                    try: 
-                        del taxas[taxa]
+                    try: taxas.pop(index)
                     except: traceback.print_exc()
-                else:
-                    if (abs(normalize(taxa) - normalize(fechamento)) <= 2 and 
-                        chegou_perto != abs(taxa - fechamento)):
-                        chegou_perto = abs(taxa - fechamento)
-                        self.mostrar_mensagem(f"{par} perto da taxa {taxa}")
             ultimo = fechamento
-            time.sleep(self.config['correcao'])
+            time.sleep(self.config.get('correcao', 0) + 0.1)
         self.API.stop_candles_stream(par, 60)

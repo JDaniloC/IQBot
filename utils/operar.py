@@ -28,7 +28,6 @@ class Operacao(IQ_API):
 		self.comandos = comandos
 		self.config = config
 		self.entrou = False
-		self.operacoes_ativas = {}	
 
 		# Mostra a configuração sem a senha
 		senha = self.config['senha']
@@ -36,8 +35,7 @@ class Operacao(IQ_API):
 		from pprint import pprint; pprint(self.config)
 		self.config['senha'] = senha
 
-		self.mostrar_mensagem(
-			f"📝 Entrando na {config['email']}")
+		self.mostrar_mensagem(f"📝 Entrando na {config['email']}")
 		for _ in range(3):
 			try:
 				super().__init__(
@@ -50,8 +48,8 @@ class Operacao(IQ_API):
 				escreve_erros(e)
 		
 		if self.entrou:
-			self.salvar_variaveis(config)
 			self.resetar_status()
+			self.salvar_variaveis(config)
 
 			self.mostrar_mensagem(f"""
 📝Revise as suas configurações:
@@ -69,6 +67,8 @@ class Operacao(IQ_API):
 		if config['tipo_conta'] == "treino":
 			self.mudar_treino()
 		else: self.mudar_real()
+		
+		self.saldo_inicial = self.API.get_balance()
 		self.minimium_value = 2 if self.API.get_currency() == "BRL" else 1
 
 		if config['tipo_par'] == "auto":
@@ -82,13 +82,14 @@ class Operacao(IQ_API):
 		self.stoploss = config["stoploss"]
 		self.max_gale = config["max_gale"]
 		self.valor_inicial = config["valor"]
-		
+		self.antecipar_result = -config["delay"] if config["delay"] != False else False
+		self.gale_porcentagem = config.get('gale_pct', 0) / 100
+
 		empty = lambda x: x != []      
 		self.ciclos_gale = list(
 			filter(empty, config["ciclos_gale"]))
 		if len(self.ciclos_gale) == 0 and config["tipo_gale"] == "ciclos":
-			self.mostrar_mensagem(
-				"🌀 Nenhum ciclo detectado, mudando para martingale 🌀")
+			self.mostrar_mensagem("🌀 Nenhum ciclo detectado, mudando para martingale 🌀")
 			self.config["tipo_gale"] = "martingale"
 		
 		self.ciclos_soros = list(
@@ -123,6 +124,12 @@ class Operacao(IQ_API):
 		if self.chat_id != "":
 			self.telegram = amanobot.Bot(BOTTOKEN)
 		
+		if config.get("porcentagem", False):
+			self.valor_inicial = round(self.saldo_inicial * self.valor_inicial / 100, 2)
+			self.stoploss = round(self.saldo_inicial * self.stoploss / 100, 2)
+			self.stopwin = round(self.saldo_inicial * self.stopwin / 100, 2)
+			self.valor = round(self.saldo_inicial * self.valor / 100, 2)
+
 		self.config["poshit"] = int(
 			self.config["autogale"]
 		) + 1 if self.config["poshit"] else 0
@@ -134,7 +141,6 @@ class Operacao(IQ_API):
 		}.get(self.config['posgale'], 0)
 		
 	def resetar_status(self):
-		self.saldo_inicial = self.API.get_balance()
 		self.valor = self.config["valor"]
 		self.fim_da_operacao = False
 		self.ganhos_perdas = [0, 0]      
@@ -238,10 +244,9 @@ class Operacao(IQ_API):
 		self.mostrar_mensagem(f"Payout de {paridade}: {tipo} {payout * 100}%", True)
 		return tipo, payout
 
-	def verificar_stop(self, parar = False):
+	def verificar_stop(self, parar = False) -> bool:
 		'''
 		Verifica se bateu no stopwin/loss
-		Devolve um booleano
 		'''
 		if (-self.stoploss >= self.perda_total or 
 			self.ganho_total >= self.stopwin or parar):
@@ -276,8 +281,12 @@ class Operacao(IQ_API):
 		return True
 
 	def verificar_payout(self, paridade, payout): 
-		if not self.config.get("minimo", 0) <= payout * 100:
-			self.mostrar_mensagem(f"{paridade} não atende o payout mínimo {payout * 100}% < {self.config['minimo']}%")
+		payout_minimo = self.config.get("minimo", 0)
+		if not payout_minimo <= payout * 100:
+			if payout < 0.5:
+				self.mostrar_mensagem(f"{paridade} fechada para o timeframe. Ou IQ não devolveu payout.")
+			else:
+				self.mostrar_mensagem(f"{paridade} não atende o payout mínimo {payout * 100}% < {payout_minimo}%")
 			return False
 		return True
 
@@ -316,14 +325,14 @@ class Operacao(IQ_API):
 				self.config["ciclos"]["soros"] = 0
 				self.valor = self.valor_inicial
 		elif (self.gale_atual > 0 or did_gale) and not (
-			tipo_gale == "sorosgale" and self.perda_atual > 0):
+			"sorosgale" in tipo_gale and self.perda_atual > 0):
 			num_gales = self.gale_atual
 			self.gale_atual = 0
 			self.perda_atual -= abs(valor)
 			self.valor = self.valor_inicial
 			if self.perda_atual < 0: self.perda_atual = 0
 		elif (self.soros_atual < self.config['max_soros'] or 
-			(tipo_gale == "sorosgale" and self.perda_atual > 0)):
+			("sorosgale" in tipo_gale and self.perda_atual > 0)):
 			# Caso estiver em sorosgale
 			fazer_soros = True
 			if self.perda_atual > 0:
@@ -372,8 +381,6 @@ class Operacao(IQ_API):
 
 		def desconta_perda(resultado, lucro, 
 			in_gale = "", entrada = None):
-			inicial = self.saldo_inicial
-			atual = round(self.saldo_inicial + self.ganho_total, 2)
 			if entrada == None: entrada = valor
 			mensagem = "⚪️"
 			if resultado == "win":
@@ -430,7 +437,7 @@ class Operacao(IQ_API):
 			try:
 				resultado, lucro, tipo = self.ordem(
 					paridade, ordem, tempo, valor, tipo, 
-					self.config['delay'], self.config["scalper"])
+					self.antecipar_result, self.config["scalper"])
 				break
 			except Exception as e:
 				self.mostrar_mensagem(
@@ -442,7 +449,7 @@ class Operacao(IQ_API):
 		
 		texto_gale = ""
 		if resultado == "win" and (self.config['max_soros'] > 0 or 
-				(tipo_gale == "sorosgale" and self.perda_atual > 0) 
+				("sorosgale" in tipo_gale and self.perda_atual > 0) 
 			or self.config["tipo_soros"] == "ciclos" 
 			or (self.gale_atual > 0 and tipo_gale == "martingale")
 			or (is_ciclos_gale and (self.gale_atual > 0 or 
@@ -503,10 +510,9 @@ class Operacao(IQ_API):
 						elif tipo_gale == "ciclosoros":
 							valor = self.ciclos_soros[ciclo_atual][num_gales]
 						else:
-							if tipo_martin == "percento":
+							if tipo_martin == "porcento":
 								lucro_esperado = valor_inicial * round(
-									(self.config['martin_pct'] / 100) - 1, 2)
-								print(valor_inicial, self.config['martin_pct'], lucro_esperado)
+									self.gale_porcentagem - 1, 2)
 							valor = self.martingale(
 								tipo_martin, payout, perda, 
 								valor, lucro_esperado)
@@ -525,7 +531,7 @@ class Operacao(IQ_API):
 
 					resultado, lucro, tipo = self.ordem(
 						paridade, ordem, tempo, valor, tipo,
-						self.config['delay'])
+						self.antecipar_result)
 
 					if resultado == "loose" or (
 						resultado == "equal" and tipo == "digital"):
@@ -574,9 +580,9 @@ class Operacao(IQ_API):
 						self.perda_inicial = valor
 						self.valor = self.valor_inicial 
 					self.gale_atual += 1
-					if tipo_martin == "percent":
+					if tipo_martin == "porcento":
 						lucro_esperado = self.perda_inicial * round(
-							(self.config['martin_pct'] / 100) - 1, 2)
+							self.gale_porcentagem - 1, 2)
 					self.valor = self.martingale(
 						tipo_martin, payout, self.perda_atual, 
 						self.valor, lucro_esperado)
@@ -586,13 +592,30 @@ class Operacao(IQ_API):
 					self.perda_atual = 0
 					self.gale_atual = 0
 
-			elif tipo_gale == 'sorosgale':
+			elif "sorosgale" in tipo_gale:
 				if self.gale_atual < self.max_gale:
 					self.soros_atual = 0
 					self.gale_atual += 1
 					self.perda_atual += abs(valor)
-					self.valor = self.perda_atual / 2
-					self.valor = self.minimium_value if self.valor < self.minimium_value else round(self.valor, 2)
+
+					if tipo_gale == "sorosgale":
+						self.valor = self.perda_atual / 2
+					else:
+						win_amount = valor * payout
+						win_soros_amount = (valor + win_amount) * payout
+						total_sum = win_amount + win_soros_amount
+						if self.gale_atual == 1:
+							self.sorosgale_ratio = win_amount / total_sum / payout
+							offert = valor * self.gale_porcentagem
+							self.valor = (offert + valor) * self.sorosgale_ratio
+							self.valor_desejado = offert
+						else:
+							self.valor = self.sorosgale_ratio * (
+								self.perda_atual + self.valor_desejado)
+
+					self.valor = self.minimium_value if (
+						self.valor < self.minimium_value
+					) else round(self.valor, 2)
 					texto_gale = f"🔸 Sorosgale: {round(valor, 2)} para {self.valor}"
 				else:
 					self.gale_atual = 0
