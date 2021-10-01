@@ -1,6 +1,6 @@
+import time, numpy, requests, json, threading
 from iqoptionapi.stable_api import IQ_Option
 from datetime import datetime, timedelta
-import time, numpy, requests, json, threading
 
 class IQ_API:
     def __init__(self, login, senha):
@@ -246,9 +246,9 @@ class IQ_API:
             if not trying:
                 if self.tipo != "auto": 
                     self.tipo = "binary" if self.tipo == "digital" else "digital"
-                self.mostrar_mensagem("❌ Erro na operação, tentando operar na " + 
-                    ("binária" if tipo == "digital" else "digital"))
+
                 tipo = "binary" if tipo == "digital" else "digital"
+                self.mostrar_mensagem(f"❌ Erro na operação, tentando operar na {tipo}")
                 
                 opcoes_modalidade = self.payout_cache.get(paridade.upper())
                 payout_modalidade = opcoes_modalidade.get(tipo) if opcoes_modalidade else -1
@@ -258,11 +258,10 @@ class IQ_API:
                         valor, tipo, delay, scalper, True)
                 else:
                     if payout_atual < 0:
-                        payout_atual = " Não encontrado"
+                        reason = "Não encontrado"
                     else:
-                        payout_atual = f"{payout_atual}% < {self.config['minimo']}%"
-                    self.mostrar_mensagem(
-                        f"Payout na {tipo} está abaixo do aceitável: {payout_atual}")
+                        reason = f"{payout_atual}% < {self.config['minimo']}%"
+                    self.mostrar_mensagem(f"Payout na {tipo} está abaixo do aceitável: {reason}")
             return "error", 0, tipo
 
         self.mostrar_mensagem(self.format_dir(
@@ -274,10 +273,6 @@ class IQ_API:
             if tipo == "binary":
                 resultado, lucro = self.API.check_win_v4(identificador) 
             else:
-                if scalper:
-                    self.API.subscribe_strike_list(paridade, 1)
-                    self.scalper(identificador, valor, scalper)
-                    self.API.unsubscribe_strike_list(paridade, 1)
                 status = False
                 start = time.time()
                 time.sleep((tempo * 60) - 10)
@@ -299,21 +294,6 @@ class IQ_API:
 
         return resultado, round(lucro, 2), tipo
 
-    def scalper(self, identificador, valor, infos):
-        aberto = True
-        win = infos["win"] * valor / 100 if valor != 0 else valor * 2
-        loss = infos["loss"] * valor / 100 if valor != 0 else valor * 2
-        while aberto:
-            atual = self.API.get_digital_spot_profit_after_sale(
-                    identificador)
-            if (round(atual, 2) >= round(win, 2) or 
-                round(atual, 2) <= round(-loss, 2)):
-                self.API.close_digital_option(identificador)
-            aberto = self.API.get_async_order(
-                identificador
-            )['position-changed']['msg']['status'] == 'open'
-            time.sleep(0.3)
-
     def calcular_tendencia(self, par, direcao, timeframe, periodo = 21):
         '''
         Verifica se está em uma tendência forte
@@ -328,9 +308,6 @@ class IQ_API:
             return True
         # Calcula a SMA
         pesos = numpy.repeat(1.0, periodo) / periodo
-        if len(pesos) == 0:
-            self.mostrar_mensagem("❌ Tendência com período problemático")
-            return True
         smas = numpy.convolve(
             dados, pesos, 'valid').tolist()
         diferenca = smas[-1] - smas[-periodo]
@@ -353,8 +330,12 @@ class IQ_API:
         try:
             if catalogador == "novo":
                 if not poshit: hits = 0
+                assets = self.config.get("assets", [])
+                strategies = self.config.get("strategies", [])
+                
                 resultado = self.bear_catalogador(timeframe, 
-                    gale, ciclos, hits, posgale, _assert)
+                    gale, ciclos, hits, posgale, _assert, 
+                    assets, strategies)
             else:
                 resultado = self.ocatalogador(timeframe, 
                     gale, poshit, ciclos, hits, _assert, 
@@ -406,25 +387,35 @@ class IQ_API:
                 analise["asset"], paridades_abertas)
         return its_ok
 
-    def bear_catalogador(self, timeframe, gale, 
-            ciclos, hits, posgale, _assert):
+    def bear_catalogador(self, timeframe: int, gale: int, ciclos: int, hits: int, 
+        posgale: int, _assert: int, assets: list, strategies: list) -> tuple:
 
+        payout_min = self.config.get("minimo", 0)
         data = requests.get(
-            f"http://34.134.160.233:5000/api/catalogacao/{timeframe}/{gale}/",
+            f"https://catalogador.herokuapp.com/api/catalogacao/{timeframe}/{gale}/",
             headers = { 
                 "poshit": str(hits), 
                 "cycles": str(ciclos),
                 "posgale": str(posgale),
-                "assert": str(_assert)
+                "assert": str(_assert),
+                "tipo": str(self.tipo),
+                "payout": str(payout_min),
+                "assets": ",".join(assets),
+                "strategies": ",".join(strategies),
             })
-        resultado = json.loads(data.text)['trades']
-        for analise in resultado:
+        resultado = json.loads(data.text)
+        trades = resultado['trades']
+        for analise in trades:
             paridade = analise["asset"]
-            its_ok = self.verify_payouts_bear(analise)
-            if not its_ok: continue
-        
+            estrategia = analise["strategy"]
             percentage = analise["percents"][0]
-            return percentage, paridade, analise["strategy"]
+                
+            return percentage, paridade, estrategia
+        
+        reason = resultado.get("reason", "Está catalogando...")
+        if reason == "": reason = "Desconhecido..."
+        self.mostrar_mensagem(f"Não conseguiu catalogar: {reason}")
+
         return False, False, False
 
     def ocatalogador(self, timeframe, gale, 
@@ -544,10 +535,10 @@ class IQ_API:
             seconds = 50 * minutos)
         ).replace(second = segundos) - timedelta(
             seconds = correcao)
-        ).timestamp() - time.time()) % 60
+        ).timestamp() - time.time())
         
+        if espera < 0: espera = 0
         time.sleep(espera)
-        print(datetime.now().strftime("%H:%M"))
 
     def is_number(self, number):
         try:
