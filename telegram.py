@@ -79,7 +79,7 @@ def exibir_configuracoes(mapeamento, infos, modalidade):
         "Tipo de gerenciamento": "🧮 Gerenciamento 🖍",
         "Tipo de martingale": "⚠️ Martingale e Soros ✅",
         "Filtro de tendência": "📈 Tendência e Notícias 📡",
-        "Estratégias: Automático": "✳️ Opções de estratégias ⚙️",
+        "Estratégias: Automático": "✳️ Opções de estratégias",
         "Tipo de paridade": "🔩 Outras Opções ⚙️",
         "Paridade": "✳️ Estratégias ❇️",
     }
@@ -242,22 +242,25 @@ class Assistente(amanobot.helper.ChatHandler):
 
     def enviar_mensagem(self, message, reply_markup = None, 
         edit = False, delete = True, save = False):
-        if edit:
-            self.bot.editMessageText(self.message_id, message)
-            if reply_markup:
-                message = self.sender.sendMessage("Escolha: ",
-                    reply_markup = reply_markup)  
-                self.bot.deleteMessage((self.chat_id, message['message_id']))
-        else:
-            if delete and not save:
-                try:
-                    self.bot.deleteMessage(self.message_id)
-                except: pass
-     
-            message = self.sender.sendMessage(message,
-                reply_markup = reply_markup, parse_mode = "Markdown")
-            if not save:
-                self.message_id = (self.chat_id, message['message_id'])
+        try:
+            if edit:
+                self.bot.editMessageText(self.message_id, message)
+                if reply_markup:
+                    message = self.sender.sendMessage("Escolha: ",
+                        reply_markup = reply_markup)  
+                    self.bot.deleteMessage((self.chat_id, message['message_id']))
+            else:
+                if delete and not save:
+                    try:
+                        self.bot.deleteMessage(self.message_id)
+                    except: pass
+        
+                message = self.sender.sendMessage(message,
+                    reply_markup = reply_markup, parse_mode = "Markdown")
+                if not save:
+                    self.message_id = (self.chat_id, message['message_id'])
+        except Exception as e:
+            print(type(e), e)
         return message
 
     def entrar(self, msg):
@@ -805,7 +808,8 @@ EURJPY 31/12/2000 CALL M5 02:30
         
         if verificador:
             self.ultimo_comando = msg
-            result = self.enviar_mensagem(self.ver_configuracoes(msg['text']), 
+            result = self.enviar_mensagem(
+                self.ver_configuracoes(msg['text']), 
                 reply_markup = teclado)
             apply_entities_as_markdown(result['text'], [])
             return True
@@ -1411,8 +1415,8 @@ class Settings(amanobot.helper.CallbackQueryOriginHandler):
                         callback_data = "🔩 Outras Opções ⚙️"),
                     InlineKeyboardButton(text= "✳️ Estratégias ❇️", 
                         callback_data = "✳️ Estratégias ❇️"),
-                    InlineKeyboardButton(text= "✳️ Opções de estratégias ⚙️", 
-                        callback_data = "✳️ Opções de estratégias ⚙️")
+                    InlineKeyboardButton(text= "✳️ Opções de estratégias", 
+                        callback_data = "✳️ Opções de estratégias")
                 ]])
             
             try: 
