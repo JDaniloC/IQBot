@@ -1148,10 +1148,19 @@ class Operacao(IQ_API):
 
 	def operar_berman(self):
 		last_update, paridades = self.update_abertas()
-		
+		BBANDS_PERIOD = self.config.get("berman_bbands", 20)
+		EMA_PERIOD = self.config.get("berman_ema", 100)
+
+		self.mostrar_mensagem(f"""🔸 Operando Estratégia Berman 🔸
+		⏰ Timeframe: M{self.tempo}
+		📊 Período do bollinger bands: {BBANDS_PERIOD}
+		📊 período da EMA: {EMA_PERIOD}
+		""")
+
 		while not self.verificar_stop():
 			for paridade in paridades:
-				taxa_atual, up, low, emma = self.berman_strategy(paridade)
+				taxa_atual, up, low, emma = self.berman_strategy(
+					paridade, EMA_PERIOD, BBANDS_PERIOD)
 
 				if (taxa_atual >= up and emma > up) or (
 					taxa_atual <= low and emma < low):

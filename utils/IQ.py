@@ -366,7 +366,8 @@ class IQ_API:
                     return f"[{trader['flag']}] {position}° {trader['user_name']}", paridade
         return [], ""
 
-    def berman_strategy(self, paridade: str) -> tuple:
+    def berman_strategy(self, paridade: str, 
+        ema_period: int, bbands_period: int) -> tuple:
         from talib.abstract import BBANDS, EMA
 
         quantidade = 1000
@@ -388,9 +389,9 @@ class IQ_API:
                 ).replace("low", "min")
                 dados[key][x] = velas[x][new_key]
 
-        saida = EMA(dados, timeperiod=100)
-        up, _, low = BBANDS(dados, timeperiod=20, 
-            nbdevup=2.5, nbdevdn=2.5, matype=0)
+        saida = EMA(dados, timeperiod=ema_period)
+        up, _, low = BBANDS(dados, matype=0, nbdevdn=2.5,
+            timeperiod=bbands_period, nbdevup=2.5)
         
         up = round(up[len(up) - 2], 5)
         low = round(low[len(low) - 2], 5)
