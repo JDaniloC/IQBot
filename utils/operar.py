@@ -230,7 +230,7 @@ class Operacao(IQ_API):
 	def verificar_stop(self):
 		'''
 		Verifica se bateu no stopwin/loss
-		Devolve um booleano
+		Devolve um boolean
 		'''
 		with self.cadeado:
 			if (-self.stoploss >= self.perda_total or 
@@ -1103,6 +1103,9 @@ class Operacao(IQ_API):
 							self.tempo, payout, tipo)).start()
 					self.mostrar_mensagem(
 						f"{trader}\n{paridade} M{self.tempo}\nDireção: {direcao}")
+		
+		time.sleep(1)
+		self.verificar_stop()
 
 	def operar_chinesa(self):
 		last_update, paridades = self.update_abertas()
@@ -1146,6 +1149,9 @@ class Operacao(IQ_API):
 
 			if (time.time() - last_update) > 600:
 				last_update, paridades = self.update_abertas()
+		
+		time.sleep(1)
+		self.verificar_stop()
 
 	def operar_berman(self):
 		last_update, paridades = self.update_abertas()
@@ -1181,3 +1187,6 @@ class Operacao(IQ_API):
 
 			if (time.time() - last_update) > 600:
 				last_update, paridades = self.update_abertas()
+		
+		time.sleep(1)
+		self.verificar_stop()
