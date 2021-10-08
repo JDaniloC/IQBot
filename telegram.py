@@ -155,6 +155,7 @@ class Assistente(amanobot.helper.ChatHandler):
             "Tipo milhão": ["tipo_milhao", False, tuple],
             "Auto VIP: Timeframe": ["autotime", False, tuple],
             "Auto VIP: Gales": ["autogale", False, tuple],
+            "Mínimo de hits": ["hits", False, tuple],
 
             "Taxas: próxima vela": ["taxas_vela", False, tuple],
             "Ranking: inicio": ['ranking-inicio', False, int],
@@ -768,7 +769,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "Pós hit" ),
                  KeyboardButton( text = "Auto VIP: Gales" ),
                  KeyboardButton( text = "Auto VIP: Timeframe")],
-                [KeyboardButton( text = "Editar configurações" )]])
+                [KeyboardButton( text = "Mínimo de hits" ),
+                 KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         if verificador:
             self.enviar_mensagem("Qual das opções?", reply_markup = teclado)
@@ -801,7 +803,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                     "tipo_lista": ["casa", "propria"],
                     "tipo_conta": ["treino", "real"],
                     "tipo_soros": ["normal", "ciclos"],
-                    "tipo_stop": ["movel", "fixo"],
+                    "tipo_stop": ["movel", "fixo"], "hits": [1, 2, 3],
                     "taxas_vela": ["retração", "reversão"],
                     "tipo_milhao": ["Minoria", "Maioria"],
                     "tipo_gale": [
@@ -1046,7 +1048,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                     novo = self.pegar_entrada(novo.split("\n"))
                 elif value[2] == bool:
                     novo = bool(novo.strip() == "Sim")
-                elif value[0] in ["tempo", "toros", 
+                elif value[0] in ["tempo", "toros", "hits",
                     "num_lista", "autogale", "autotime"]:
                     try:
                         novo = int(novo)

@@ -953,7 +953,8 @@ class Operacao(IQ_API):
 			while not self.verificar_stop() and not percent:
 				percent, paridade, strategy = self.catalogar_estrategia(
 					self.config["autotime"], self.config["autogale"],
-					self.config.get("poshit", False))
+					self.config.get("poshit", False),
+					self.config.get("hits", 1))
 				if not percent:
 					self.mostrar_mensagem("🔹 Catalogação: Sem resultados...")
 					self.esperar_proximo_minuto()
