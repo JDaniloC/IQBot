@@ -1,6 +1,6 @@
+import time, numpy, requests, json, threading
 from iqoptionapi.stable_api import IQ_Option
 from datetime import datetime, timedelta
-import time, numpy, requests, json, threading
 
 class IQ_API:
     def __init__(self, login, senha):
@@ -8,7 +8,6 @@ class IQ_API:
         Recebe o login, e tenta se conectar
         '''
         self.asset, self.timeframe, self.payout_cache = False, False, {}
-        self.display_time = lambda x, y = False: x
         self.cadeado = threading.Lock()
         self.API = IQ_Option(login, senha)
         if not self.conectar():
@@ -230,12 +229,6 @@ class IQ_API:
                 self.verificar_stop(True)
                 return 'error', 0, tipo
 
-        if tipo == "binary" and tempo == 5:
-            atual = datetime.utcnow()
-            if ((atual.minute % 5 == 4 and atual.second < 30) 
-                or atual.minute % 5 < 4): 
-                tempo = 5 - (atual.minute % 5)
-
         with self.cadeado:
             if tipo == "binary":
                 status, identificador = self.API.buy(
@@ -253,9 +246,9 @@ class IQ_API:
             if not trying:
                 if self.tipo != "auto": 
                     self.tipo = "binary" if self.tipo == "digital" else "digital"
-                self.mostrar_mensagem("❌ Erro na operação, tentando operar na " + 
-                    ("binária" if tipo == "digital" else "digital"))
+
                 tipo = "binary" if tipo == "digital" else "digital"
+                self.mostrar_mensagem(f"❌ Erro na operação, tentando operar na {tipo}")
                 
                 opcoes_modalidade = self.payout_cache.get(paridade.upper())
                 payout_modalidade = opcoes_modalidade.get(tipo) if opcoes_modalidade else -1
@@ -265,11 +258,10 @@ class IQ_API:
                         valor, tipo, delay, scalper, True)
                 else:
                     if payout_atual < 0:
-                        payout_atual = " Não encontrado"
+                        reason = "Não encontrado"
                     else:
-                        payout_atual = f"{payout_atual}% < {self.config['minimo']}%"
-                    self.mostrar_mensagem(
-                        f"Payout na {tipo} está abaixo do aceitável: {payout_atual}")
+                        reason = f"{payout_atual}% < {self.config['minimo']}%"
+                    self.mostrar_mensagem(f"Payout na {tipo} está abaixo do aceitável: {reason}")
             return "error", 0, tipo
 
         self.mostrar_mensagem(self.format_dir(
@@ -281,15 +273,14 @@ class IQ_API:
             if tipo == "binary":
                 resultado, lucro = self.API.check_win_v4(identificador) 
             else:
-                if scalper:
-                    self.API.subscribe_strike_list(paridade, 1)
-                    self.scalper(identificador, valor, scalper)
-                    self.API.unsubscribe_strike_list(paridade, 1)
                 status = False
+                start = time.time()
                 time.sleep((tempo * 60) - 10)
                 while not status:
                     status, lucro = self.API.check_win_digital_v2(identificador)
                     time.sleep(0.5)
+                    if time.time() - start > ((tempo + 1) * 60):
+                        raise Exception('Não consegui pegar o resultado...')
                 if lucro > 0:
                     resultado = "win"
                 elif lucro < 0:
@@ -302,21 +293,6 @@ class IQ_API:
                 identificador, tipo, delay)
 
         return resultado, round(lucro, 2), tipo
-
-    def scalper(self, identificador, valor, infos):
-        aberto = True
-        win = infos["win"] * valor / 100 if valor != 0 else valor * 2
-        loss = infos["loss"] * valor / 100 if valor != 0 else valor * 2
-        while aberto:
-            atual = self.API.get_digital_spot_profit_after_sale(
-                    identificador)
-            if (round(atual, 2) >= round(win, 2) or 
-                round(atual, 2) <= round(-loss, 2)):
-                self.API.close_digital_option(identificador)
-            aberto = self.API.get_async_order(
-                identificador
-            )['position-changed']['msg']['status'] == 'open'
-            time.sleep(0.3)
 
     def calcular_tendencia(self, par, direcao, timeframe, periodo = 21):
         '''
@@ -341,7 +317,7 @@ class IQ_API:
             and diferenca > 0) or (
             direcao.lower() == "put" 
             and diferenca < 0) else False
-    
+
     def format_dir(self, text):
         return text.replace("CALL", "⬆️").replace("PUT", "⬇️")
 
@@ -349,16 +325,108 @@ class IQ_API:
         return text.replace("CALL", "🟢"
             ).replace("PUT", "🔴").replace("DOJI", "⚪️")
 
-    def catalogar_estrategia(self, timeframe, gale, 
-        poshit, ciclos = 0, payouts = False):
-        def is_hit(candle):
-            hit = False
-            if candle == "H":
-                hit = True 
-            elif candle == "G2" and gale != "2":
-                hit = True
-            elif candle == "G1" and gale == "0":
-                hit = True
+    def catalogar_estrategia(self, timeframe, gale, poshit, posgale,
+            ciclos = 0, hits = 0,  _assert = 0, catalogador = "old"):
+        try:
+            if catalogador == "novo":
+                if not poshit: hits = 0
+                assets = self.config.get("assets", [])
+                strategies = self.config.get("strategies", [])
+                
+                resultado = self.bear_catalogador(timeframe, 
+                    gale, ciclos, hits, posgale, _assert, 
+                    assets, strategies)
+            else:
+                resultado = self.ocatalogador(timeframe, 
+                    gale, poshit, ciclos, hits, _assert, 
+                    self.API.get_all_open_time())
+        except Exception as e: 
+            self.mostrar_mensagem("Ocorreu um problema no catalogador...")
+            self.mostrar_mensagem(str(type(e)) + str(e), True)
+            resultado = False, False, False
+
+        return resultado
+
+    def verify_payouts(self, paridade, payouts):
+        if_err = {"open": False}
+        binaria = payouts["turbo"].get(paridade, if_err)["open"]
+        digital = payouts["digital"].get(paridade, if_err)["open"]
+        
+        if self.tipo == "digital":
+            its_ok = digital                        
+        elif self.tipo == "binary": 
+            its_ok = binaria
+        else:
+            its_ok = digital or binaria
+
+        if its_ok:
+            timeframe = int(self.config["autotime"][1:])
+            payout = round(100 * self.recebe_payout(
+                paridade, timeframe)[1])
+            if payout < self.config['minimo']:
+                its_ok = False
+        return its_ok
+    
+    def verify_payouts_bear(self, analise):
+        its_ok = True
+        if analise.get("payout"):
+            digital = analise["payout"]["digital"]
+            binaria = analise["payout"]["binary"]
+            if self.tipo == "digital":
+                payout = digital 
+            elif self.tipo == "binary": 
+                payout = binaria
+            else:
+                payout = digital if digital > binaria else binaria
+
+            if (payout * 100) < self.config['minimo']:
+                its_ok = False
+        else:
+            paridades_abertas = self.API.get_all_open_time()
+            its_ok = self.verify_payouts(
+                analise["asset"], paridades_abertas)
+        return its_ok
+
+    def bear_catalogador(self, timeframe: int, gale: int, ciclos: int, hits: int, 
+        posgale: int, _assert: int, assets: list, strategies: list) -> tuple:
+
+        payout_min = self.config.get("minimo", 0)
+        data = requests.get(
+            f"https://catalogador.herokuapp.com/api/catalogacao/{timeframe}/{gale}/",
+            headers = { 
+                "poshit": str(hits), 
+                "cycles": str(ciclos),
+                "posgale": str(posgale),
+                "assert": str(_assert),
+                "tipo": str(self.tipo),
+                "payout": str(payout_min),
+                "assets": ",".join(assets),
+                "strategies": ",".join(strategies),
+            })
+        resultado = json.loads(data.text)
+        trades = resultado['trades']
+        for analise in trades:
+            paridade = analise["asset"]
+            estrategia = analise["strategy"]
+            percentage = analise["percents"][0]
+                
+            return percentage, paridade, estrategia
+        
+        reason = resultado.get("reason", "Está catalogando...")
+        if reason == "": reason = "Desconhecido..."
+        self.mostrar_mensagem(f"Não conseguiu catalogar: {reason}")
+
+        return False, False, False
+
+    def ocatalogador(self, timeframe, gale, 
+        poshit, ciclos, hits, _assert, payouts):
+        def is_hit(candles):
+            hit = True
+            for candle in candles:
+                if candle in ["W", "D"] or (
+                    candle == "G1" and gale != "0"
+                ) or (candle == "G2" and gale == "2"):
+                    hit = False
             return hit
 
         def verify_minoria(response):
@@ -378,40 +446,20 @@ class IQ_API:
         elif gale == "1": gName = "porcentagemGale1"
         else:             gName = "porcentagemWinDePrimeira"
         data = requests.get(f"https://ocatalogador.com/api/{gName}/{timeframe}")
-        try:
-            resultado = json.loads(data.text)['Todos']
-            for analise in resultado:
-                if not verify_ciclos(analise[3][0]):
-                    continue
-                
-                candle = analise[3][0][-1]   
-                if (poshit and is_hit(candle)) or not poshit:
-                    if payouts:
-                        paridade = analise[1]
-                        if_err = {"open": False}
-                        binaria = payouts["turbo"].get(paridade, if_err)["open"]
-                        digital = payouts["digital"].get(paridade, if_err)["open"]
-                        
-                        if self.tipo == "digital":
-                            its_ok = digital                        
-                        elif self.tipo == "binary": 
-                            its_ok = binaria
-                        else:
-                            its_ok = digital or binaria
-
-                        if its_ok:
-                            timeframe = int(self.config["autotime"][1:])
-                            payout = round(100 * self.recebe_payout(paridade, timeframe)[1])
-                            if payout < self.config['minimo']:
-                                its_ok = False
-                        
-                        if not its_ok: continue
-                    
-                    return verify_minoria(analise[:3])
-            return False, False, False
-        except Exception as e:
-            print("catalogar_estrategia()", e) 
-            return 50, "EURUSD", "MHI minoria"
+        resultado = json.loads(data.text)['Todos']
+        for analise in resultado:
+            if not verify_ciclos(analise[3][0]
+                ) or _assert > analise[0]:
+                continue
+            
+            candle = analise[3][0][-hits:]   
+            if (poshit and is_hit(candle)) or not poshit:
+                if payouts:
+                    its_ok = self.verify_payouts(analise[1], payouts)
+                    if not its_ok: continue
+       
+                return verify_minoria(analise[:3])
+        return False, False, False
 
     @staticmethod
     def esperarAte(horas, minutos, segundos = 0, 
@@ -448,8 +496,7 @@ class IQ_API:
         return False
     
     @staticmethod
-    def martingale(tipo_martin, payout, 
-        perca, valor = 1, lucro = 1):
+    def martingale(tipo_martin, payout, perca, valor = 1, lucro = 1):
         '''
         Calcula o martingale onde:
             tipo_martin:
@@ -477,18 +524,21 @@ class IQ_API:
             return (abs(perca) + lucro) / payout
         elif tipo_martin == "seguro":
             return round(abs(perca)/payout, 2)
-        elif tipo_martin == "percent":
+        elif tipo_martin == "porcento":
             return round((abs(perca) + lucro) / payout, 2)
         else:
             return round((abs(perca) + abs(perca) * lucro)/payout, 2)
 
-    def esperar_proximo_minuto(self, minutos = 1):
+    def esperar_proximo_minuto(self, minutos = 1, segundos = 56):
         correcao = self.config.get('correcao', 0)
         espera = (((datetime.now() + timedelta(
             seconds = 50 * minutos)
-        ).replace(second = 56) - timedelta(seconds = correcao)
-        ).timestamp() - time.time()) % 60
-
+        ).replace(second = segundos) - timedelta(
+            seconds = correcao)
+        ).timestamp() - time.time())
+        
+        if espera < 0: espera = 0
+        self.display_time(round(espera))
         time.sleep(espera)
 
     def is_number(self, number):

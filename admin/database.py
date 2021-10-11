@@ -1,7 +1,6 @@
 from configparser import RawConfigParser
-from schema import waiting_schema
-from schema import users_schema
-from schema import adms_schema
+from admin.schema import users_schema
+from admin.schema import adms_schema
 from pymongo import MongoClient
 import time
 
@@ -64,7 +63,7 @@ class Mongo:
             user = users_schema.user
             user['email'] = email
             if plano == "teste":
-                user['timestamp'] = time.time() + 43200
+                user['timestamp'] = time.time() + 172800
             elif plano == "semanal":
                 user['timestamp'] = time.time() + 604800
             elif plano == "mensal":
@@ -84,7 +83,7 @@ class Mongo:
         Aumenta a licença de determinado e-mail
         '''
         if plano == "teste":
-            data = time.time() + 43200
+            data = time.time() + 172800
         elif plano == "semanal":
             data = time.time() + 604800
         elif plano == "mensal":
@@ -112,8 +111,9 @@ class Mongo:
         Modifica as informações do usuário de determinado e-mail
         '''
         user = self.remover_usuario(email)
-        user.update(info)
-        self.users_collection.insert_one(user)
+        if user: 
+            user.update(info)
+            self.users_collection.insert_one(user)
 
     def modifica_avancadas(self, info, valor):
         '''
