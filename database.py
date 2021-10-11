@@ -1,15 +1,15 @@
 from configparser import RawConfigParser
-from schema import waiting_schema
+from pymongo import MongoClient
 from schema import users_schema
 from schema import adms_schema
-from pymongo import MongoClient
+from utils import ENV_NAME
 import time
 
 
 config = RawConfigParser()
-config.read(".env")
+config.read(ENV_NAME)
 
-autenticacao = config.get("DATABASE", "autentication")
+autenticacao = config.get("DATABASE", "authentication")
 
 class Mongo:
     def __init__(self):        
@@ -58,21 +58,19 @@ class Mongo:
         Tira o e-mail de em aprovação e coloca no rol de usuários
         '''
         user = self.apagar_cadastro(email)
-        if self.users_collection.count_documents({}) >= 100:
-            return False
         if user:
             user = users_schema.user
             user['email'] = email
             if plano == "teste":
-                user['timestamp'] = time.time() + 43200
-            elif plano == "semanal":
-                user['timestamp'] = time.time() + 604800
+                user['timestamp'] = time.time() + 86400
             elif plano == "mensal":
                 user['timestamp'] = time.time() + 2592000
             elif plano == "trimestral":
                 user['timestamp'] = time.time() + 7776000
+            elif plano == "semestral":
+                user['timestamp'] = time.time() + 15552000
             else:
-                user['timestamp'] = time.time() + 31104000
+                user['timestamp'] = time.time() + 31536000
             user['plano'] = plano
             user["_id"] = time.time()
             self.users_collection.insert_one(user)
@@ -84,15 +82,15 @@ class Mongo:
         Aumenta a licença de determinado e-mail
         '''
         if plano == "teste":
-            data = time.time() + 43200
-        elif plano == "semanal":
-            data = time.time() + 604800
+            data = time.time() + 86400
         elif plano == "mensal":
             data = time.time() + 2592000
         elif plano == "trimestral":
             data = time.time() + 7776000
+        elif plano == "semestral":
+            data = time.time() + 15552000
         else:
-            data = time.time() + 31104000
+            data = time.time() + 31536000
         self.users_collection.find_one_and_update(
             {'email':email}, {'$set': {
                 'timestamp': data,

@@ -1,6 +1,6 @@
-import time, pprint, amanobot, os, sys, json
 from configparser import RawConfigParser
 from datetime import timedelta, datetime
+import time, pprint, amanobot, os, sys
 
 from amanobot.loop import MessageLoop
 from amanobot.namedtuple import (
@@ -15,10 +15,11 @@ from utils.catalogador import Catalogador
 from utils.checador import checa_sinais
 from controlador import Control
 from database import Mongo
+from utils import ENV_NAME
 
 
 config = RawConfigParser()
-config.read(".env")
+config.read(ENV_NAME)
 MongoDB = Mongo()
 
 TOKEN = config.get("TELEGRAM", "token")
@@ -53,20 +54,23 @@ def carregar_entradas(opcao):
             timeframe = "Padrão"
         else:
             timeframe = f"M{linha['timeframe']}"
+        direcao = linha["ordem"].upper()
+        direcao_sign = '⬆' if direcao == "CALL" else '⬇'
 
         if linha["tipo"] == "taxas": 
             lista_entradas.append(f"""
 📊 Ativo: {linha['par']}
 📈 Taxa: {linha['taxa']}
 ⏰ Período: {timeframe}
+{f'{direcao_sign} Direção {direcao}' if direcao != "" else ""}
             """)
             continue
-        direcao = linha["ordem"].lower()
+
         lista_entradas.append(f'''
 📊 Ativo: {linha["par"]}
 📅 Dia: {"/".join(list(map(strDateHour, linha["data"])))}
 ⏱ Hora: {":".join(list(map(strDateHour, linha["hora"])))}   
-{'⬆' if direcao == "call" else '⬇'} Direção: {direcao.upper()} 
+{direcao_sign} Direção: {direcao} 
 ⏰ Período: {timeframe}
         ''')
     return lista_entradas
@@ -183,13 +187,13 @@ class Assistente(amanobot.helper.ChatHandler):
         
         teclado = InlineKeyboardMarkup(inline_keyboard = [
             [InlineKeyboardButton(
-                text = MongoDB.infos["campo1"]["titulo"],
-                url = MongoDB.infos["campo1"]["link"]
+                text = MongoDB.infos['anuncios'][i]["titulo"],
+                url = MongoDB.infos['anuncios'][i]["link"]
             ),
             InlineKeyboardButton(
-                text = MongoDB.infos["campo2"]["titulo"],
-                url = MongoDB.infos["campo2"]["link"]
-            )]
+                text = MongoDB.infos['anuncios'][i+1]["titulo"],
+                url = MongoDB.infos['anuncios'][i+1]["link"]
+            )] for i in range(0, len(MongoDB.infos['anuncios']), 2)
         ])
         
         self.sender.sendMessage(
@@ -1033,21 +1037,16 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.enviar_mensagem("Escolha o tipo de plano",
                 reply_markup = ReplyKeyboardMarkup(keyboard = [
                     [KeyboardButton( text = "teste" ),
-                    KeyboardButton( text = "semanal" )],
-                    [KeyboardButton( text = "mensal" ),
-                    KeyboardButton( text = "trimestral" )],
+                     KeyboardButton( text = "mensal" )],
+                    [KeyboardButton( text = "trimestral" ),
+                     KeyboardButton( text = "semestral" )],
                     [KeyboardButton( text = "anual" )]]))
             self.alteracoes_avancadas['plano'] = msg
             return None
         elif self.alteracoes_avancadas['aprovar']:
             aprovado = MongoDB.aprovar(
                 self.alteracoes_avancadas['plano'], msg)
-            if aprovado:
-                self.enviar_mensagem("Usuário aprovado.")
-            else:
-                self.enviar_mensagem(
-                    "Você já atingiu o limite de usuários. \
-                        Sua VPS já não suporta.", save = True)
+            self.enviar_mensagem("Usuário aprovado.")
             self.alteracoes_avancadas["aprovar"] = False
             self.alteracoes_avancadas['plano'] = False
             return True
@@ -1085,12 +1084,10 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             if value[1]:
                 if value[2] in [int, float]:
                     novo = numerization(novo, value[2])
-                    if novo != 0 and not novo:
-                        if value[0] == "delay":
-                            novo = False
-                        else:
-                            self.enviar_mensagem("Deve ser um número! Tente novamente", save = True)
-                            return True
+                    if type(novo) not in [int, float
+                        ] and value[0] != "delay":
+                        self.enviar_mensagem("Deve ser um número! Tente novamente", save = True)
+                        return True
                 elif value[2] == list:
                     novo = self.pegar_entrada(novo.split("\n"))
                 elif value[2] == bool:
@@ -1109,7 +1106,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                             map(float, x.strip().split(","))), 
                             novo.strip().split("\n"))) 
                     except Exception as e:
-                        print(e)
+                        print(type(e), e)
                         self.enviar_mensagem("Não entendi, tente novamente!")
                         return True
                 elif novo == "individual":
