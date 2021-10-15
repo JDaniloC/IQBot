@@ -538,7 +538,6 @@ class IQ_API:
         ).timestamp() - time.time())
         
         if espera < 0: espera = 0
-        self.display_time(round(espera))
         time.sleep(espera)
 
     def is_number(self, number):
