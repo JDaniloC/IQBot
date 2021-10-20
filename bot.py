@@ -177,7 +177,7 @@ def recebe_comandos(comandos):
     if comandos != []:
         if comandos[0] in ['-o', 'online'] and len(comandos[1:]) > 3:
             # Carrega o arquivo de configurações a partir do e-mail
-            config = MongoDB.get_user(comandos[1])
+            config = MongoDB.usuario_cadastrado(comandos[1])
             config['senha'] = comandos[2]
   
             # Define o arquivo de entradas a partir do gale máximo/própria
@@ -224,9 +224,8 @@ if __name__ == "__main__":
         elif argv[1] == "-o":
             try: # Dizer que terminou
                 email = argv[2]
-                dados = MongoDB.get_user(email)
-                dados["operando"] = False
-                MongoDB.modifica_usuario(dados, email)
+                MongoDB.modifica_usuario(email, {
+                    "operando": False })
                 MongoDB.close()
             except Exception as e:
                 print(e)

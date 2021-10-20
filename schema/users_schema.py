@@ -2,9 +2,8 @@ user = {
     '_id': 0,
     "email": '',
     "lista": [],
-    "timestamp": 0,
+    "timestamp": "",
     "num_lista": "1",
-    "plano": "teste",
     "operando": False,
     "tipo_lista":"propria",
 

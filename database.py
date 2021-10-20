@@ -3,17 +3,17 @@ from pymongo import MongoClient
 from schema import users_schema
 from schema import adms_schema
 from utils import ENV_NAME
-import time
-
+import time, requests
 
 config = RawConfigParser()
 config.read(ENV_NAME)
 
-autenticacao = config.get("DATABASE", "authentication")
+DB_AUTH = config.get("DATABASE", "authentication")
+LICENSOR_URL = config.get("LICENSOR", "licensorURL")
 
 class Mongo:
     def __init__(self):        
-        self.client   =  MongoClient(autenticacao)
+        self.client   =  MongoClient(DB_AUTH)
         self.database = self.client.iqbot 
 
         self.users_collection = self.database.user
@@ -30,88 +30,95 @@ class Mongo:
         self.modificar_banco_users("clear")
 
     def atualizar_infos(self):
+        """ Atualiza o atributo infos """
         self.infos = self.database.infos.find_one()
 
-    def adicionar_cadastro(self, email):
-        '''
-        Adiciona o e-mail na fila de aprovação
-        '''
-        self.users_em_aprovacao.insert_one({"email": email})
+    def usuarios_em_cadastro(self) -> list:
+        """ Devolve todos da fila """
+        return list(self.users_em_aprovacao.find())
 
-    def verifica_cadastro(self, email):
-        '''
-        Verifica se o e-mail está em aprovação
-        '''
-        objct = self.users_em_aprovacao.find_one({'email':email})
-        if not objct:
-            return False
-        return True
+    def apagar_cadastro(self, email) -> dict:
+        """ Remove o e-mail da fila """
+        return self.users_em_aprovacao.find_one_and_delete(
+            {"email": email})
+    
+    def limpar_cadastro(self):
+        """ Remove todos da fila """
+        self.users_em_aprovacao.delete_many({})
 
-    def verifica_licenca(self, email):
-        objct = self.users_collection.find_one({'email':email})
-        if not objct:
-            return False
-        return True
+    def adicionar_cadastro(self, email: str):
+        """ Adiciona o e-mail na fila """
+        self.users_em_aprovacao.insert_one(
+            { "email": email })
 
-    def aprovar(self, email, plano):
-        '''
-        Tira o e-mail de em aprovação e coloca no rol de usuários
-        '''
-        user = self.apagar_cadastro(email)
-        if user:
-            user = users_schema.user
-            user['email'] = email
-            if plano == "teste":
-                user['timestamp'] = time.time() + 86400
-            elif plano == "mensal":
-                user['timestamp'] = time.time() + 2592000
-            elif plano == "trimestral":
-                user['timestamp'] = time.time() + 7776000
-            elif plano == "semestral":
-                user['timestamp'] = time.time() + 15552000
-            else:
-                user['timestamp'] = time.time() + 31536000
-            user['plano'] = plano
-            user["_id"] = time.time()
-            self.users_collection.insert_one(user)
-            return True
+    def verifica_cadastro(self, email: str) -> bool:
+        """ Verifica se o e-mail está na fila """
+        return self.users_em_aprovacao.find_one(
+            { 'email': email }) != None
+
+    def verifica_licenca(self, email: str):
+        """
+        Verifica se tem a licença
+        Se tiver, aprova e devolve os dados
+        Se não tiver remove por segurança
+        """
+        try:
+            response = requests.get(f"{LICENSOR_URL}/clients", 
+                params = { "email": email, "botName": "telegram" }
+            ).json()
+            if email in response:
+                tempo_restante = int(response["timestamp"])
+                if tempo_restante > 0:
+                    return self.aprovar_usuario(
+                        email, response["message"])
+                self.remover_usuario(email)
+        except Exception as e:
+            print(type(e), e)
+
         return False
 
-    def renovar_licenca(self, email, plano):
-        '''
-        Aumenta a licença de determinado e-mail
-        '''
-        if plano == "teste":
-            data = time.time() + 86400
-        elif plano == "mensal":
-            data = time.time() + 2592000
-        elif plano == "trimestral":
-            data = time.time() + 7776000
-        elif plano == "semestral":
-            data = time.time() + 15552000
-        else:
-            data = time.time() + 31536000
-        self.users_collection.find_one_and_update(
-            {'email':email}, {'$set': {
-                'timestamp': data,
-                'plano': plano
-        }})
+    def aprovar_usuario(self, email: str, tempo_restante: str) -> dict:
+        """
+        Verifica se já existe um usuário
+        - Se houver, devolve os dados
+        - Se não houver, tira do cadastro
+        E cria um novo usuário, devolvendo os dados
+        """
+        user_data = self.usuario_cadastrado(email)
+        if user_data: 
+            user_data["timestamp"] = tempo_restante
+            return user_data
 
-    def adiciona_adm(self, _id):
-        '''
-        Adiciona o ID do telegram no grupo de admnistradores
-        '''
+        self.apagar_cadastro(email)
+        user_data = users_schema.user
+        user_data['email'] = email
+        user_data["_id"] = time.time()
+        self.users_collection.insert_one(user_data)
+        user_data["timestamp"] = tempo_restante
+        return user_data
+
+    def usuario_cadastrado(self, email: str) -> dict:
+        """ Devolve as informações do usuário """
+        return self.users_collection.find_one({'email': email})
+    
+    def modifica_usuario(self, email: str, info: dict):
+        """ Atualiza informações do usuário """
+        self.users_collection.find_one_and_update(
+            { 'email': email }, { "$set": info }
+        )
+
+    def remover_usuario(self, email):
+        """ Remove o usuário de determinado e-mail """
+        return self.users_collection.find_one_and_delete(
+            {'email': email})
+
+    def adiciona_adm(self, _id: int):
+        """
+        Adiciona o ID do telegram no grupo de administradores
+        """
         adm = adms_schema.ADMS
         adm['_id'] = _id
         self.ADMS_collection.insert_one(adm)
-
-    def modifica_usuario(self, info, email):
-        '''
-        Modifica as informações do usuário de determinado e-mail
-        '''
-        user = self.remover_usuario(email)
-        user.update(info)
-        self.users_collection.insert_one(user)
 
     def modifica_avancadas(self, info, valor):
         '''
@@ -122,40 +129,13 @@ class Mongo:
         default = self.default_config.find_one_and_delete(
             {'_id': object_id}) 
         default[info] = valor
-        self.default_config.insert_one(default) #Insere o doc alterado no banco
-
-    def remover_usuario(self, email):
-        '''
-        Remove o usuário de determinado e-mail
-        Devolve o usuário removido
-        '''
-        return self.users_collection.find_one_and_delete(
-            {'email': email})
-
-    def apagar_cadastro(self, email):
-        '''
-        Tira o e-mail da fila de cadastro
-        Devolve o objeto removido
-        '''
-        return self.users_em_aprovacao.find_one_and_delete(
-            {"email": email})
-
+        self.default_config.insert_one(default)
+    
     def get_avancadas(self):
         '''
         Devolve as configurações avançadas
         '''
         return self.default_config.find_one()
-
-    def get_user(self, email):
-        '''
-        Devolve as informações do usuário a partir do e-mail
-        '''
-        return self.users_collection.find_one({'email': email})
-
-    def usuarios_cadastrados(self):
-        return self.users_collection.find()
-    def usuarios_em_cadastro(self):
-        return self.users_em_aprovacao.find()
 
     def get_adms(self):
         '''
