@@ -965,13 +965,13 @@ class Operacao(IQ_API):
 			self.mostrar_mensagem(f"""
 🔹 {estrategia} pela {tipo_milhao.capitalize()} | Paridade: {paridade} ♦️
 🎯 Assertividade: {percent}% | Payout: {payout}% ❇️""")
-			return paridade, estrategia.lower(), tipo_milhao
+			return paridade.upper(), estrategia.lower(), tipo_milhao.lower()
 
 		if self.config["auto"]:
 			paridade, estrategia, tipo_milhao = pegar_catalogacao()
 			timeframe = self.config["autotime"]
 		else:
-			tipo_milhao = self.config.get('tipo_milhao', "minoria")
+			tipo_milhao = self.config.get('tipo_milhao', "minoria").lower()
 			paridade = self.config['paridade']
 			estrategia = self.config['estrategia'].lower()
 			timeframe = 5 if (estrategia in [
@@ -985,7 +985,7 @@ class Operacao(IQ_API):
 			estrategia = estrategia.replace("m5: ", "").replace("m15: ", "")
 			payout = 100 * self.recebe_payout(paridade, self.config["autotime"])[1]
 			self.mostrar_mensagem(f"""
-🔹 {estrategia.capitalize()} pela {tipo_milhao.capitalize()} | Paridade: {paridade} ♦️
+🔹 {estrategia.upper()} pela {tipo_milhao.capitalize()} | Paridade: {paridade} ♦️
 ❇️ Payout: {payout}%""")
 
 		verifica_entrada(estrategia, timeframe, True)
