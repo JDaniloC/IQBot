@@ -243,15 +243,22 @@ class Assistente(amanobot.helper.ChatHandler):
 
         usuario = MongoDB.verifica_licenca(email)
         if usuario: 
+            if type(usuario) == str:
+                self.enviar_mensagem(usuario, save = True)
+                self.entrada = False
+                return True
+            
             # Verifica se está no banco de dados e entra na conta
             self.email, self.informacoes = email, usuario
             self.entrada, self.autenticacao = False, True
             restante = usuario["timestamp"]
             self.enviar_mensagem(
-                f"Seja bem-vindo Sr(a) {self.nome_usuario}. {restante}", save = True)
+                f"Seja bem-vindo Sr(a) {self.nome_usuario}. {restante}", 
+                    save = True)
             self.comandos()
         elif MongoDB.verifica_cadastro(email):
-            self.enviar_mensagem("Seu e-mail ainda está em análise...", save = True)
+            self.enviar_mensagem("Seu e-mail ainda está em análise...", 
+                save = True)
             self.close()
         else:
             if len(email) > 10 and "@" in email and "." in email:
@@ -304,7 +311,7 @@ class Assistente(amanobot.helper.ChatHandler):
         elif msg['text'] == "Administração":
             mensagem = "Escolha a opção:"
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Ver cadastros" ),
+                [KeyboardButton( text = "Cadastrar" ),
                  KeyboardButton( text = "Limpar cadastros" )],
                 [KeyboardButton( text = "Adicionar administrador" ),
                  KeyboardButton( text = "Remover administrador")],
@@ -854,7 +861,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             entrada_03 = carregar_entradas(3)
             self.enviar_mensagem("Informações atualizadas.")
             self.gerenciar()
-        elif msg['text'] == "Ver cadastros":
+        elif msg['text'] == "Cadastrar":
             self.enviar_mensagem("Carregando banco de dados...")
             users = MongoDB.usuarios_em_cadastro()
             lista_usuarios = [] 
@@ -1003,7 +1010,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.alteracoes_avancadas["adm_out"] = False
             return True
         elif self.alteracoes_avancadas['adicionar']:
-            MongoDB.apagar_cadastro(msg)
+            MongoDB.promover_cadastro(msg)
             self.enviar_mensagem("Cadastro adicionado")
             self.alteracoes_avancadas["adicionar"] = False
             return True

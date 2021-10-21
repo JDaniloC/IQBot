@@ -10,6 +10,7 @@ config.read(ENV_NAME)
 
 DB_AUTH = config.get("DATABASE", "authentication")
 LICENSOR_URL = config.get("LICENSOR", "licensorURL")
+SELLER_EMAIL = config.get("LICENSOR", "sellerEmail")
 
 class Mongo:
     def __init__(self):        
@@ -37,11 +38,27 @@ class Mongo:
         """ Devolve todos da fila """
         return list(self.users_em_aprovacao.find())
 
-    def apagar_cadastro(self, email) -> dict:
-        """ Remove o e-mail da fila """
-        return self.users_em_aprovacao.find_one_and_delete(
-            {"email": email})
+    def promover_cadastro(self, email):
+        """ Remove o e-mail da fila e dá a licença """
+        try:
+            response = requests.post(
+                f"{LICENSOR_URL}/clients", data = { 
+                    "sellerEmail": SELLER_EMAIL, 
+                    "clientEmail": email,
+                    "botName": "telegram" 
+            }).json()
+            if response.get("seller") != SELLER_EMAIL:
+                return None
+            
+            self.apagar_cadastro(email)
+        except Exception as e:
+            print(type(e), e)
     
+    def apagar_cadastro(self, email):
+        """ Remove o e-mail da fila """
+        self.users_em_aprovacao.find_one_and_delete(
+            {"email": email})
+
     def limpar_cadastro(self):
         """ Remove todos da fila """
         self.users_em_aprovacao.delete_many({})
@@ -66,12 +83,13 @@ class Mongo:
             response = requests.get(f"{LICENSOR_URL}/clients", 
                 params = { "email": email, "botName": "telegram" }
             ).json()
-            if email in response:
+            if "timestamp" in response:
                 tempo_restante = int(response["timestamp"])
                 if tempo_restante > 0:
                     return self.aprovar_usuario(
                         email, response["message"])
                 self.remover_usuario(email)
+                return response["message"]
         except Exception as e:
             print(type(e), e)
 

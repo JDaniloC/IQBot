@@ -177,7 +177,7 @@ class Operacao(IQ_API):
 		saldo = self.saldo_inicial
 
 		try:
-			response = requests.post(f"{APIURL}/users/", {
+			requests.post(f"{APIURL}/users/", {
 				"email": self.config['email'],
 				"initialBalance": saldo,
 				"botName": "telegram",
@@ -186,7 +186,6 @@ class Operacao(IQ_API):
 				"amount": amount,
 				"infos": infos
 			})
-			print(response.text)
 		except:
 			traceback.print_exc()
 
