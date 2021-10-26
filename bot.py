@@ -307,7 +307,7 @@ if __name__ == "__main__":
         print("\nAconteceu um erro, tente novamente.")
         print("Se o erro persistir, chame o técnico.")
 		
-        escreve_erros(e)
+        escreve_erros()
     finally:
         if not argv[1:] or argv[1] != "-o":
             input("\nDigite Enter para sair")

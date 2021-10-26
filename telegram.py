@@ -156,6 +156,7 @@ class Assistente(amanobot.helper.ChatHandler):
             "Auto VIP: Timeframe": ["autotime", False, tuple],
             "Auto VIP: Gales": ["autogale", False, tuple],
             "Mínimo de hits": ["hits", False, tuple],
+            "Assertividade mínima": ["assert", False, int],
 
             "Taxas: próxima vela": ["taxas_vela", False, tuple],
             "Ranking: inicio": ['ranking-inicio', False, int],
@@ -770,6 +771,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Auto VIP: Gales" ),
                  KeyboardButton( text = "Auto VIP: Timeframe")],
                 [KeyboardButton( text = "Mínimo de hits" ),
+                 KeyboardButton( text = "Assertividade mínima" ),
                  KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         if verificador:
@@ -986,10 +988,11 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.enviar_mensagem("Escolha o tipo de plano",
                 reply_markup = ReplyKeyboardMarkup(keyboard = [
                     [KeyboardButton( text = "teste" ),
-                    KeyboardButton( text = "semanal" )],
+                     KeyboardButton( text = "semanal" )],
                     [KeyboardButton( text = "mensal" ),
-                    KeyboardButton( text = "trimestral" )],
-                    [KeyboardButton( text = "anual" )]]))
+                     KeyboardButton( text = "trimestral" )],
+                    [KeyboardButton( text = "semestral" ),
+                     KeyboardButton( text = "anual" )]]))
             self.alteracoes_avancadas['plano'] = msg
             return None
         elif self.alteracoes_avancadas['aprovar']:
@@ -1031,7 +1034,9 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         '''
         def numerization(valor, func):
             try:
-                return func(valor.strip().replace(",", "."))
+                return func(valor.strip()
+                                 .replace(",", ".")
+                                 .replace("%", ""))
             except: return False
 
         for key, value in dicionario.items():

@@ -470,7 +470,7 @@ class IQ_API:
         return finta.TA.SSMA(dataframe, period)
     
     @staticmethod
-    def catalogar_estrategia(timeframe, gale, poshit, hits = 0):
+    def catalogar_estrategia(timeframe, gale, poshit, hits = 0, _assert = 0):
         def is_hit(candles):
             hit = True
             for candle in candles:
@@ -502,7 +502,10 @@ class IQ_API:
         try:
             resultado = json.loads(data.text)['Todos']
             for analise in resultado:
-                candles = analise[3][0][-hits:]   
+                if _assert > analise[0]:
+                    continue
+
+                candles = analise[3][0][-hits:]
                 if (poshit and is_hit(candles)) or not poshit:
                     return traduzir(analise)
             return False, False, False
