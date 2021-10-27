@@ -1,6 +1,6 @@
-import time, pprint, amanobot, os, sys
 from configparser import RawConfigParser
-from datetime import timedelta, datetime
+import time, pprint, amanobot, os, sys
+from datetime import datetime
 
 from amanobot.text import apply_entities_as_markdown
 from amanobot.loop import MessageLoop
@@ -9,17 +9,19 @@ from amanobot.namedtuple import (
     ReplyKeyboardRemove, InlineKeyboardMarkup, 
     InlineKeyboardButton)
 from amanobot.delegate import (
-    pave_event_space, per_callback_query_origin, per_chat_id, create_open)
+    per_chat_id, pave_event_space, 
+    create_open, per_callback_query_origin)
 
 from bot import pegar_comando, escreve_erros
 from utils.catalogador import Catalogador
 from utils.checador import checa_sinais
 from controlador import Control
 from database import Mongo
+from utils import ENV_NAME
 
 account_list = {}
 config = RawConfigParser()
-config.read(".env")
+config.read(ENV_NAME)
 MongoDB = Mongo()
 
 TOKEN = config.get("TELEGRAM", "token")
@@ -54,20 +56,23 @@ def carregar_entradas(opcao):
             timeframe = "Padrão"
         else:
             timeframe = f"M{linha['timeframe']}"
+        direcao = linha["ordem"].upper()
+        direcao_sign = '⬆' if direcao == "CALL" else '⬇'
 
         if linha["tipo"] == "taxas": 
             lista_entradas.append(f"""
 📊 Ativo: {linha['par']}
 📈 Taxa: {linha['taxa']}
 ⏰ Período: {timeframe}
+{f'{direcao_sign} Direção {direcao}' if direcao != "" else ""}
             """)
             continue
-        direcao = linha["ordem"].lower()
+
         lista_entradas.append(f'''
 📊 Ativo: {linha["par"]}
 📅 Dia: {"/".join(list(map(strDateHour, linha["data"])))}
 ⏱ Hora: {":".join(list(map(strDateHour, linha["hora"])))}   
-{'⬆' if direcao == "call" else '⬇'} Direção: {direcao.upper()} 
+{direcao_sign} Direção: {direcao} 
 ⏰ Período: {timeframe}
         ''')
     return lista_entradas
@@ -112,13 +117,9 @@ class Assistente(amanobot.helper.ChatHandler):
         self.parar_bot = False
         self.operar_lista = True
         self.alteracoes_avancadas = {
-            "adm_in": False,  # Adicionar novo ADM
-            "adm_out": False, # Remover um ADM
-            "licenca": False, # Renovar licença
-            "aprovar": False, # Aprovar usuário
-            "remover": False, # Tirar um usuário cadastrado
-            "apagar": False,  # Tirar um usuário em cadastro
-            "plano": False    # Pra escolher o plano
+            "adm_in": False,    # Adicionar novo ADM
+            "adm_out": False,   # Remover um ADM
+            "adicionar": False, # Adiciona a partir do cadastro
         }
 
         self.mapeamento = {
@@ -187,13 +188,13 @@ class Assistente(amanobot.helper.ChatHandler):
         
         teclado = InlineKeyboardMarkup(inline_keyboard = [
             [InlineKeyboardButton(
-                text = MongoDB.infos["campo1"]["titulo"],
-                url = MongoDB.infos["campo1"]["link"]
+                text = MongoDB.infos['anuncios'][i]["titulo"],
+                url = MongoDB.infos['anuncios'][i]["link"]
             ),
             InlineKeyboardButton(
-                text = MongoDB.infos["campo2"]["titulo"],
-                url = MongoDB.infos["campo2"]["link"]
-            )]
+                text = MongoDB.infos['anuncios'][i+1]["titulo"],
+                url = MongoDB.infos['anuncios'][i+1]["link"]
+            )] for i in range(0, len(MongoDB.infos['anuncios']), 2)
         ])
         
         self.sender.sendMessage(
@@ -248,42 +249,41 @@ class Assistente(amanobot.helper.ChatHandler):
         self.enviar_mensagem("Carregado...")
         email = msg['text'].lower()
 
-        usuario = MongoDB.get_user(email)
+        usuario = MongoDB.verifica_licenca(email)
         if usuario: 
+            if type(usuario) == str:
+                self.enviar_mensagem(usuario, save = True)
+                self.entrada = False
+                return True
+            
             # Verifica se está no banco de dados e entra na conta
             self.email, self.informacoes = email, usuario
-            restante = self.informacoes['timestamp'] - time.time()
-            if restante > 0:
-                self.entrada = False
-                self.autenticacao = True
-                account_list[self.id] = {
-                    "email": self.email, 
-                    "mapping": self.mapeamento,
-                    "informacoes": self.informacoes 
-                }
-                restante = str(
-                    timedelta(seconds = restante)
-                ).replace('days', 'dias')
-                self.sender.sendMessage(f"E-mail autenticado, seja bem-vindo Sr(a) {self.nome_usuario} sua licença expira em: {restante[:-10]}.", 
-                reply_markup = InlineKeyboardMarkup(inline_keyboard = [[InlineKeyboardButton( 
-                    text = "Ver configurações gerais", callback_data = "show" )]
-                ]), parse_mode = "Markdown")
-                self.comandos()
-            else:
-                self.enviar_mensagem(
-                    "Sua licença expirou, peça para o administrador renovar.", save = True)
-                self.close()
-        elif (MongoDB.verifica_cadastro(email)):
-            self.enviar_mensagem("Seu e-mail ainda está em análise...", save = True)
+            self.entrada, self.autenticacao = False, True
+            restante = usuario["timestamp"]
+            account_list[self.id] = {
+                "email": self.email, 
+                "mapping": self.mapeamento,
+                "informacoes": self.informacoes 
+            }
+            self.sender.sendMessage(
+                f"Seja bem-vindo Sr(a) {self.nome_usuario}. {restante}", 
+                reply_markup = InlineKeyboardMarkup(inline_keyboard = [ 
+                    [InlineKeyboardButton( 
+                        text = "Ver configurações gerais", 
+                        callback_data = "show" )]
+                    ]), parse_mode = "Markdown")
+            self.comandos()
+        elif MongoDB.verifica_cadastro(email):
+            self.enviar_mensagem("Seu e-mail ainda está em análise...", 
+                save = True)
             self.close()
         else:
-            # Caso o usuário não estiver na lista de espera ele adiciona
             if len(email) > 10 and "@" in email and "." in email:
                 MongoDB.adicionar_cadastro(email)
                 self.enviar_mensagem(
                     f"Seu e-mail foi colocado para analise. \
-                    \nEspere a confirmação do administrador e mande seu e-mail novamente para logar.",
-                    save = True)
+                    \nEspere a confirmação do administrador. \
+                    \nEm seguida, tente novamente.", save = True)
             else:
                 self.enviar_mensagem("Não é um e-mail válido!", save = True)
             self.close()
@@ -305,7 +305,7 @@ class Assistente(amanobot.helper.ChatHandler):
              KeyboardButton( text = "Voltar ao menu" )]
         ])
 
-        self.enviar_mensagem("Configurações avançadas para admnistradores:",
+        self.enviar_mensagem("Configurações avançadas para administradores:",
             reply_markup = teclado)
 
 
@@ -328,10 +328,8 @@ class Assistente(amanobot.helper.ChatHandler):
         elif msg['text'] == "Administração":
             mensagem = "Escolha a opção:"
             teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Aprovar usuários" ),
-                 KeyboardButton( text = "Renovar licença" )],
-                [KeyboardButton( text = "Tirar de cadastro" ),
-                 KeyboardButton( text = "Remover usuários" )],
+                [KeyboardButton( text = "Cadastrar" ),
+                 KeyboardButton( text = "Limpar cadastros" )],
                 [KeyboardButton( text = "Adicionar administrador" ),
                  KeyboardButton( text = "Remover administrador")],
                 [KeyboardButton( text = "Atualizar informações"),
@@ -552,8 +550,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                     reply_markup = ReplyKeyboardRemove())   
                 self.iniciar_operacao = False
                 self.informacoes["operando"] = True
-                MongoDB.modifica_usuario(
-                    self.informacoes, self.email)
+                MongoDB.modifica_usuario(self.email, self.informacoes)
                 
                 if os.name == "nt": # No windows 
                     os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}, {self.chat_id}, {self.operar_lista}")
@@ -563,7 +560,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                 self.enviar_mensagem("Operação iniciada. Se em 5min eu não avisar que está conectado, reincie a operação.")
                 self.comandos()
             else:
-                temporario = MongoDB.get_user(self.email)
+                temporario = MongoDB.usuario_cadastrado(self.email)
 
                 if not temporario['operando']:
                     self.enviar_mensagem("Digite sua senha (não guardamos a sua senha, você terá que fazer isso todas as vezes): ", reply_markup = ReplyKeyboardRemove())
@@ -885,16 +882,9 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             entrada_03 = carregar_entradas(3)
             self.enviar_mensagem("Informações atualizadas.")
             self.gerenciar()
-        elif msg['text'] in [
-            "Aprovar usuários", "Renovar licença", 
-            "Tirar de cadastro", "Remover usuários"]:
+        elif msg['text'] == "Cadastrar":
             self.enviar_mensagem("Carregando banco de dados...")
-            # Captura todos os usuários
-            if msg['text'] in ["Aprovar usuários", "Tirar de cadastro"]:
-                users = MongoDB.usuarios_em_cadastro()
-            else:
-                users = MongoDB.usuarios_cadastrados()
-            # Faz um botão para cada e-mail
+            users = MongoDB.usuarios_em_cadastro()
             lista_usuarios = [] 
             for user in users:
                 email = user['email']
@@ -902,19 +892,13 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             if len(lista_usuarios) > 0:
                 self.enviar_mensagem("Escolha:",
                     reply_markup = ReplyKeyboardMarkup(keyboard = lista_usuarios))
-                if msg['text'] == "Aprovar usuários":
-                    self.alteracoes_avancadas['aprovar'] = True
-                    self.alteracoes_avancadas['plano'] = True
-                elif msg['text'] == "Tirar de cadastro":
-                    self.alteracoes_avancadas['apagar'] = True
-                elif msg['text'] == "Remover usuários":
-                    self.alteracoes_avancadas['remover'] = True
-                else:
-                    self.alteracoes_avancadas['licenca'] = True
-                    self.alteracoes_avancadas['plano'] = True
+                self.alteracoes_avancadas['adicionar'] = True
                 return True
             else:
                 self.enviar_mensagem("Nenhum usuário no banco", save = True)
+        elif msg['text'] == "Limpar cadastros":
+            users = MongoDB.limpar_cadastro()
+            self.enviar_mensagem("Cadastros limpos!")
         elif msg['text'] == "Catalogar":
             self.catalogar_sinais()
         elif msg['text'] == "Desligar VPS":
@@ -1037,53 +1021,19 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         if self.alteracoes_avancadas['adm_in']:
             MongoDB.adiciona_adm(int(msg))
             ADMS = MongoDB.get_adms()
-            self.enviar_mensagem("Adminstrador adicionado.")
+            self.enviar_mensagem("Administrador adicionado.")
             self.alteracoes_avancadas["adm_in"] = False
             return True
         elif self.alteracoes_avancadas['adm_out']:
             MongoDB.remover_adm(int(msg))
             ADMS = MongoDB.get_adms()
-            self.enviar_mensagem("Adminstrador removido.")
+            self.enviar_mensagem("Administrador removido.")
             self.alteracoes_avancadas["adm_out"] = False
             return True
-        elif self.alteracoes_avancadas['plano'] == True:
-            self.enviar_mensagem("Escolha o tipo de plano",
-                reply_markup = ReplyKeyboardMarkup(keyboard = [
-                    [KeyboardButton( text = "teste" ),
-                    KeyboardButton( text = "semanal" )],
-                    [KeyboardButton( text = "mensal" ),
-                    KeyboardButton( text = "trimestral" )],
-                    [KeyboardButton( text = "anual" )]]))
-            self.alteracoes_avancadas['plano'] = msg
-            return None
-        elif self.alteracoes_avancadas['aprovar']:
-            aprovado = MongoDB.aprovar(
-                self.alteracoes_avancadas['plano'], msg)
-            if aprovado:
-                self.enviar_mensagem("Usuário aprovado.")
-            else:
-                self.enviar_mensagem(
-                    "Você já atingiu o limite de usuários. \
-                        Sua VPS já não suporta.", save = True)
-            self.alteracoes_avancadas["aprovar"] = False
-            self.alteracoes_avancadas['plano'] = False
-            return True
-        elif self.alteracoes_avancadas['licenca']:
-            MongoDB.renovar_licenca(
-                self.alteracoes_avancadas['plano'], msg)
-            self.enviar_mensagem("Licença renovada")
-            self.alteracoes_avancadas["licenca"] = False
-            self.alteracoes_avancadas['plano'] = False
-            return True
-        elif self.alteracoes_avancadas['remover']:
-            MongoDB.remover_usuario(msg)
-            self.enviar_mensagem("Usuário removido")
-            self.alteracoes_avancadas["remover"] = False
-            return True
-        elif self.alteracoes_avancadas['apagar']:
-            MongoDB.apagar_cadastro(msg)
-            self.enviar_mensagem("Cadastro apagado")
-            self.alteracoes_avancadas["apagar"] = False
+        elif self.alteracoes_avancadas['adicionar']:
+            MongoDB.promover_cadastro(msg)
+            self.enviar_mensagem("Cadastro adicionado")
+            self.alteracoes_avancadas["adicionar"] = False
             return True
         return False
 
@@ -1102,12 +1052,10 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             if value[1]:
                 if value[2] in [int, float]:
                     novo = numerization(novo, value[2])
-                    if novo != 0 and not novo:
-                        if value[0] == "delay":
-                            novo = False
-                        else:
-                            self.enviar_mensagem("Deve ser um número! Tente novamente", save = True)
-                            return True
+                    if type(novo) not in [int, float
+                        ] and value[0] != "delay":
+                        self.enviar_mensagem("Deve ser um número! Tente novamente", save = True)
+                        return True
                 elif value[2] == list:
                     novo = self.pegar_entrada(novo.split("\n"))
                 elif value[2] == bool:
@@ -1126,7 +1074,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                             map(float, x.strip().split(","))), 
                             novo.strip().split("\n"))) 
                     except Exception as e:
-                        print(e)
+                        print(type(e), e)
                         self.enviar_mensagem("Não entendi, tente novamente!")
                         return True
                 elif novo == "individual":
@@ -1216,8 +1164,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         elif self.iniciar_operacao:
             self.operar(msg)        # [3] Opções
         elif self.salvar_alteracoes_avancadas(msg) in [True, None]:
-            if not self.alteracoes_avancadas['plano']:
-                self.gerenciar()    # [4] Avançadas (ADM)
+            self.gerenciar()    # [4] Avançadas (ADM)
         elif "Parar Bot" in msg['text']:
             self.parar_operar(msg)  # [4] Opções
         elif msg['text'] == "Ver relatório da operação":
@@ -1274,14 +1221,14 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         Método que é chamado quando acaba uma conversa
         '''
         if self.autenticacao:
-            MongoDB.modifica_usuario(self.informacoes, self.email)
+            MongoDB.modifica_usuario(self.email, self.informacoes)
         if self.id in ADMS:
             for key in mapeamento_avancado:
                 mapeamento_avancado[key][1] = False
 
         print(f"Usuário {self.nome_usuario} saiu.\n")
-        self.enviar_mensagem(MongoDB.infos["despedida"], 
-            reply_markup = ReplyKeyboardRemove())
+        exit_msg = MongoDB.infos.get("despedida", "Tchauzinho...")
+        self.enviar_mensagem(exit_msg, reply_markup = ReplyKeyboardRemove())
 
 def printProgressBar (iteration, total, prefix = '', suffix = '', 
     decimals = 1, length = 100, fill = '█', printEnd = "\r"):
