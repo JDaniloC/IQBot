@@ -589,6 +589,16 @@ class IQ_API:
         print("espera", espera)
         time.sleep(espera)
 
+    def format_candles(self, text):
+        return (text.replace("CALL", "🟢")
+                    .replace("PUT", "🔴")
+                    .replace("DOJI", "⚪️"))
+
+    def mostrar_velas(self, estrategia, velas):
+        self.mostrar_mensagem(f"{estrategia.upper()}: " + 
+            self.format_candles(" ".join(velas)))
+        return velas
+
     def is_number(self, number):
         try:
             float(number)
