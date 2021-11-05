@@ -130,6 +130,8 @@ class Operacao(IQ_API):
 					self.operar_top_ranking()
 				elif tipo_operacao == "chinesa": 
 					self.operar_chinesa()
+				elif tipo_operacao == "donchian": 
+					self.operar_donchian()
 				else:
 					self.operar_berman()
 
@@ -1235,6 +1237,81 @@ class Operacao(IQ_API):
 
 			if (time.time() - last_update) > 600:
 				last_update, paridades = self.update_abertas()
+		
+		time.sleep(1)
+		self.verificar_stop()
+
+	def operar_donchian(self):
+		def update_abertas_binary():
+			abertas = self.API.get_all_open_time()
+			turbo = abertas["turbo"]
+			paridades = set([x for x in turbo if turbo[x]["open"]])
+			last_update = time.time()
+			return paridades, last_update
+		
+		self.mostrar_mensagem("🔸 Operando Donchian + Fractal 🔸")
+		paridades, last_update = update_abertas_binary()
+		self.tempo = 3
+
+		while not self.verificar_stop():
+			for paridade in paridades:
+				velas = self.API.get_candles(paridade, 60, 21, time.time())
+				taxas_min = []
+				taxas_max = []
+				
+				for candles in velas:
+					taxas_min.append(round(candles['min'], 6))
+					taxas_max.append(round(candles['max'], 6))
+				
+				# Donchian
+				maior = sorted(taxas_max, reverse=True)[0]
+				menor = sorted(taxas_min)[0]
+				
+				# Fractal
+				fractal = None
+				ultima = velas[-1]
+				penultima = velas[-2]
+				antipenultima = velas[-3]
+				if (penultima['max'] > antipenultima['max'] 
+					and penultima['max'] > ultima['max']):
+					fractal = 'CALL'
+				elif (penultima['min'] < antipenultima['min'] 
+					and penultima['min'] < ultima['min']):
+					fractal = 'PUT'
+					
+				# Ultimas 3 velas respeitam os limites do Donchian
+				limite_acima = False if (
+					ultima['max'] > maior or 
+					penultima['max'] > maior or 
+					antipenultima['max'] > maior
+				) else True
+				limite_abaixo = False if (
+					ultima['min'] < menor or 
+					penultima['min'] < menor or 
+					antipenultima['min'] < menor
+				) else True
+				
+				if fractal is not None:
+					is_max = round(penultima['max'], 6) >= maior
+					is_min = round(penultima['min'], 6) <= menor
+					if (fractal == 'CALL' and is_max and limite_acima) or (
+						fractal == 'PUT' and is_min and limite_abaixo
+					):
+						_, payout = self.recebe_payout(paridade, self.tempo)
+						payout_minimo = self.config.get("minimo", 0) / 100
+						direcao = "CALL" if fractal == "PUT" else "PUT"
+
+						if (self.ativar_noticias and not 
+							self.verificar_noticias(paridade)):
+							continue
+						
+						if payout_minimo <= payout:
+							self.operar(self.valor, paridade, 
+								direcao, 3, payout, "binary")
+						
+			time.sleep(5)
+			if (time.time() - last_update) > 600:
+				paridades, last_update = update_abertas_binary()
 		
 		time.sleep(1)
 		self.verificar_stop()

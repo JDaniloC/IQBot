@@ -209,7 +209,8 @@ class Assistente(amanobot.helper.ChatHandler):
                 delete = False, reply_markup = ReplyKeyboardMarkup(
                     keyboard = [[KeyboardButton(text = "Entrar")]]))
 
-    def enviar_mensagem(self, message, reply_markup = None, edit = False, delete = True, save = False):
+    def enviar_mensagem(self, message, reply_markup = None, 
+        edit = False, delete = True, save = False):
         if edit:
             self.bot.editMessageText(self.message_id, message)
             if reply_markup:
@@ -475,10 +476,11 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "Catalogar sinais"),
                  KeyboardButton( text = "Operar Chinesa"),
                  KeyboardButton( text = "Operar Auto VIP")],
-                [KeyboardButton( text = "Editar configurações" ),
+                [KeyboardButton( text = "Operar Donchian" ),
                  KeyboardButton( text = "Operar Berman" ),
                  KeyboardButton( text = "Ver lista de sinais" )],
-                [KeyboardButton( text = "Parar Bot" ),
+                [KeyboardButton( text = "Editar configurações" ),
+                 KeyboardButton( text = "Parar Bot" ),
                  KeyboardButton( text = "Sair da conta" )]
             ])
 
@@ -512,6 +514,9 @@ EURJPY 31/12/2000 CALL M5 02:30
             return self.operar(msg)
         elif texto == "Operar Berman":
             self.tipo_operacao = "berman"
+            return self.operar(msg)
+        elif texto == "Operar Donchian":
+            self.tipo_operacao = "donchian"
             return self.operar(msg)
         elif texto == "Catalogar sinais":
             self.enviar_mensagem("Carregando...")
