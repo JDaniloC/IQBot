@@ -590,6 +590,7 @@ class IQ_API:
         time.sleep(espera)
 
     def format_candles(self, text):
+        if type(text) != str: return text
         return (text.replace("CALL", "🟢")
                     .replace("PUT", "🔴")
                     .replace("DOJI", "⚪️"))

@@ -954,8 +954,8 @@ class Operacao(IQ_API):
 				velas = velas_por_estrategia_m5(paridade, estrategia, preset)
 			else:
 				velas = velas_por_estrategia_m15(paridade, estrategia, preset)
-			self.mostrar_mensagem(" ".join(velas).replace("CALL", "🟢"
-				).replace("PUT", "🔴").replace("DOJI", "⚪️"))
+			if len(velas) > 0 and type(velas[0]) == str:
+				self.mostrar_mensagem(self.format_candles(" ".join(velas)))
 			return velas
 
 		def pegar_catalogacao():
