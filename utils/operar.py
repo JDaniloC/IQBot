@@ -887,18 +887,18 @@ class Operacao(IQ_API):
 
 		def velas_por_estrategia_m5(par, estrategia, preset = []):
 			if "last of five" in estrategia:
-				velas = pegar_velas(par, 5, 5, preset)
+				velas = pegar_velas(par, 5, 5, velas = preset)
 			elif estrategia in ["três mosqueteiros", 
 				"triplicação", "não triplicação"]:
-				velas = pegar_velas(par, 2, 5, preset)
+				velas = pegar_velas(par, 2, 5, velas = preset)
 			elif "milhão" in estrategia:
-				velas = pegar_velas(par, 6, 5, preset)
+				velas = pegar_velas(par, 6, 5, velas = preset)
 			elif estrategia in ["torres gêmeas"]:
-				velas = [pegar_velas(par, 6, 5, preset)[0]]
+				velas = [pegar_velas(par, 6, 5, velas = preset)[0]]
 			elif estrategia in ["five flip", 'três vizinhos']:
-				velas = [pegar_velas(par, 1, 5, preset)[0]]
+				velas = [pegar_velas(par, 1, 5, velas = preset)[0]]
 			else:
-				velas = pegar_velas(par, 3, 5, preset)
+				velas = pegar_velas(par, 3, 5, velas = preset)
 			return velas
 
 		def entrada_estrategias_m15(estrategia, minutos, proxima = False):
@@ -915,19 +915,19 @@ class Operacao(IQ_API):
 
 		def velas_por_estrategia_m15(par, estrategia, preset = []):
 			if estrategia == "half hour":
-				velas = [pegar_velas(par, 2, 15, preset)[0]]
+				velas = [pegar_velas(par, 2, 15, velas = preset)[0]]
 			elif estrategia == "primeiros trocados":
-				velas = pegar_velas(par, 2, 15, preset)[0]
+				velas = pegar_velas(par, 2, 15, velas = preset)[0]
 				velas = ["call"] if velas.lower() == "put" else ["put"]
 			elif estrategia == "turn over":
-				velas = pegar_velas(par, 1, 15, preset)[0]
+				velas = pegar_velas(par, 1, 15, velas = preset)[0]
 				velas = ["call"] if velas.lower() == "put" else ["put"]
 			elif "mhi" in estrategia:
-				velas = pegar_velas(par, 3, 15, preset)
+				velas = pegar_velas(par, 3, 15, velas = preset)
 			elif estrategia == "torres gêmeas":
-				velas = [pegar_velas(par, 4, 15, preset)[0]]
+				velas = [pegar_velas(par, 4, 15, velas = preset)[0]]
 			else:
-				velas = pegar_velas(par, 4, 15, preset)
+				velas = pegar_velas(par, 4, 15, velas = preset)
 			return velas
 		
 		def verifica_entrada(estrategia, timeframe, 
