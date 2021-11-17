@@ -143,13 +143,13 @@ class Operacao(IQ_API):
 
 		self.config["poshit"] = int(
 			self.config["autogale"]
-		) + 1 if self.config["poshit"] else 0
+		) + 1 if self.config.get("poshit", False) else 0
 
 		self.config['posgale'] = {
 			"Nenhum": 0,
 			"Bear 1": 1,
 			"Bear 2": 2
-		}.get(self.config['posgale'], 0)
+		}.get(self.config.get('posgale', "Nenhum"), 0)
 		
 	def resetar_status(self):
 		self.valor = self.config["valor"]

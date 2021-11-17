@@ -325,6 +325,19 @@ class IQ_API:
         return text.replace("CALL", "🟢"
             ).replace("PUT", "🔴").replace("DOJI", "⚪️")
 
+    def get_all_open_time(self):
+        '''
+        Retorna todos os horários de abertura de todas as opções
+        '''
+        result = None
+        def wait_for_all_open_time():
+            nonlocal result
+            result = self.API.get_all_open_time()
+        thread = threading.Thread(target=wait_for_all_open_time)
+        thread.start()
+        thread.join(10)
+        return result
+
     def catalogar_estrategia(self, timeframe, gale, poshit, posgale,
             ciclos = 0, hits = 0,  _assert = 0, catalogador = "old"):
         try:
@@ -339,7 +352,7 @@ class IQ_API:
             else:
                 resultado = self.ocatalogador(timeframe, 
                     gale, poshit, ciclos, hits, _assert, 
-                    self.API.get_all_open_time())
+                    self.get_all_open_time())
         except Exception as e: 
             self.mostrar_mensagem("Ocorreu um problema no catalogador...")
             self.mostrar_mensagem(str(type(e)) + str(e), True)
@@ -348,6 +361,8 @@ class IQ_API:
         return resultado
 
     def verify_payouts(self, paridade, payouts):
+        if not payouts: return True
+
         if_err = {"open": False}
         binaria = payouts["turbo"].get(paridade, if_err)["open"]
         digital = payouts["digital"].get(paridade, if_err)["open"]
@@ -382,7 +397,7 @@ class IQ_API:
             if (payout * 100) < self.config['minimo']:
                 its_ok = False
         else:
-            paridades_abertas = self.API.get_all_open_time()
+            paridades_abertas = self.get_all_open_time()
             its_ok = self.verify_payouts(
                 analise["asset"], paridades_abertas)
         return its_ok

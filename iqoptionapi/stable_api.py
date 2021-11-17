@@ -235,6 +235,7 @@ class IQ_Option:
     # _________________________self.api.get_api_option_init_all() wss______________________
     def get_all_init(self):
         timing = time.time()
+        self.connect()
         while True:
             self.api.api_option_init_all_result = None
             start = time.time()
@@ -1602,7 +1603,7 @@ class IQ_Option:
     def get_digital_payout(self, active):
         self.api.digital_payout = None
         asset_id = OP_code.ACTIVES[active]
-        
+
         self.api.subscribe_digital_price_splitter(asset_id)
 
         count = 0

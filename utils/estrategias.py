@@ -480,7 +480,7 @@ class Estrategias(Operacao):
     def mudar_estrategia(self, paridade, estrategia, 
         timeframe, result = False, force = False):
         self.num_operacoes += 1
-        if (self.num_operacoes == self.config['max_trades'] 
+        if (self.num_operacoes == self.config.get('max_trades', 2)
             or result == "error" or force): 
             if self.config["auto"]:
                 paridade, estrategia = self.pegar_catalogacao()
