@@ -191,7 +191,7 @@ Catalogando {dias} dias de M{timeframe} até {limite} sinais com {porcentagem}% 
                     resultado.append(entrada)
                     texto_entradas += carrega_entrada(entrada)
                     conta_texto += 1
-                    if conta_texto % 50 == 0:
+                    if conta_texto % 40 == 0:
                         self.mostrar_mensagem(texto_entradas)	
                         texto_entradas = ""
                 else: break

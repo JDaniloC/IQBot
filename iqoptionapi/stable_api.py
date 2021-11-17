@@ -20,7 +20,7 @@ def nested_dict(n, type):
 
 
 class IQ_Option:
-    __version__ = "7.0.0.0"
+    __version__ = "7.0.1"
 
     def __init__(self, email, password, active_account_type="PRACTICE"):
         self.size = [1, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800,
@@ -153,8 +153,9 @@ class IQ_Option:
 
     def check_connect(self):
         # True/False
-
-        if global_value.check_websocket_if_connect == 0:
+        # if not connected, sometimes it's None, sometimes its '0', so
+        # both will fall on this first case
+        if not global_value.check_websocket_if_connect:
             return False
         else:
             return True
@@ -276,8 +277,8 @@ class IQ_Option:
         self.api.get_api_option_init_all_v2()
         start_t = time.time()
         while self.api.api_option_init_all_result_v2 == None:
-            if time.time() - start_t >= 40:
-                logging.error('**aviso** (get_all_init_v2) A IQ demorou mais de 40 segundos pra devolver a paridade. Tente novamente.')
+            if time.time() - start_t >= 30:
+                logging.error('**aviso** get_all_init_v2 A IQ demorou mais de 30 segundos para devolver a paridade.')
                 return None
         return self.api.api_option_init_all_result_v2
 
@@ -787,8 +788,7 @@ class IQ_Option:
         while True:
             result = self.get_optioninfo_v2(10)
             if result['msg']['closed_options'][0]['id'][0] == id_number and result['msg']['closed_options'][0]['id'][0] != None:
-                return result['msg']['closed_options'][0]['win'], (result['msg']['closed_options'][0]['win_amount']-result['msg']['closed_options'][0]['amount'] if result['msg']['closed_options'][0]['win'] != 'equal' else 0)
-                break
+                return result['msg']['closed_options'][0]['win'], (result['msg']['closed_options'][0]['win_amount'] - result['msg']['closed_options'][0]['amount'] if result['msg']['closed_options'][0]['win'] != 'equal' else 0)
             time.sleep(1)
 
     # Function by Danilo ( https://t.me/DaniloCarmo )
@@ -816,14 +816,10 @@ class IQ_Option:
             value = order['instrument_strike']
             expiration = order['instrument_expiration'] / 1000
             action = order['instrument_dir']
-            period = order['instrument_period'] // 60
             lose = order['buy_amount']
-            self.subscribe_strike_list(active, period)
-            payout = False
-            while not payout:
-                time.sleep(0.8)
-                payout = self.get_digital_current_profit(active, period)
-            win_amount = round((lose * payout) / 100, 2)
+            payout = self.get_digital_payout(active)
+            if not payout: payout = 0.7
+            win_amount = round(lose * payout, 2)
         
         self.start_candles_stream(active, 1, 1)
         wait_for = expiration + delay - time.time()
@@ -943,7 +939,7 @@ class IQ_Option:
             except:
                 pass
             if 31 >= time.time() - start_t >= 30:
-                logging.error('**aviso** a compra demorou mais de 30 segundos!')
+                logging.error('**aviso** a compra demorando mais de 30 segundos!')
                 # return False, None
 
         return self.api.result, self.api.buy_multi_option[req_id]["id"]
@@ -1604,41 +1600,23 @@ class IQ_Option:
         return self.api.users_availability
 
     def get_digital_payout(self, active):
+        self.api.digital_payout = None
         asset_id = OP_code.ACTIVES[active]
-        try:
-            instrument_index = self.get_digital_instrument_index(active)
-        except Exception as err:
-            print(err)
-            return 1
+        
+        self.api.subscribe_digital_price_splitter(asset_id)
 
-        self.api.subscribe_digital_price_splitter(
-            instrument_index, asset_id)
-
-        timing = time.time()
+        count = 0
         while self.api.digital_payout is None:
-            if time.time() - timing > 15:
-                return 1
+            count += 1
+            time.sleep(0.1)
+            if count == 30: return False
 
-        self.api.unsubscribe_digital_price_splitter(
-            instrument_index, asset_id)
+        self.api.unsubscribe_digital_price_splitter(asset_id)
 
         return self.api.digital_payout
 
-    def get_digital_instrument_index(self, active):
-        asset_id = OP_code.ACTIVES[active]
-        time.sleep(self.suspend)
-        self.api.get_digital_instruments(asset_id)
-
-        timing = time.time()
-        while self.api.instruments_index is None:
-            if time.time() - timing > 5:
-                raise IndexError('Não consegui pegar a paridade digital')
-
-        instruments = self.api.instruments_index["instruments"]
-        instrument = sorted(instruments, key=lambda k: k['index'])[-1]
-        instrument_index = instrument["index"]
-
-        return instrument_index
+    def logout(self):
+        self.api.logout()
 
     def get_digital_instruments(self, asset_id):
         time.sleep(self.suspend)
