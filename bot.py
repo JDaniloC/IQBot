@@ -12,10 +12,21 @@ if argv[1:] and argv[1] == "-o":
 
 logging.disable(level = (logging.DEBUG))
 
-LOCALAJUDA = "misc/ajuda.txt"
-LOCALCONFIG = "config/config.txt"
+ASSET_REGEX = r'[A-Za-z]{6}(-OTC)?'
+DATE_REGEX = r'\d{2}\W\d{2}\W\d{4}'
+TIME_REGEX = r'[MH][1-6]?[0-5]'
+HOUR_REGEX = r'\d{2}:\d{2}'
+DIR_REGEX = r'CALL|PUT'
 
-print("\n[Comando para parar: Ctrl + C]\n")
+def numerico(x):
+    '''
+    Verifica se a string pode ser convertida para float
+    '''
+    try:
+        float(x)
+        return True
+    except:
+        return False
 
 def carregar_config(msg: str) -> dict:
     try:
@@ -64,27 +75,29 @@ def pegar_comando_lista(texto):
         return datetime(
             data[2], data[1], data[0], hora[0], hora[1]
         ).timestamp()
+    
+    texto = texto.upper().replace("/", "")
     try:
-        data = re.search(r'\d{2}\W\d{2}\W\d{4}', texto)
+        data = re.search(DATE_REGEX, texto)
         if data:
             data = [int(x) for x in re.split(r"\W", data[0])]
         else:
             hoje = datetime_brazil()
             data = [hoje.day, hoje.month, hoje.year]
-        hora = re.search(r'\d{2}:\d{2}', texto)[0]
+        
+        hora = re.search(HOUR_REGEX, texto)[0]
         hora = [int(x) for x in re.split(r'\W', hora)]
-        par = re.search(r'[A-Za-z]{6}(-OTC)?', 
-            texto.upper().replace("/", ""))[0]
-        ordem = re.search(r'CALL|PUT', texto.upper())[0].lower()
-        timeframe = re.search(
-            r'[MH][1-6]?[0-5]', texto.upper())
-        if timeframe: 
-            if "M" in timeframe[0].upper(): 
-                timeframe = int(timeframe[0].strip("M"))
+
+        par = re.search(ASSET_REGEX, texto)[0]
+        ordem = re.search(DIR_REGEX, texto)[0].lower()
+        has_timeframe = re.search(TIME_REGEX, texto)
+        if has_timeframe: 
+            if "M" in has_timeframe[0]: 
+                timeframe = int(has_timeframe[0].strip("M"))
             else: 
-                timeframe = int(timeframe[0].strip("H")) * 60
+                timeframe = int(has_timeframe[0].strip("H")) * 60
         else: timeframe = 0
-    except Exception as e:
+    except:
         return {}
 
     return {
@@ -97,44 +110,53 @@ def pegar_comando_lista(texto):
         "timestamp": timestamp(data, hora)
     }
 
-def pegar_comando_taxas(texto):
+def pegar_comando_taxas(original_text: str) -> dict:
     '''
     Recebe um texto e devolve:
     {
-        "par": paridade,
-        "taxa": int
-        "tipo": "taxas"
+        par: str,       # Paridade eg. EURUSD-OTC
+        taxa: int,      # A taxa eg. 1.12345
+        ordem: str,     # "" ou "PUT"|"CALL"
+        tipo: "taxas",  # Para ser identificado pelo bot
+        timeframe: int, # 0 ou um número se houver
+        timestamp: timestamp
     }
     '''
+    texto = original_text.strip().upper()
+    paridade, taxa, direction, timeframe = "", 0, "", 0
     try:
-        timeframe = re.search(r'[MH][1-6]?[0-5]', texto.upper())
-        if timeframe: 
-            texto = re.sub(r'[MH][1-6]?[0-5]', r'', texto.upper())
-            if "M" in timeframe[0].upper(): 
-                timeframe = int(timeframe[0].strip("M"))
+        has_timeframe = re.search(TIME_REGEX, texto)
+        if has_timeframe: 
+            texto = re.sub(TIME_REGEX, r'', texto).strip()
+            if "M" in has_timeframe[0]: 
+                timeframe = int(has_timeframe[0].strip("M"))
             else: 
-                timeframe = int(timeframe[0].strip("H")) * 60
-        else: timeframe = 0
-
-        primeiro, segundo = re.split(r"[^\w.-]+", texto.strip())
-        par = re.search(r'[A-Za-z]{6}(-OTC)?', 
-            primeiro.upper().replace("/", ""))
-        if not par:
-            par = re.search(r'[A-Za-z]{6}(-OTC)?', 
-                segundo.upper().replace("/", ""))[0]
-            taxa = float(primeiro)
-        else:
-            par = par[0]
-            taxa = float(segundo)
+                timeframe = int(has_timeframe[0].strip("H")) * 60
+        
+        partitions = re.split(r"[^\w.-]", texto)
+        for text_part in partitions: 
+            possible_asset = text_part.replace("/", "")
+            has_asset = re.search(ASSET_REGEX, possible_asset)
+            has_direction = re.search(DIR_REGEX, text_part)
+            if has_asset:
+                paridade = has_asset[0]
+            elif numerico(text_part): 
+                taxa = float(text_part)
+            elif has_direction:
+                direction = has_direction[0].lower()
+                    
+        if paridade == "" or taxa == 0:
+            raise ValueError("Faltando a paridade ou taxa!")
+        
     except Exception as e:
-        print(type(e), e)
-        print(f"Revise o comando {texto}")
+        print(type(e), e, original_text)
         return {}
         
     return {
-        "par": par, 
+        "par": paridade, 
         "taxa": taxa, 
         "tipo": "taxas",
+        "ordem": direction,
         "timeframe": timeframe,
         "timestamp": datetime_brazil()
     }
@@ -192,7 +214,7 @@ def recebe_comandos(comandos):
     if comandos != []:
         if comandos[0] in ['-o', 'online'] and len(comandos[1:]) > 3:
             # Carrega o arquivo de configurações a partir do e-mail
-            config = MongoDB.get_user(comandos[1])
+            config = MongoDB.usuario_cadastrado(comandos[1])
             config['senha'] = comandos[2]
   
             # Define o arquivo de entradas a partir do gale máximo/própria
@@ -215,9 +237,6 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         exit(0)
     except Exception as e:
-        print("\nAconteceu um erro, tente novamente.")
-        print("Se o erro persistir, chame o técnico.")
-		
         escreve_erros(e)
     finally:
         if not argv[1:] or argv[1] != "-o":
@@ -225,9 +244,8 @@ if __name__ == "__main__":
         elif argv[1] == "-o":
             try: # Dizer que terminou
                 email = argv[2]
-                dados = MongoDB.get_user(email)
-                dados["operando"] = False
-                MongoDB.modifica_usuario(dados, email)
+                MongoDB.modifica_usuario(email, {
+                    "operando": False })
                 MongoDB.close()
             except Exception as e:
                 print(e)

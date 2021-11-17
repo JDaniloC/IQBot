@@ -1609,7 +1609,7 @@ class IQ_Option:
             instrument_index = self.get_digital_instrument_index(active)
         except Exception as err:
             print(err)
-            return 0.1
+            return 1
 
         self.api.subscribe_digital_price_splitter(
             instrument_index, asset_id)
@@ -1617,7 +1617,7 @@ class IQ_Option:
         timing = time.time()
         while self.api.digital_payout is None:
             if time.time() - timing > 15:
-                return 0.8
+                return 1
 
         self.api.unsubscribe_digital_price_splitter(
             instrument_index, asset_id)
