@@ -37,22 +37,6 @@ class Mongo:
     def usuarios_em_cadastro(self) -> list:
         """ Devolve todos da fila """
         return list(self.users_em_aprovacao.find())
-
-    def promover_cadastro(self, email):
-        """ Remove o e-mail da fila e dá a licença """
-        try:
-            response = requests.post(
-                f"{LICENSOR_URL}/clients", data = { 
-                    "sellerEmail": SELLER_EMAIL, 
-                    "clientEmail": email,
-                    "botName": "telegram" 
-            }).json()
-            if response.get("seller") != SELLER_EMAIL:
-                return None
-            
-            self.apagar_cadastro(email)
-        except Exception as e:
-            print(type(e), e)
     
     def apagar_cadastro(self, email):
         """ Remove o e-mail da fila """

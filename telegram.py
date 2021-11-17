@@ -15,7 +15,7 @@ from amanobot.delegate import (
 from bot import pegar_comando, escreve_erros
 from utils.catalogador import Catalogador
 from utils.checador import checa_sinais
-from controlador import Control
+from controlador import Client as Control
 from database import Mongo
 from utils import ENV_NAME
 
@@ -1031,8 +1031,8 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.alteracoes_avancadas["adm_out"] = False
             return True
         elif self.alteracoes_avancadas['adicionar']:
-            MongoDB.promover_cadastro(msg)
-            self.enviar_mensagem("Cadastro adicionado")
+            MongoDB.apagar_cadastro(msg)
+            self.enviar_mensagem("Cadastro removido")
             self.alteracoes_avancadas["adicionar"] = False
             return True
         return False
@@ -1043,7 +1043,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         Se houver verifica se o novo valor está correto
         Devolve um bool, usado para confirmar_alteracao/avancado
         '''
-        def numerization(valor, func):
+        def apply_number_function(valor, func):
             try:
                 return func(valor.strip().replace(",", "."))
             except: return False
@@ -1051,7 +1051,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         for key, value in dicionario.items():
             if value[1]:
                 if value[2] in [int, float]:
-                    novo = numerization(novo, value[2])
+                    novo = apply_number_function(novo, value[2])
                     if type(novo) not in [int, float
                         ] and value[0] != "delay":
                         self.enviar_mensagem("Deve ser um número! Tente novamente", save = True)
