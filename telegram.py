@@ -14,9 +14,9 @@ from amanobot.delegate import (
 
 from bot import (pegar_comando, escreve_erros, 
     carregar_config, salvar_config)
+from admin.controlador import Client as Control
 from utils.catalogador import Catalogador
 from utils.checador import checa_sinais
-from admin.controlador import Control
 from admin.database import Mongo
 from utils import ENV_NAME
 
