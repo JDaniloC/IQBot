@@ -1208,7 +1208,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         sys.exit(0)
 
     def reiniciar_vms(self, msg):
-        if self.id not in ADMS or "restart" in msg['text'].lower():
+        if self.id not in ADMS or "restart" not in msg['text'].lower():
             return False
 
         if os.name != "nt":
