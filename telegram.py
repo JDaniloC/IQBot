@@ -660,7 +660,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         MongoDB.parar_operacao(self.email)
         if os.name != "nt":
             resultado = controlador.parar_operacao(self.email)
-            if not resultado:
+            if type(resultado) != bool:
                 controlador.parar_operacao(self.email)
         self.enviar_mensagem("Operação cancelada.")
         self.comandos()
@@ -1214,8 +1214,11 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         if os.name != "nt":
             self.enviar_mensagem("Deletando todas as instâncias...")
             usuarios = controlador.deletar_instancias()
-            for email in usuarios:
-                self.enviar_mensagem(email, save = True)
+            if type(usuarios) == list:
+                for email in usuarios:
+                    self.enviar_mensagem(email, save = True)
+            else:
+                self.enviar_mensagem(usuarios, save = True)
 
     def cancelar(self, msg):
         if not "cancelar" in msg['text'].lower():

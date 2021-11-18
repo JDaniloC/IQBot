@@ -30,3 +30,4 @@ try:
         except Exception as e: print(type(e), e)
 except KeyboardInterrupt:
     server.close()
+    controlador.deletar_instancias()
