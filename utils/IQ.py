@@ -217,6 +217,7 @@ class IQ_API:
         '''
         direcao = direcao.lower()
 
+        print(paridade, direcao, tempo, valor, tipo, delay, scalper, trying)
         if self.config.get('prestoploss', False) and (
             self.perda_total - valor <= -self.stoploss):
             self.mostrar_mensagem("❌ Pré-stoploss: Fim da operação ❌")

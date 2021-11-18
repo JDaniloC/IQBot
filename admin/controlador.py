@@ -1,9 +1,9 @@
 from configparser import RawConfigParser
 from subprocess import check_output
+import time, json, threading
 from utils import ENV_NAME
 from os import system 
 from socket import *
-import time, json
 
 config = RawConfigParser()
 config.read(ENV_NAME)
@@ -193,8 +193,12 @@ class Control:
         usuarios = []
         for instancia in self.instancias:
             usuarios.extend(instancia.get_people())
-            system(f'yes "Y" | gcloud compute instances delete --zone {instancia.region} {instancia.name}')
+            threading.Thread(system, args = (
+                f'yes "Y" | gcloud compute instances delete --zone {instancia.region} {instancia.name}',), daemon = True).start()
         self.instancias = []
+        self.ao_vivo = []
+        self.regiao = 0
+        self.creating = False
         return usuarios
 
     def mostrar_usuarios(self):
@@ -223,7 +227,7 @@ class Client:
         self.host = "127.0.0.1"
         self.port = SERVER_PORT
         self.socket = socket(AF_INET, SOCK_DGRAM)
-        self.socket.settimeout(10)
+        self.socket.settimeout(5)
     
     def send(self, data: dict):
         data = json.dumps(data).encode()
@@ -250,9 +254,12 @@ class Client:
         })
     
     def deletar_instancias(self, *args, **kwargs):
-        return self.send({
+        self.socket.settimeout(30)
+        result = self.send({
             "command": "delete", "args": args, "kwargs": kwargs
         })
+        self.socket.settimeout(5)
+        return result
     
     def mostrar_usuarios(self, *args, **kwargs):
         return self.send({

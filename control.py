@@ -9,7 +9,6 @@ try:
     while True:
         message, address = server.recvfrom(2048)
         command, args, kwargs = get_command_and_args(message)
-        print(command, args, kwargs)
         if command == "add":
             funcao = controlador.adicionar_pessoa
         elif command == "stop":

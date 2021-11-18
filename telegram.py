@@ -602,9 +602,12 @@ EURJPY 31/12/2000 CALL M5 02:30
                 if os.name == "nt": # No windows 
                     os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}, {self.chat_id}, {self.operar_lista}")
                 else:
-                    controlador.adicionar_pessoa(
+                    resultado = controlador.adicionar_pessoa(
                         self.email, msg['text'], self.id, self.operar_lista)
-                self.enviar_mensagem("Operação iniciada. Se em 5min eu não avisar que está conectado, reincie a operação.")
+                    if not resultado:
+                        resultado = controlador.adicionar_pessoa(
+                            self.email, msg['text'], self.id, self.operar_lista)
+                self.enviar_mensagem("Operação iniciada. Se em 5 min eu não avisar que está conectado, reinicie a operação.")
                 self.comandos()
             else:
                 temporario = MongoDB.usuario_cadastrado(self.email)
@@ -639,7 +642,10 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.enviar_mensagem("Pegando relatórios...")
             if os.name != "nt":
                 resultado = controlador.pegar_log(self.email)
-                resultado = "\n".join(resultado.split("\n")[-50:])
+                if not resultado:
+                    resultado = "Tente de novo mais tarde..."
+                else:
+                    resultado = "\n".join(resultado.split("\n")[-50:])
             else: resultado = "Não disponível"
             self.enviar_mensagem(resultado, save = True)
         except Exception as e:
@@ -656,7 +662,9 @@ EURJPY 31/12/2000 CALL M5 02:30
         self.enviar_mensagem("Parando operação...")
         MongoDB.parar_operacao(self.email)
         if os.name != "nt":
-            controlador.parar_operacao(self.email)
+            resultado = controlador.parar_operacao(self.email)
+            if not resultado:
+                controlador.parar_operacao(self.email)
         self.enviar_mensagem("Operação cancelada.")
         self.comandos()
         return True
@@ -1183,6 +1191,9 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             return False
         if os.name != "nt":
             instancias = controlador.mostrar_usuarios()
+            if not instancias: 
+                self.enviar_mensagem("Não consegui...")
+                return True
             for instancia, usuarios in instancias.items():
                 self.enviar_mensagem(instancia, save = True)
                 for usuario in usuarios:
@@ -1192,16 +1203,22 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
     def desligar_bot(self):
         global rodando
         if os.name != "nt":
-            self.enviar_mensagem("Deletando todas as instâncias...")
-            usuarios = controlador.deletar_instancias()
             self.enviar_mensagem("Resetando o banco de dados...")
             MongoDB.modificar_banco_users("off")
-            for email in usuarios:
-                print(email)
         self.enviar_mensagem("Desligando o bot...")
         rodando = False
         self.close()
         sys.exit(0)
+
+    def reiniciar_vms(self, msg):
+        if self.id not in ADMS or "restart" in msg['text'].lower():
+            return False
+
+        if os.name != "nt":
+            self.enviar_mensagem("Deletando todas as instâncias...")
+            usuarios = controlador.deletar_instancias()
+            for email in usuarios:
+                self.enviar_mensagem(email, save = True)
 
     def cancelar(self, msg):
         if not "cancelar" in msg['text'].lower():
@@ -1287,6 +1304,8 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             pass # [0] Usuários
         elif self.carregar_config(msg):
             pass # [0] Configurações
+        elif self.reiniciar_vms(msg):
+            pass
         else: self.entrar({"text": "entrar"})
         
     def on__idle(self, event):
@@ -1415,8 +1434,4 @@ if __name__ == "__main__":
             os.system("powershell start powershell python, telegram.py")
         else:
             os.system("nohup python3 telegram.py &")
-    else:
-        if os.name != "nt":
-            print("Deletando instâncias...")
-            controlador.deletar_instancias()
     print("Bot desligado")
