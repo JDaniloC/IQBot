@@ -287,7 +287,7 @@ class Assistente(amanobot.helper.ChatHandler):
             self.comandos()
             return False
 
-        self.enviar_mensagem("Carregado...")
+        self.enviar_mensagem("Carregando...")
         email = msg['text'].lower()
 
         usuario = MongoDB.verifica_licenca(email)
@@ -602,11 +602,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                 if os.name == "nt": # No windows 
                     os.system(f"powershell start powershell python, bot.py, -o, {self.email}, {msg['text']}, {self.chat_id}, {self.operar_lista}")
                 else:
-                    resultado = controlador.adicionar_pessoa(
-                        self.email, msg['text'], self.id, self.operar_lista)
-                    if not resultado:
-                        resultado = controlador.adicionar_pessoa(
-                            self.email, msg['text'], self.id, self.operar_lista)
+                    controlador.adicionar_pessoa(self.email, 
+                        msg['text'], self.id, self.operar_lista)
                 self.enviar_mensagem("Operação iniciada. Se em 5 min eu não avisar que está conectado, reinicie a operação.")
                 self.comandos()
             else:
@@ -1191,7 +1188,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             return False
         if os.name != "nt":
             instancias = controlador.mostrar_usuarios()
-            if not instancias: 
+            if type(instancias) != dict: 
                 self.enviar_mensagem("Não consegui...")
                 return True
             for instancia, usuarios in instancias.items():
