@@ -1,9 +1,8 @@
+import time, json, bottle, requests, threading
 from configparser import RawConfigParser
 from subprocess import check_output
-import time, json, threading
 from utils import ENV_NAME
 from os import system 
-from socket import *
 
 config = RawConfigParser()
 config.read(ENV_NAME)
@@ -222,59 +221,76 @@ class Control:
             system(f"gcloud compute ssh {alvo.name} --zone {alvo.region} --command='screen -X -S @{email} stuff \"{comando}\n\"'")
         return "Modo ao vivo não ligado."
 
+@bottle.post("/add/")
+def adicionar_pessoa():
+    data = json.loads(bottle.request.body.read())
+    args, kwargs = data["args"], data["kwargs"]
+    resultado = controlador.adicionar_pessoa(*args, **kwargs)
+    return { "resultado": resultado }
+
+@bottle.post("/stop/")
+def adicionar_pessoa():
+    data = json.loads(bottle.request.body.read())
+    args, kwargs = data["args"], data["kwargs"]
+    resultado = controlador.parar_operacao(*args, **kwargs)
+    return { "resultado": resultado }
+
+@bottle.post("/log/")
+def adicionar_pessoa():
+    data = json.loads(bottle.request.body.read())
+    args, kwargs = data["args"], data["kwargs"]
+    resultado = controlador.pegar_log(*args, **kwargs)
+    return { "resultado": resultado }
+
+@bottle.post("/delete/")
+def adicionar_pessoa():
+    data = json.loads(bottle.request.body.read())
+    args, kwargs = data["args"], data["kwargs"]
+    resultado = controlador.deletar_instancias(*args, **kwargs)
+    return { "resultado": resultado }
+
+@bottle.post("/list/")
+def adicionar_pessoa():
+    data = json.loads(bottle.request.body.read())
+    args, kwargs = data["args"], data["kwargs"]
+    resultado = controlador.mostrar_usuarios(*args, **kwargs)
+    return { "resultado": resultado }
+
+@bottle.post("/send/")
+def adicionar_pessoa():
+    data = json.loads(bottle.request.body.read())
+    args, kwargs = data["args"], data["kwargs"]
+    resultado = controlador.enviar_comando(*args, **kwargs)
+    return { "resultado": resultado }
+
 class Client:
     def __init__(self):
         self.host = "127.0.0.1"
         self.port = SERVER_PORT
-        self.socket = socket(AF_INET, SOCK_DGRAM)
-        self.socket.settimeout(5)
+        self.url = f"http://{self.host}:{self.port}"
     
-    def send(self, data: dict):
-        data = json.dumps(data).encode()
-        try:
-            self.socket.sendto(data, (self.host, self.port))
-            response, _ = self.socket.recvfrom(2048)
-            return json.loads(response.decode())["result"]
-        except Exception as e:
-            print(type(e), e)
-    
+    def send(self, command: str, args: list, kwargs: dict):
+        response = requests.post(f"{self.url}/{command}/", 
+            json = { "args": args, "kwargs": kwargs }
+        )
+        return response.json()["resultado"]
+
     def adicionar_pessoa(self, *args, **kwargs):
-        return self.send({
-            "command": "add", "args": args, "kwargs": kwargs
-        })
+        return self.send("add", args, kwargs)
     
     def parar_operacao(self, *args, **kwargs):
-        return self.send({
-            "command": "stop", "args": args, "kwargs": kwargs
-        })
+        return self.send("stop", args, kwargs)
     
     def pegar_log(self, *args, **kwargs):
-        return self.send({
-            "command": "log", "args": args, "kwargs": kwargs
-        })
+        return self.send("log", args, kwargs)
     
     def deletar_instancias(self, *args, **kwargs):
-        self.socket.settimeout(30)
-        result = self.send({
-            "command": "delete", "args": args, "kwargs": kwargs
-        })
-        self.socket.settimeout(5)
-        return result
+        return self.send("delete", args, kwargs)
     
     def mostrar_usuarios(self, *args, **kwargs):
-        return self.send({
-            "command": "list", "args": args, "kwargs": kwargs
-        })
+        return self.send("list", args, kwargs)
 
-    def close(self):
-        self.socket.close()
-
-def get_command_and_args(message: str):
-    '''
-    Devolve o comando e os argumentos
-    '''
-    message = json.loads(message.decode())
-    command = message.get('command')
-    args = message.get('args')
-    kwargs = message.get('kwargs')
-    return command, args, kwargs
+if __name__ == "__main__":
+    controlador = Control()
+    print(f"Server preparado para receber. na porta {SERVER_PORT}")
+    bottle.run(host = "localhost", port = SERVER_PORT, debug = True)
