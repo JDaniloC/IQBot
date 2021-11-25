@@ -15,7 +15,7 @@ class Login(Resource):
         :returns: The instance of :class:`requests.Response`.
         """
         return self.api.send_http_request_v2(method="POST", url="https://auth.iqoption.com/api/v2/login",data=data, headers=headers)
-    
+
     def __call__(self, username, password):
         """Method to get IQ Option API login http request.
 

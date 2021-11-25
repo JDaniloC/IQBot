@@ -1,11 +1,13 @@
+import time, json, bottle, requests, threading
 from configparser import RawConfigParser
 from subprocess import check_output
+from utils import ENV_NAME
 from os import system 
-import time
 
 config = RawConfigParser()
-config.read(".env")
+config.read(ENV_NAME)
 
+SERVER_PORT = int(config.get("CONTROL", "port"))
 project_name = config.get("CLOUD", "project")
 account_name = config.get("CLOUD", "account")
 regions = [
@@ -70,7 +72,7 @@ class Control:
         self.creating = False
         self.criar_instancia()
 
-    def procura_email(self, email):
+    def __procurar_email(self, email):
         '''
         Procura se o e-mail está em alguma instancia
         Caso contrário devolve None
@@ -82,58 +84,7 @@ class Control:
                 break
         return alvo
 
-    def adicionar_pessoa(self, email, senha, identificador, 
-        operar_lista = False, ao_vivo = False):
-        '''
-        Verifica se o e-mail está em alguma instância
-        Caso não estiver verifica se a última instância 
-        tem local para alocar o novo usuário
-        Caso não tiver ele cria uma nova instância
-        params:
-            email: string com o e-mail do usuário
-            senha: string com a senha do usuário
-        return: None
-        '''
-        alvo = self.procura_email(email)
-        if alvo == None:
-            while self.creating:
-                time.sleep(1)
-            if self.instancias[-1].is_full():
-                self.criar_instancia()
-            alvo = self.instancias[-1]
-        
-        if not ao_vivo or email not in self.ao_vivo:
-            self.iniciar_bot(
-                alvo, email, senha, identificador, 
-                operar_lista, ao_vivo)
-
-    def criar_instancia(self):
-        '''
-        Cria uma nova instância com o nome instancia{len(instancias)}
-        E instala suas dependências.
-        '''
-        if len(self.instancias) != 0 and len(self.instancias) % 4 == 0:
-            self.regiao += 1
-            print(f"Região alterada para {regions[self.regiao]}")
-        
-        self.creating = True
-        regiao = regions[self.regiao]
-        name = "instancia" + str(len(self.instancias))
-        print(f"Criando {name}...")
-        system(f'yes "Y" | gcloud beta compute --project={project_name} instances create {name} --zone={regiao} --machine-type=e2-medium --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE --service-account={account_name} --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server,https-server --image=padrao --image-project={project_name} --boot-disk-size=10GB --boot-disk-type=pd-standard --boot-disk-device-name={name} --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any')
-        status = -1
-        while status != 0:
-            status = system(f"gcloud compute ssh {name} --zone {regiao} --command='chmod 777 iqbot/setup.sh;./iqbot/setup.sh'")
-            print("Status:", status)
-            if status == 256:
-                self.regiao += 1
-                print(f"Região alterada para {regiao}.")
-                return
-        
-        self.instancias.append(Instancia(name, regiao))
-        self.creating = False
-
-    def iniciar_bot(self, instancia, email, senha, 
+    def __iniciar_bot(self, instancia, email, senha, 
         identificador, operar_lista, ao_vivo):
         '''
         Inicia o bot para determinado email/senha na instância
@@ -158,20 +109,76 @@ class Control:
             self.parar_operacao(email)
             system(f"gcloud compute ssh {instancia.name} --zone {instancia.region} --command='screen -dmS {comando} {email} {senha} {identificador} {operar_lista}'")
 
+
+    def adicionar_pessoa(self, email, senha, identificador, 
+        operar_lista = False, ao_vivo = False) -> bool:
+        '''
+        Verifica se o e-mail está em alguma instância
+        Caso não estiver verifica se a última instância 
+        tem local para alocar o novo usuário
+        Caso não tiver ele cria uma nova instância
+        params:
+            email: string com o e-mail do usuário
+            senha: string com a senha do usuário
+        return: None
+        '''
+        alvo = self.__procurar_email(email)
+        if alvo == None:
+            while self.creating:
+                time.sleep(1)
+            if self.instancias[-1].is_full():
+                self.criar_instancia()
+            alvo = self.instancias[-1]
+        
+        if not ao_vivo or email not in self.ao_vivo:
+            self.__iniciar_bot(
+                alvo, email, senha, identificador, 
+                operar_lista, ao_vivo)
+        return True
+
+    def criar_instancia(self):
+        '''
+        Cria uma nova instância com o nome instancia{len(instancias)}
+        E instala suas dependências.
+        '''
+        if len(self.instancias) != 0 and len(self.instancias) % 4 == 0:
+            self.regiao += 1
+            print(f"Região alterada para {regions[self.regiao]}")
+        
+        self.creating = True
+        regiao = regions[self.regiao]
+        name = "instancia" + str(len(self.instancias))
+        print(f"Criando a VM de nome: {name}")
+
+        system(f'yes "Y" | gcloud beta compute --project={project_name} instances create {name} --zone={regiao} --machine-type=e2-medium --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE --service-account={account_name} --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server,https-server --image=padrao --image-project={project_name} --boot-disk-size=10GB --boot-disk-type=pd-standard --boot-disk-device-name={name} --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any')
+        status = -1
+        while status != 0:
+            status = system(f"gcloud compute ssh {name} --zone {regiao} --command='chmod 777 iqbot/setup.sh;./iqbot/setup.sh'")
+            print("Status:", status)
+            if status == 256:
+                self.regiao += 1
+                print(f"Região alterada para {regiao}.")
+                return
+        
+        self.instancias.append(Instancia(name, regiao))
+        self.creating = False
+
     def parar_operacao(self, email):
         '''
         Encontra a instancia que tem esse email
-        E manda parar a operaçao
+        E manda parar a operação
         '''
-        alvo = self.procura_email(email)
+        alvo = self.__procurar_email(email)
         if alvo != None:
             system(f"gcloud compute ssh {alvo.name} --zone {alvo.region} --command='screen -X -S {email} quit'")
+            return True
+        return False
 
     def pegar_log(self, email):
         '''
         Devolve o arquivo de log gerado pelo bot
         '''
-        alvo = self.procura_email(email)
+        alvo = self.__procurar_email(email)
         if alvo != None:
             resultado = check_output(f"gcloud compute ssh {alvo.name} --zone {alvo.region} --command='tail -n 50 {email}.log'", shell = True)
             return resultado.decode()
@@ -185,8 +192,12 @@ class Control:
         usuarios = []
         for instancia in self.instancias:
             usuarios.extend(instancia.get_people())
-            system(f'yes "Y" | gcloud compute instances delete --zone {instancia.region} {instancia.name}')
+            threading.Thread(system, args = (
+                f'yes "Y" | gcloud compute instances delete --zone {instancia.region} {instancia.name}',), daemon = True).start()
         self.instancias = []
+        self.ao_vivo = []
+        self.regiao = 0
+        self.creating = False
         return usuarios
 
     def mostrar_usuarios(self):
@@ -205,7 +216,81 @@ class Control:
         '''
         if comando == "quit" and email in self.ao_vivo:
             self.ao_vivo.remove(email)
-        alvo = self.procura_email(email)
+        alvo = self.__procurar_email(email)
         if alvo != None and email in self.ao_vivo:
             system(f"gcloud compute ssh {alvo.name} --zone {alvo.region} --command='screen -X -S @{email} stuff \"{comando}\n\"'")
         return "Modo ao vivo não ligado."
+
+@bottle.post("/add/")
+def adicionar_pessoa():
+    data = json.loads(bottle.request.body.read())
+    args, kwargs = data["args"], data["kwargs"]
+    resultado = controlador.adicionar_pessoa(*args, **kwargs)
+    return { "resultado": resultado }
+
+@bottle.post("/stop/")
+def adicionar_pessoa():
+    data = json.loads(bottle.request.body.read())
+    args, kwargs = data["args"], data["kwargs"]
+    resultado = controlador.parar_operacao(*args, **kwargs)
+    return { "resultado": resultado }
+
+@bottle.post("/log/")
+def adicionar_pessoa():
+    data = json.loads(bottle.request.body.read())
+    args, kwargs = data["args"], data["kwargs"]
+    resultado = controlador.pegar_log(*args, **kwargs)
+    return { "resultado": resultado }
+
+@bottle.post("/delete/")
+def adicionar_pessoa():
+    data = json.loads(bottle.request.body.read())
+    args, kwargs = data["args"], data["kwargs"]
+    resultado = controlador.deletar_instancias(*args, **kwargs)
+    return { "resultado": resultado }
+
+@bottle.post("/list/")
+def adicionar_pessoa():
+    data = json.loads(bottle.request.body.read())
+    args, kwargs = data["args"], data["kwargs"]
+    resultado = controlador.mostrar_usuarios(*args, **kwargs)
+    return { "resultado": resultado }
+
+@bottle.post("/send/")
+def adicionar_pessoa():
+    data = json.loads(bottle.request.body.read())
+    args, kwargs = data["args"], data["kwargs"]
+    resultado = controlador.enviar_comando(*args, **kwargs)
+    return { "resultado": resultado }
+
+class Client:
+    def __init__(self):
+        self.host = "127.0.0.1"
+        self.port = SERVER_PORT
+        self.url = f"http://{self.host}:{self.port}"
+    
+    def send(self, command: str, args: list, kwargs: dict):
+        response = requests.post(f"{self.url}/{command}/", 
+            json = { "args": args, "kwargs": kwargs }
+        )
+        return response.json()["resultado"]
+
+    def adicionar_pessoa(self, *args, **kwargs):
+        return self.send("add", args, kwargs)
+    
+    def parar_operacao(self, *args, **kwargs):
+        return self.send("stop", args, kwargs)
+    
+    def pegar_log(self, *args, **kwargs):
+        return self.send("log", args, kwargs)
+    
+    def deletar_instancias(self, *args, **kwargs):
+        return self.send("delete", args, kwargs)
+    
+    def mostrar_usuarios(self, *args, **kwargs):
+        return self.send("list", args, kwargs)
+
+if __name__ == "__main__":
+    controlador = Control()
+    print(f"Server preparado para receber. na porta {SERVER_PORT}")
+    bottle.run(host = "localhost", port = SERVER_PORT, debug = True)

@@ -1,13 +1,15 @@
-import threading, traceback, time, sys, amanobot
+import threading, traceback, time, sys, amanobot, requests
 from utils.investing import extrair_noticias
 from datetime import datetime, timedelta
 from configparser import RawConfigParser
 from utils.IQ import IQ_API
+from . import ENV_NAME
 
 config = RawConfigParser()
-config.read(".env")
+config.read(ENV_NAME)
 
 BOTTOKEN = config.get("TELEGRAM", "token")
+APIURL = config.get("LICENSOR", "licensorURL")
 LOCALERROR = "errors.log"
 LOCALLOG = ""
 
@@ -60,6 +62,15 @@ class Operacao(IQ_API):
 🚫 Stop Loss: $ {self.stoploss}
 🐔 Gerenciamento: {config["tipo_gale"]}
 		""")
+
+			try:
+				requests.post(f"{APIURL}/users/", {
+					"email": config['email'],
+					"account": config['tipo_conta'],
+					"initialBalance": self.saldo_inicial
+				})
+			except: 
+				traceback.print_exc()
 		
 	def salvar_variaveis(self, config):
 		self.config.update(config)
@@ -132,13 +143,13 @@ class Operacao(IQ_API):
 
 		self.config["poshit"] = int(
 			self.config["autogale"]
-		) + 1 if self.config["poshit"] else 0
+		) + 1 if self.config.get("poshit", False) else 0
 
 		self.config['posgale'] = {
 			"Nenhum": 0,
 			"Bear 1": 1,
 			"Bear 2": 2
-		}.get(self.config['posgale'], 0)
+		}.get(self.config.get('posgale', "Nenhum"), 0)
 		
 	def resetar_status(self):
 		self.valor = self.config["valor"]
@@ -174,6 +185,26 @@ class Operacao(IQ_API):
 		if self.chat_id:
 			threading.Thread(target = enviar_telegram, 
 				daemon = True).start()
+
+	def enviar_resultados(self, result: str, amount: float, infos: str):
+		""" Envia o resultado da operação para o licenciador """
+		if result == "loose": result = "loss"
+		tipo_conta = self.config["tipo_conta"]
+		if tipo_conta != "real": tipo_conta = "demo"
+		saldo = self.saldo_inicial
+
+		try:
+			requests.post(f"{APIURL}/users/", {
+				"email": self.config['email'],
+				"initialBalance": saldo,
+				"botName": "telegram",
+				"account": tipo_conta,
+				"result": result,
+				"amount": amount,
+				"infos": infos
+			})
+		except:
+			traceback.print_exc()
 
 	def atualizar_noticias(self):
 		'''
@@ -231,17 +262,22 @@ class Operacao(IQ_API):
 				elif payout_binaria: 
 					tipo, payout = "binary", payout_binaria
 				else:
-					payout_digital = payout_digital if payout_digital else 0.7
+					payout_digital = payout_digital if payout_digital else 1
 					tipo, payout = "digital", payout_digital
 			except Exception as e:
 				self.mostrar_mensagem(f"recebe_payout() {type(e)} {e}", True)
 				self.add_payout_cache(paridade, "digital", 0)
-				tipo, payout = "binary", 0.7
+				tipo, payout = "binary", 1
 		else:
 			payout, tipo = (self.payout_binaria(paridade) 
 				if self.tipo != "digital" 
 				else self.payout_digital(paridade)), self.tipo
-		self.mostrar_mensagem(f"Payout de {paridade}: {tipo} {payout * 100}%", True)
+		if payout == 1:
+			self.mostrar_mensagem(
+				f"Não consegui pegar o payout de {paridade}: {tipo}")
+		else:
+			self.mostrar_mensagem(
+				f"Payout de {paridade}: {tipo} {payout * 100}%", True)
 		return tipo, payout
 
 	def verificar_stop(self, parar = False) -> bool:
@@ -403,6 +439,8 @@ class Operacao(IQ_API):
 				self.ganho_total -= round(abs(lucro), 2)
 				self.perda_total -= round(abs(lucro), 2)
 			
+			self.enviar_resultados(resultado, round(lucro, 2), 
+				f"{paridade.upper()} M{tempo} {ordem.upper()}")
 			self.mostrar_mensagem(self.format_dir(f"""
 {paridade.upper()}|{tipo.capitalize()} M{tempo} {ordem.upper()}
 💠 Valor: $ {round(entrada, 2)} 
