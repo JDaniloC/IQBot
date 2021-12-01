@@ -70,10 +70,11 @@ class Operacao(IQ_API):
 					config["valor"] = max(round(self.saldo_inicial * 0.03), 2)
 					config["stopwin"] = max(round(self.saldo_inicial * 0.055), 2)
 					config["stoploss"] = max(round(self.saldo_inicial * 0.10), 2)
+					config["noticias_hora"] = 1
 					config["poshit"] = True
 					config["minimo"] = 95
+					config["auto"] = True
 					config["toros"] = 3
-					config["noticias_hora"] = 1
 
 				# Para soros
 				self.valor_inicial = config['valor']
