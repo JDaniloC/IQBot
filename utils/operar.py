@@ -65,6 +65,16 @@ class Operacao(IQ_API):
 						config['tipo_par'] == 'digital'
 					) else "binary"
 
+				self.saldo_inicial = self.API.get_balance()
+				if tipo_operacao == "3por1":
+					config["valor"] = max(round(self.saldo_inicial * 0.03), 2)
+					config["stopwin"] = max(round(self.saldo_inicial * 0.055), 2)
+					config["stoploss"] = max(round(self.saldo_inicial * 0.10), 2)
+					config["poshit"] = True
+					config["minimo"] = 95
+					config["toros"] = 3
+					config["noticias_hora"] = 1
+
 				# Para soros
 				self.valor_inicial = config['valor']
 				self.ganhos_perdas = [0, 0]
@@ -106,7 +116,6 @@ class Operacao(IQ_API):
 					"gales": 0, "soros": 0
 				}
 
-				self.saldo_inicial = self.API.get_balance()
 				self.fim_da_operacao = False
 				if config['tendencia']:
 					self.config['correcao'] += 3
@@ -124,7 +133,7 @@ class Operacao(IQ_API):
 				
 				if tipo_operacao == "lista": 
 					self.operar_lista()
-				elif tipo_operacao == "estrategia": 
+				elif tipo_operacao in ["estrategia", "3por1"]: 
 					self.operar_estrategia()
 				elif tipo_operacao == "ranking": 
 					self.operar_top_ranking()
