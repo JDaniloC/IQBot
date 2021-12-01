@@ -72,7 +72,8 @@ class Operacao(IQ_API):
 					config["stoploss"] = max(round(self.saldo_inicial * 0.10), 2)
 					config["noticias_hora"] = 1
 					config["poshit"] = True
-					config["minimo"] = 95
+					config["minimo"] = 70
+					config["assert"] = 95
 					config["auto"] = True
 					config["toros"] = 3
 
