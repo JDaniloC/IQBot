@@ -1,6 +1,6 @@
-import time, json, bottle, requests, threading
 from configparser import RawConfigParser
 from subprocess import check_output
+import time, requests, subprocess
 from utils import ENV_NAME
 from os import system 
 
@@ -192,8 +192,10 @@ class Control:
         usuarios = []
         for instancia in self.instancias:
             usuarios.extend(instancia.get_people())
-            threading.Thread(system, args = (
-                f'yes "Y" | gcloud compute instances delete --zone {instancia.region} {instancia.name}',), daemon = True).start()
+            answer = subprocess.Popen(('yes', '"Y"'), stdout=subprocess.PIPE)
+            subprocess.Popen(f'gcloud compute instances delete \
+                --zone {instancia.region} {instancia.name}', 
+                shell = True, stdin = answer.stdout)
         self.instancias = []
         self.ao_vivo = []
         self.regiao = 0
