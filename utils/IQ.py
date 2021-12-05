@@ -360,18 +360,19 @@ Valor: R$ {round(valor, 2)}
 
     @staticmethod
     def catalogar_estrategia(timeframe, gale, poshit):
-        def is_hit(res):
-            hit = False
-            if res == "H":
-                hit = True 
-            elif res == "G2" and gale != "2":
-                hit = True
-            elif res == "G1" and gale == "0":
-                hit = True
+        def is_hit(candles):
+            hit = True
+            for candle in candles:
+                if candle in ["W", "D"] or (
+                    candle == "G1" and gale != "0"
+                ) or (candle == "G2" and gale == "2"):
+                    hit = False
             return hit
 
         def verify_minoria(response):
-            pct, par, estrategia = response
+            pct = response["win"]
+            par = response["par"]
+            estrategia = response["estrategia"]
 
             estrategia = estrategia.lower()
             if ("mhi" in estrategia and
@@ -380,23 +381,16 @@ Valor: R$ {round(valor, 2)}
 
             return pct, par, estrategia
 
-        if   gale == "2": gName = "porcentagemGale2"
-        elif gale == "1": gName = "porcentagemGale1"
-        else:             gName = "porcentagemWinDePrimeira"
-        data = requests.get(f"https://ocatalogador.com/api/{gName}/{timeframe}")
-        try:
-            resultado = json.loads(data.text)['Todos']
-            for analise in resultado:
-                candle = analise[3][0][-1]
-                print(analise[1:3], candle)
-                if poshit and is_hit(candle):
-                    return verify_minoria(analise[:3])
-                elif not poshit:
-                    return verify_minoria(analise[:3])
-            return False, False, False
-        except Exception as e:
-            print("Catalogar_estrategia()", e) 
-            return 50, "EURUSD", "MHI minoria"
+        if   gale == "2": gName = "G2"
+        elif gale == "1": gName = "G1"
+        else:             gName = "G0"
+        data = requests.get(f"https://backend.ocatalogador.com/api/v1/catalogue/Todos/{timeframe}/Todas/24/{gName}")
+        resultado = data.json()
+        for analise in resultado:
+            candle = analise["quadrantes"][-1:]   
+            if (poshit and is_hit(candle)) or not poshit:
+                return verify_minoria(analise)
+        return False, False, False
 
     @staticmethod
     def esperarAte(horas, minutos, segundos = 0, data = (), tolerancia = 0, output = False):
