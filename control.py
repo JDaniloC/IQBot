@@ -1,4 +1,5 @@
 from admin.controlador import *
+import bottle, json
 
 @bottle.post("/add/")
 def adicionar_pessoa():
