@@ -149,8 +149,7 @@ class Control:
         regiao = regions[self.regiao]
         name = "instancia" + str(len(self.instancias))
         print(f"Criando a VM de nome: {name}")
-
-        system(f'yes "Y" | gcloud beta compute --project={project_name} instances create {name} --zone={regiao} --machine-type=e2-medium --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE --service-account={account_name} --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server,https-server --image=padrao --image-project={project_name} --boot-disk-size=10GB --boot-disk-type=pd-standard --boot-disk-device-name={name} --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any')
+        system(f'yes "Y" | gcloud compute instances create {name} --project={project_name} --zone={regiao} --machine-type=e2-medium --network-interface=network-tier=PREMIUM,subnet=default --maintenance-policy=MIGRATE --service-account={account_name} --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server,https-server --create-disk=auto-delete=yes,boot=yes,device-name={name},image=projects/{project_name}/global/images/padrao,mode=rw,size=10,type=projects/{project_name}/zones/{regiao}/diskTypes/pd-balanced --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any')
         status = -1
         while status != 0:
             status = system(f"gcloud compute ssh {name} --zone {regiao} --command='chmod 777 iqbot/setup.sh;./iqbot/setup.sh'")
@@ -190,6 +189,7 @@ class Control:
         E devolve todos os usuários deletados
         '''
         usuarios = []
+        self.creating = True
         for instancia in self.instancias:
             usuarios.extend(instancia.get_people())
             answer = subprocess.Popen(('yes', '"Y"'), stdout=subprocess.PIPE)
@@ -199,7 +199,7 @@ class Control:
         self.instancias = []
         self.ao_vivo = []
         self.regiao = 0
-        self.creating = False
+        self.criar_instancia()
         return usuarios
 
     def mostrar_usuarios(self):
