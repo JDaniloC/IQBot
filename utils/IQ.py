@@ -1,6 +1,7 @@
 import time, numpy, requests, json, threading
 from iqoptionapi.stable_api import IQ_Option
 from datetime import datetime, timedelta
+from messages import *
 
 class IQ_API:
     def __init__(self, login, senha):
@@ -11,8 +12,8 @@ class IQ_API:
         self.cadeado = threading.Lock()
         self.API = IQ_Option(login, senha)
         if not self.conectar():
-            raise ConnectionError(" ❌ Não conseguiu se conectar, reveja a senha ❌ ")
-
+            raise ConnectionError(connection_error_msg())
+        
     def mostrar_mensagem(self, msg): print(msg)
     def conectar(self, tentativas = 5):
         '''
@@ -29,10 +30,10 @@ class IQ_API:
         self.API.connect()
         for tentativas in range(tentativas):
             if self.API.check_connect():
-                self.mostrar_mensagem("✅ Conectado com sucesso ✅")
+                self.mostrar_mensagem(connection_success_msg())
                 return True
             else:
-                self.mostrar_mensagem(" ⏱ Tentando se conectar ⏱")
+                self.mostrar_mensagem(connection_trying_msg())
                 self.API.connect()
                 time.sleep(1)
         return False
@@ -42,7 +43,7 @@ class IQ_API:
         Muda para a conta treino
         '''
         if self.API.get_balance_mode() != "PRACTICE":
-            self.mostrar_mensagem(" - Usando a conta treino -\n")
+            self.mostrar_mensagem(demo_account_msg())
             self.API.change_balance("PRACTICE")
     
     def mudar_real(self):
@@ -50,7 +51,7 @@ class IQ_API:
         Muda para a conta real
         '''
         if self.API.get_balance_mode() != "REAL":
-            self.mostrar_mensagem(" - Usando a conta real -\n")
+            self.mostrar_mensagem(real_account_msg())
             self.API.change_balance("REAL")
 
     def add_payout_cache(self, paridade, modalidade, payout):
@@ -133,19 +134,18 @@ class IQ_API:
             "binary": {}
         }, "digital":{}}
         abertas, todos_binary = None, None
-        for i in range(2):
+        for _ in range(2):
             abertas = self.API.get_all_open_time()
             if paridades == False: 
                 paridades = list(abertas["binary"].keys())
             todos_binary = self.API.get_all_profit()
             if abertas == None or todos_binary == None:
-                self.mostrar_mensagem(
-                    " ❌ Algo deu errado, se conectando novamente. ❌")
+                self.mostrar_mensagem(without_payout_msg())
                 self.conectar()
             else:
                 break
         if abertas == None or todos_binary == None:
-            self.mostrar_mensagem(" ❌❌ Reinicie o bot ❌❌")
+            self.mostrar_mensagem(restart_bot_msg())
             return None
 
         for tipo_binaria in ['turbo', 'binary']:
@@ -164,8 +164,7 @@ class IQ_API:
                 contador_limite = 0
                 while not payout_digital:
                     time.sleep(0.8)
-                    payout_digital = self.API.get_digital_current_profit(
-                        par, 1)
+                    payout_digital = self.API.get_digital_current_profit(par, 1)
                     contador_limite += 1
                     if contador_limite == 5:
                         break
@@ -173,8 +172,7 @@ class IQ_API:
                     payouts["digital"][par] = [
                         True, round(payout_digital / 100, 2)]
                 else:
-                    self.mostrar_mensagem(
-        f" [ ❗️] Não consegui pegar o payout de {par} [ ❗️]")
+                    self.mostrar_mensagem(cannot_get_payout_msg(par))
                     payouts['digital'][par] = [True, 0.7]
             else:
                 payouts["digital"][par] = [False]
@@ -195,10 +193,11 @@ class IQ_API:
             return False
         
         if is_in_list(mensagem, ["is not available", "active_suspended"]):
-            mensagem = "Ativo fechado nesta modalidade/timeframe."
+            self.mostrar_mensagem(closed_asset_msg())
         elif "invalid instrument" in mensagem:
-            mensagem = "Paridade não encontrada na digital pela IQ." 
-        self.mostrar_mensagem("❌ Não consegui operar: \n" + mensagem)
+            self.mostrar_mensagem(invalid_asset_msg())
+        else: 
+            self.mostrar_mensagem(trade_error_msg())
 
     def ordem(self, paridade, direcao = "call", tempo = 1, 
         valor = 1, tipo = "binary", delay = False, 
@@ -217,16 +216,15 @@ class IQ_API:
         '''
         direcao = direcao.lower()
 
-        print(paridade, direcao, tempo, valor, tipo, delay, scalper, trying)
         if self.config.get('prestoploss', False) and (
             self.perda_total - valor <= -self.stoploss):
-            self.mostrar_mensagem("❌ Pré-stoploss: Fim da operação ❌")
+            self.mostrar_mensagem(pre_stop_loss_msg())
             self.verificar_stop(True)
             return 'error', 0, tipo
         elif self.config.get('prestopwin', 0) > 0:
             missing = (100 - self.config['prestopwin']) / 100
             if self.ganho_total >= self.stopwin * missing:
-                self.mostrar_mensagem("✅ Pré-stopwin: Fim da operação ✅")
+                self.mostrar_mensagem(pre_stop_win_msg())
                 self.verificar_stop(True)
                 return 'error', 0, tipo
 
@@ -249,7 +247,7 @@ class IQ_API:
                     self.tipo = "binary" if self.tipo == "digital" else "digital"
 
                 tipo = "binary" if tipo == "digital" else "digital"
-                self.mostrar_mensagem(f"❌ Erro na operação, tentando operar na {tipo}")
+                self.mostrar_mensagem(switch_trade_type_msg(tipo))
                 
                 opcoes_modalidade = self.payout_cache.get(paridade.upper())
                 payout_modalidade = opcoes_modalidade.get(tipo) if opcoes_modalidade else -1
@@ -259,15 +257,15 @@ class IQ_API:
                         valor, tipo, delay, scalper, True)
                 else:
                     if payout_atual < 0:
-                        reason = "Não encontrado"
+                        reason = payout_not_found_msg()
                     else:
                         reason = f"{payout_atual}% < {self.config['minimo']}%"
-                    self.mostrar_mensagem(f"Payout na {tipo} está abaixo do aceitável: {reason}")
+                    self.mostrar_mensagem(payout_below_minimum_msg(tipo, reason))
             return "error", 0, tipo
 
         self.mostrar_mensagem(self.format_dir(
             f" 🔸 {paridade} | {tipo.capitalize()} | M{tempo} | $ {round(valor, 2)} | {direcao.upper()}"))
-        
+                
         lucro = 0
         if delay == False:
             # Versão que pega no histórico
@@ -355,7 +353,7 @@ class IQ_API:
                     gale, poshit, ciclos, hits, _assert, 
                     self.get_all_open_time())
         except Exception as e: 
-            self.mostrar_mensagem("Ocorreu um problema no catalogador...")
+            self.mostrar_mensagem(abort_cataloguer_msg())
             self.mostrar_mensagem(str(type(e)) + str(e), True)
             resultado = False, False, False
 
@@ -430,7 +428,7 @@ class IQ_API:
         
         reason = resultado.get("reason", "Está catalogando...")
         if reason == "": reason = "Desconhecido..."
-        self.mostrar_mensagem(f"Não conseguiu catalogar: {reason}")
+        self.mostrar_mensagem(cataloguer_error_msg(reason))
 
         return False, False, False
 
@@ -446,7 +444,9 @@ class IQ_API:
             return hit
 
         def verify_minoria(response):
-            pct, par, estrategia = response
+            pct = response["win"]
+            par = response["par"]
+            estrategia = response["estrategia"]
 
             estrategia = estrategia.lower()
             if ("mhi" in estrategia and
@@ -458,23 +458,23 @@ class IQ_API:
         def verify_ciclos(trades: list):
             return ciclos < (len(trades) - trades.count("D"))
 
-        if   gale == "2": gName = "porcentagemGale2"
-        elif gale == "1": gName = "porcentagemGale1"
-        else:             gName = "porcentagemWinDePrimeira"
-        data = requests.get(f"https://ocatalogador.com/api/{gName}/{timeframe}")
-        resultado = json.loads(data.text)['Todos']
+        if   gale == "2": gName = "G2"
+        elif gale == "1": gName = "G1"
+        else:             gName = "G0"
+        data = requests.get(f"https://backend.ocatalogador.com/api/v1/catalogue/Todos/{timeframe}/Todas/24/{gName}")
+        resultado = data.json()
         for analise in resultado:
-            if not verify_ciclos(analise[3][0]
-                ) or _assert > analise[0]:
+            if not verify_ciclos(analise["quadrantes"]
+                ) or _assert > analise["win"]:
                 continue
             
-            candle = analise[3][0][-hits:]   
+            candle = analise["quadrantes"][-hits:]   
             if (poshit and is_hit(candle)) or not poshit:
                 if payouts:
-                    its_ok = self.verify_payouts(analise[1], payouts)
+                    its_ok = self.verify_payouts(analise["par"], payouts)
                     if not its_ok: continue
        
-                return verify_minoria(analise[:3])
+                return verify_minoria(analise)
         return False, False, False
 
     @staticmethod
