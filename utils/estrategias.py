@@ -556,10 +556,11 @@ class Estrategias(Operacao):
                     else:
                         paridade, estrategia = self.mudar_estrategia(
                             paridade, estrategia, timeframe, force = True)
+                        self.esperar_proximo_minuto()
                         continue
 
                 minutos = (datetime.now() + timedelta(minutes = 1)).minute
                 self.verifica_entrada(estrategia, timeframe, minutos, True)
-                self.esperar_proximo_minuto()
+            self.esperar_proximo_minuto()
         self.verificar_stop()
         

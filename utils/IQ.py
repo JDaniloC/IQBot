@@ -553,8 +553,8 @@ class IQ_API:
             seconds = correcao)
         ).timestamp() - time.time())
         
-        if espera < 0: espera = 0
-        time.sleep(espera)
+        if espera > 0: 
+            time.sleep(espera)
 
     def is_number(self, number):
         try:
