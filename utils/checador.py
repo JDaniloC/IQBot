@@ -108,7 +108,7 @@ class IQ_BOT(IQ_API):
                     return True
 
 def checa_sinais(sinais, timeframe_padrao):
-    api = IQ_BOT("hiyivo1180@tmail7.com", "senha123")
+    api = IQ_BOT("binifo4010@hagendes.com", "senha123")
     resultado = []
     for entrada in sinais:
         if entrada["tipo"] == "taxas": continue
