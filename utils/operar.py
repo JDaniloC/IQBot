@@ -137,8 +137,6 @@ class Operacao(IQ_API):
 					self.operar_lista()
 				elif tipo_operacao in ["estrategia", "3por1"]: 
 					self.operar_estrategia()
-				elif tipo_operacao == "ranking": 
-					self.operar_top_ranking()
 				elif tipo_operacao == "chinesa": 
 					self.operar_chinesa()
 				elif tipo_operacao == "donchian": 
@@ -1123,51 +1121,6 @@ class Operacao(IQ_API):
 			self.esperar_proximo_minuto()
 		self.verificar_stop()
 
-	def operar_top_ranking(self):
-		reverso = self.config.get("reverso", False)
-		inicio = self.config.get("ranking-inicio", 1)
-		final = self.config.get("ranking-final", 1000)
-		self.last_user_id = 0
-		if inicio < 1: inicio = 1
-		if final <= inicio: final = inicio + 1
-
-		self.mostrar_mensagem(f"🔹 Esperando entradas do top ranking ({inicio} - {final}) operando {'conta' if reverso else 'a favor'}")
-		while not self.verificar_stop():
-			time.sleep(randint(0, 300))
-			try:
-				trader, paridade = self.online_top_ranking(inicio, final)
-			except: 
-				trader = False
-				traceback.print_exc()
-			
-			if trader:
-				direcao = "CALL" if randint(0, 1) else "PUT"
-				if reverso:
-					direcao = "CALL" if direcao == "PUT" else "PUT"
-
-				tipo, payout = self.recebe_payout(paridade, self.tempo)
-
-				if self.verificar_tendencia(paridade, direcao, self.tempo):
-					continue
-
-				if (self.ativar_noticias and not 
-					self.verificar_noticias(paridade)):
-						continue
-
-				if self.verificar_stop():
-					break
-				
-				if self.config["minimo"] / 100 <= payout:
-					threading.Thread(
-						target = self.operar, daemon = True,
-						args=(self.valor, paridade, direcao, 
-							self.tempo, payout, tipo)).start()
-					self.mostrar_mensagem(
-						f"{trader}\n{paridade} M{self.tempo}\nDireção: {direcao}")
-		
-		time.sleep(1)
-		self.verificar_stop()
-
 	def operar_chinesa(self):
 		last_update, paridades = self.update_abertas()
 		SSMA_1 = self.config.get("chinesa_1", 3)
@@ -1254,10 +1207,15 @@ class Operacao(IQ_API):
 
 	def operar_donchian(self):
 		def update_abertas_binary():
-			abertas = self.API.get_all_open_time()
-			turbo = abertas["turbo"]
-			paridades = set([x for x in turbo if turbo[x]["open"]])
-			last_update = time.time()
+			try:
+				abertas = self.API.get_all_open_time()
+				turbo = abertas["turbo"]
+				paridades = set([x for x in turbo if turbo[x]["open"]])
+				last_update = time.time()
+			except Exception as e:
+				self.mostrar_mensagem(f"Não consegui obter as paridades abertas...")
+				self.API.connect()
+				return [], time.time() + 500
 			return paridades, last_update
 		
 		self.mostrar_mensagem("🔸 Operando Donchian + Fractal 🔸")
@@ -1266,7 +1224,10 @@ class Operacao(IQ_API):
 
 		while not self.verificar_stop():
 			for paridade in paridades:
-				velas = self.API.get_candles(paridade, 60, 21, time.time())
+				try:
+					velas = self.API.get_candles(paridade, 60, 21, time.time())
+				except:
+					continue
 				taxas_min = []
 				taxas_max = []
 				
