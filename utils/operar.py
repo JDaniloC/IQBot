@@ -265,6 +265,7 @@ class Operacao(IQ_API):
 💲 Perca: $ {round(perda_total, 2)} | $ {-self.stoploss}
 ✴️ Assertividade: {round(assertividade, 2)}%
 					⚠️ Bot parado ⚠️''')
+					self.fim_da_operacao = False
 				self.fim_da_operacao = True
 				return True
 		return False
@@ -1280,6 +1281,8 @@ class Operacao(IQ_API):
 						if payout_minimo <= payout:
 							self.operar(self.valor, paridade, 
 								direcao, 3, payout, "binary")
+							if self.verificar_stop():
+								break
 						
 			time.sleep(5)
 			if (time.time() - last_update) > 600:
