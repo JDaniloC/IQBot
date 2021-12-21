@@ -1159,14 +1159,15 @@ class Operacao(IQ_API):
 					if payout_minimo <= payout:
 						self.operar(self.valor, paridade, 
 							dev_direction, self.tempo, payout, tipo)
+						if self.verificar_stop():
+							time.sleep(1)
+							break
+
 				time.sleep(0.1)
 			time.sleep(5)
 
 			if (time.time() - last_update) > 600:
 				last_update, paridades = self.update_abertas()
-		
-		time.sleep(1)
-		self.verificar_stop()
 
 	def operar_berman(self):
 		last_update, paridades = self.update_abertas()
@@ -1282,11 +1283,10 @@ class Operacao(IQ_API):
 							self.operar(self.valor, paridade, 
 								direcao, 3, payout, "binary")
 							if self.verificar_stop():
+								time.sleep(1)
 								break
 						
 			time.sleep(5)
 			if (time.time() - last_update) > 600:
 				paridades, last_update = update_abertas_binary()
 		
-		time.sleep(1)
-		self.verificar_stop()
