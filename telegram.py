@@ -14,10 +14,10 @@ from bot import pegar_comando, escreve_erros
 from utils.catalogador import Catalogador
 from controlador import Control
 from database import Mongo
-
+from utils import ENV_NAME
 
 config = RawConfigParser()
-config.read(".env")
+config.read(ENV_NAME)
 MongoDB = Mongo()
 
 TOKEN = config.get("TELEGRAM", "token")
@@ -155,6 +155,8 @@ class Assistente(amanobot.helper.ChatHandler):
             "Tipo milhão": ["tipo_milhao", False, tuple],
             "Auto VIP: Timeframe": ["autotime", False, tuple],
             "Auto VIP: Gales": ["autogale", False, tuple],
+            "Mínimo de hits": ["hits", False, tuple],
+            "Assertividade mínima": ["assert", False, int],
 
             "Taxas: próxima vela": ["taxas_vela", False, tuple],
             "Ranking: inicio": ['ranking-inicio', False, int],
@@ -301,7 +303,7 @@ class Assistente(amanobot.helper.ChatHandler):
             [KeyboardButton( text = "Voltar ao menu" )]
         ])
 
-        self.enviar_mensagem("Configurações avançadas para admnistradores:",
+        self.enviar_mensagem("Configurações avançadas para administradores:",
             reply_markup = teclado)
 
 
@@ -471,8 +473,10 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Operar Estratégias" ),
                  KeyboardButton( text = "Operar Top ranking")],
                 [KeyboardButton( text = "Catalogar sinais"),
+                 KeyboardButton( text = "Operar Chinesa"),
                  KeyboardButton( text = "Operar Auto VIP")],
                 [KeyboardButton( text = "Editar configurações" ),
+                 KeyboardButton( text = "Operar Berman" ),
                  KeyboardButton( text = "Ver lista de sinais" )],
                 [KeyboardButton( text = "Parar Bot" ),
                  KeyboardButton( text = "Sair da conta" )]
@@ -502,6 +506,12 @@ EURJPY 31/12/2000 CALL M5 02:30
             return self.operar(msg)
         elif texto == "Operar Top ranking":
             self.tipo_operacao = "ranking"
+            return self.operar(msg)
+        elif texto == "Operar Chinesa":
+            self.tipo_operacao = "chinesa"
+            return self.operar(msg)
+        elif texto == "Operar Berman":
+            self.tipo_operacao = "berman"
             return self.operar(msg)
         elif texto == "Catalogar sinais":
             self.enviar_mensagem("Carregando...")
@@ -760,7 +770,9 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "Pós hit" ),
                  KeyboardButton( text = "Auto VIP: Gales" ),
                  KeyboardButton( text = "Auto VIP: Timeframe")],
-                [KeyboardButton( text = "Editar configurações" )]])
+                [KeyboardButton( text = "Mínimo de hits" ),
+                 KeyboardButton( text = "Assertividade mínima" ),
+                 KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         if verificador:
             self.enviar_mensagem("Qual das opções?", reply_markup = teclado)
@@ -793,7 +805,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                     "tipo_lista": ["casa", "propria"],
                     "tipo_conta": ["treino", "real"],
                     "tipo_soros": ["normal", "ciclos"],
-                    "tipo_stop": ["movel", "fixo"],
+                    "tipo_stop": ["movel", "fixo"], "hits": [1, 2, 3],
                     "taxas_vela": ["retração", "reversão"],
                     "tipo_milhao": ["Minoria", "Maioria"],
                     "tipo_gale": [
@@ -976,10 +988,11 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.enviar_mensagem("Escolha o tipo de plano",
                 reply_markup = ReplyKeyboardMarkup(keyboard = [
                     [KeyboardButton( text = "teste" ),
-                    KeyboardButton( text = "semanal" )],
+                     KeyboardButton( text = "semanal" )],
                     [KeyboardButton( text = "mensal" ),
-                    KeyboardButton( text = "trimestral" )],
-                    [KeyboardButton( text = "anual" )]]))
+                     KeyboardButton( text = "trimestral" )],
+                    [KeyboardButton( text = "semestral" ),
+                     KeyboardButton( text = "anual" )]]))
             self.alteracoes_avancadas['plano'] = msg
             return None
         elif self.alteracoes_avancadas['aprovar']:
@@ -989,8 +1002,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                 self.enviar_mensagem("Usuário aprovado.")
             else:
                 self.enviar_mensagem(
-                    "Você já atingiu o limite de usuários. \
-                        Sua VPS já não suporta.", save = True)
+                    "Esse usuário não está no cadastro!", save = True)
             self.alteracoes_avancadas["aprovar"] = False
             self.alteracoes_avancadas['plano'] = False
             return True
@@ -1021,7 +1033,9 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         '''
         def numerization(valor, func):
             try:
-                return func(valor.strip().replace(",", "."))
+                return func(valor.strip()
+                                 .replace(",", ".")
+                                 .replace("%", ""))
             except: return False
 
         for key, value in dicionario.items():
@@ -1038,7 +1052,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                     novo = self.pegar_entrada(novo.split("\n"))
                 elif value[2] == bool:
                     novo = bool(novo.strip() == "Sim")
-                elif value[0] in ["tempo", "toros", 
+                elif value[0] in ["tempo", "toros", "hits",
                     "num_lista", "autogale", "autotime"]:
                     try:
                         novo = int(novo)

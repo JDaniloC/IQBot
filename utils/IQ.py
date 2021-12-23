@@ -1,4 +1,4 @@
-import time, numpy, requests, json, threading, random
+import time, numpy, requests, json, threading, random, finta, pandas
 from iqoptionapi.stable_api import IQ_Option
 from datetime import datetime, timedelta
 
@@ -241,14 +241,11 @@ class IQ_API:
                 opcoes_modalidade = self.payout_cache.get(paridade.upper())
                 payout_modalidade = opcoes_modalidade.get(tipo) if opcoes_modalidade else -1
                 payout_atual = round(payout_modalidade * 100) if payout_modalidade else -1
-                if payout_atual >= self.config['minimo']:
+                if payout_atual >= self.config['minimo'] or -1:
                     return self.ordem(paridade, direcao, tempo, 
                         valor, tipo, delay, scalper, True)
                 else:
-                    if payout_atual < 0:
-                        payout_atual = " Não encontrado"
-                    else:
-                        payout_atual = f"{payout_atual}% < {self.config['minimo']}%"
+                    payout_atual = f"{payout_atual}% < {self.config['minimo']}%"
                     self.mostrar_mensagem(
                         f"Payout na {tipo} está abaixo do aceitável: {payout_atual}")
             return "error", 0, tipo
@@ -369,8 +366,111 @@ class IQ_API:
                     return f"[{trader['flag']}] {position}° {trader['user_name']}", paridade
         return [], ""
 
+    def berman_strategy(self, paridade: str, 
+        ema_period: int, bbands_period: int) -> tuple:
+        from talib.abstract import BBANDS, EMA
+
+        quantidade = 1000
+        velas = self.API.get_candles(
+            paridade, self.tempo * 60, 
+            quantidade, time.time())
+        dados = {
+            'open': numpy.empty(quantidade),
+            'high': numpy.empty(quantidade), 
+            'low': numpy.empty(quantidade),
+            'close': numpy.empty(quantidade),
+            'volume': numpy.empty(quantidade)
+        }
+        
+        for x in range(0, quantidade):
+            for key in dados:
+                new_key = key.replace(
+                    "high", "max"
+                ).replace("low", "min")
+                dados[key][x] = velas[x][new_key]
+
+        saida = EMA(dados, timeperiod=ema_period)
+        up, _, low = BBANDS(dados, matype=0, nbdevdn=2.5,
+            timeperiod=bbands_period, nbdevup=2.5)
+        
+        up = round(up[len(up) - 2], 5)
+        low = round(low[len(low) - 2], 5)
+        taxa_atual = round(velas[-1]['close'], 5)
+        emma = round(saida[-1], 5)
+
+        return taxa_atual, up, low, emma
+
+    def get_dataframe_candles(self, asset: str, 
+            timeframe: int, periods: int = 200
+        ) -> pandas.DataFrame:
+        """
+        Recebe X velas e transforma em um dataframe
+        Por fim renomeia as colunas max e min
+        """
+        velas = self.API.get_candles(
+            asset, timeframe * 60, 
+            periods, time.time())
+        
+        dataframe = pandas.DataFrame(velas)
+        dataframe.rename(columns={ 
+            "max": "high", "min": "low" 
+        }, inplace=True)
+        
+        return dataframe
+        
+    def update_abertas(self) -> tuple:
+        abertas = self.abertas()
+        last_update = time.time()
+        paridades = set(abertas["turbo"]).union(abertas["binary"])
+        return last_update, paridades
+
     @staticmethod
-    def catalogar_estrategia(timeframe, gale, poshit):
+    def moving_average_deviation(
+        dataframe: pandas.DataFrame, 
+        periods: int = 20) -> str:
+        '''
+        Devolve a direção do indicador moving average deviation
+        Com base na diferença do penúltimo com o último MAD
+        '''
+        src = finta.TA.SSMA(dataframe, periods)
+        
+        diff_right_now = dataframe.iloc[-1]['close'] - src.iloc[-1]
+        diff_before_now = dataframe.iloc[-2]['close'] - src.iloc[-2]
+        is_increasing = diff_right_now >= diff_before_now
+
+        return 'CALL' if is_increasing else 'PUT'			
+        
+    @staticmethod
+    def indicator_lines_colision(
+            first: pandas.core.series.Series, 
+            second: pandas.core.series.Series
+        ) -> tuple:
+        """
+        Devolve se as linhas colidiram e o sentido
+        """
+        BEFORE, NOW = -2, -1
+        is_greater_before = first.iloc[BEFORE] > second.iloc[BEFORE]
+        is_less_right_now = first.iloc[NOW] <= second.iloc[NOW]
+        is_decreasing = is_greater_before and is_less_right_now
+
+        if is_decreasing:
+            return True, "PUT"
+
+        is_less_before = first.iloc[BEFORE] < second.iloc[BEFORE]
+        is_greater_now = first.iloc[NOW] >= second.iloc[NOW]
+        is_increasing = is_less_before and is_greater_now
+
+        if is_increasing:
+            return True, "CALL"
+
+        return False, "DOJI"
+
+    @staticmethod
+    def get_SSMA(dataframe: pandas.DataFrame, period: int):
+        return finta.TA.SSMA(dataframe, period)
+    
+    @staticmethod
+    def catalogar_estrategia(timeframe, gale, poshit, hits = 0, _assert = 0):
         def is_hit(candles):
             hit = True
             for candle in candles:
@@ -402,7 +502,10 @@ class IQ_API:
         try:
             resultado = json.loads(data.text)['Todos']
             for analise in resultado:
-                candles = analise[3][0][-1:]
+                if _assert > analise[0]:
+                    continue
+
+                candles = analise[3][0][-hits:]
                 if (poshit and is_hit(candles)) or not poshit:
                     return traduzir(analise)
             return False, False, False
@@ -485,6 +588,16 @@ class IQ_API:
         ).timestamp() - time.time())
         print("espera", espera)
         time.sleep(espera)
+
+    def format_candles(self, text):
+        return (text.replace("CALL", "🟢")
+                    .replace("PUT", "🔴")
+                    .replace("DOJI", "⚪️"))
+
+    def mostrar_velas(self, estrategia, velas):
+        self.mostrar_mensagem(f"{estrategia.upper()}: " + 
+            self.format_candles(" ".join(velas)))
+        return velas
 
     def is_number(self, number):
         try:
