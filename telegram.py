@@ -21,7 +21,6 @@ config.read(ENV_NAME)
 MongoDB = Mongo()
 
 TOKEN = config.get("TELEGRAM", "token")
-BOTNAME = MongoDB.infos["nome"]
 
 # Funções
 def strDateHour(number:int) -> str:
@@ -141,6 +140,7 @@ class Assistente(amanobot.helper.ChatHandler):
             "Máximo de soros": ["max_soros", False, int],
             "Máximo de gales": ["max_gale", False, int],
             "Tipo soros": ["tipo_soros", False, tuple],
+            "Taxas: próxima vela": ["taxas_vela", False, tuple],
 
             "Seguir tendência": ["tendencia", False, bool],
             "Notícias: toros": ["toros", False, tuple],
@@ -157,11 +157,6 @@ class Assistente(amanobot.helper.ChatHandler):
             "Auto VIP: Gales": ["autogale", False, tuple],
             "Mínimo de hits": ["hits", False, tuple],
             "Assertividade mínima": ["assert", False, int],
-
-            "Taxas: próxima vela": ["taxas_vela", False, tuple],
-            "Ranking: inicio": ['ranking-inicio', False, int],
-            "Ranking: final": ['ranking-final', False, int],
-            "Trader reverso": ["reverso", False, bool],
         }
 
         self.informacoes = {}
@@ -205,11 +200,12 @@ class Assistente(amanobot.helper.ChatHandler):
                         inline_keyboard = [inline_list]))
 
             self.enviar_mensagem(
-            f"Olá, eu sou seu assistente do {BOTNAME}.",
+            f"Olá, eu sou seu assistente.",
                 delete = False, reply_markup = ReplyKeyboardMarkup(
                     keyboard = [[KeyboardButton(text = "Entrar")]]))
 
-    def enviar_mensagem(self, message, reply_markup = None, edit = False, delete = True, save = False):
+    def enviar_mensagem(self, message, reply_markup = None, 
+        edit = False, delete = True, save = False):
         if edit:
             self.bot.editMessageText(self.message_id, message)
             if reply_markup:
@@ -471,14 +467,15 @@ EURJPY 31/12/2000 CALL M5 02:30
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Operar Lista/Taxas" ),
                  KeyboardButton( text = "Operar Estratégias" ),
-                 KeyboardButton( text = "Operar Top ranking")],
+                 KeyboardButton( text = "Lista de sinais" )],
                 [KeyboardButton( text = "Catalogar sinais"),
                  KeyboardButton( text = "Operar Chinesa"),
                  KeyboardButton( text = "Operar Auto VIP")],
-                [KeyboardButton( text = "Editar configurações" ),
+                [KeyboardButton( text = "Operar Donchian" ),
                  KeyboardButton( text = "Operar Berman" ),
-                 KeyboardButton( text = "Ver lista de sinais" )],
-                [KeyboardButton( text = "Parar Bot" ),
+                 KeyboardButton( text = "Estratégia 3 por 1" )],
+                [KeyboardButton( text = "Configurações" ),
+                 KeyboardButton( text = "Parar Bot" ),
                  KeyboardButton( text = "Sair da conta" )]
             ])
 
@@ -504,14 +501,17 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.informacoes["auto"] = True
             self.tipo_operacao = "estrategia"
             return self.operar(msg)
-        elif texto == "Operar Top ranking":
-            self.tipo_operacao = "ranking"
-            return self.operar(msg)
         elif texto == "Operar Chinesa":
             self.tipo_operacao = "chinesa"
             return self.operar(msg)
         elif texto == "Operar Berman":
             self.tipo_operacao = "berman"
+            return self.operar(msg)
+        elif texto == "Operar Donchian":
+            self.tipo_operacao = "donchian"
+            return self.operar(msg)
+        elif texto == "Estratégia 3 por 1":
+            self.tipo_operacao = "3por1"
             return self.operar(msg)
         elif texto == "Catalogar sinais":
             self.enviar_mensagem("Carregando...")
@@ -538,9 +538,9 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.enviar_mensagem(
                 self.ver_configuracoes(), save = True)
             return True
-        elif texto == "Editar configurações":
+        elif texto == "Configurações":
             return self.editar_configuracoes()
-        elif texto == "Ver lista de sinais":
+        elif texto == "Lista de sinais":
             return self.ver_lista()
         elif texto == "Sair da conta":
             del account_list[self.id]
@@ -669,7 +669,6 @@ EURJPY 31/12/2000 CALL M5 02:30
                 "Tipo de gale": "Gerenciamento",
                 "Tipo de martingale": "Martingale e Soros",
                 "Seguir tendência": "Tendência e notícias",
-                "Taxas: próxima vela": "Taxas e Copytrader",
                 "Paridade": "Auto Trade"
             }
             mensagem = ""
@@ -694,13 +693,12 @@ EURJPY 31/12/2000 CALL M5 02:30
                 self.ver_configuracoes(), 
                 reply_markup = ReplyKeyboardMarkup( keyboard = [
                     [KeyboardButton( text = "Geral e listas" ),
-                     KeyboardButton( text = "Taxas e Copytrader" )],
+                     KeyboardButton( text = "Tendência e notícias" )],
                     [KeyboardButton( text = "Gerenciamento" ),
                      KeyboardButton( text = "Martingale e Soros" )],
-                    [KeyboardButton( text = "Tendência e notícias" ),
+                    [KeyboardButton( text = "Ver configurações" ),
                      KeyboardButton( text = "Estratégias")],
-                    [KeyboardButton( text = "Ver configurações" ), 
-                     KeyboardButton( text = "Voltar ao menu" )]
+                    [KeyboardButton( text = "Voltar ao menu" )]
             ], resize_keyboard = True))
             return True
         else:
@@ -718,7 +716,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "Correção" ),
                  KeyboardButton( text = "Delay" )],
                 [KeyboardButton( text = "Adicionar lista" ),
-                 KeyboardButton( text = "Editar configurações" )]])
+                 KeyboardButton( text = "Configurações" )]])
             verificador = True
         elif msg['text'] == 'Gerenciamento':
             teclado = ReplyKeyboardMarkup(keyboard = [
@@ -729,7 +727,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "Scalper Win"),
                  KeyboardButton( text = "Scalper Loss")],
                 [KeyboardButton( text = "Payout mínimo" ),
-                 KeyboardButton( text = "Editar configurações" )]
+                 KeyboardButton( text = "Configurações" )]
                 ])
             verificador = True
         elif msg['text'] == 'Martingale e Soros':
@@ -741,7 +739,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "Ciclos de soros" ),
                  KeyboardButton( text = "Ciclos de gales" )],
                 [KeyboardButton( text = "Tipo soros" ),
-                 KeyboardButton( text = "Editar configurações" )]])
+                 KeyboardButton( text = "Configurações" )]])
             verificador = True
         elif msg['text'] == 'Tendência e notícias':
             teclado = ReplyKeyboardMarkup(keyboard = [
@@ -750,17 +748,10 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "Notícias: horas" ),
                  KeyboardButton( text = "Notícias: minutos" )],
                 [KeyboardButton( text = "Tipo de tendência" ),
+                 KeyboardButton( text = "Taxas: próxima vela" ),
                  KeyboardButton( text = "Período da tendência" )],
-                [KeyboardButton( text = "Editar configurações" )]
+                [KeyboardButton( text = "Configurações" )]
                 ])
-            verificador = True
-        elif msg['text'] == "Taxas e Copytrader":
-            teclado = ReplyKeyboardMarkup(keyboard = [
-                [KeyboardButton( text = "Trader reverso" ),
-                 KeyboardButton( text = "Taxas: próxima vela" )],
-                [KeyboardButton( text = "Ranking: inicio" ),
-                 KeyboardButton( text = "Ranking: final" )],
-                [KeyboardButton( text = "Editar configurações" )]])
             verificador = True
         elif msg['text'] == "Estratégias":
             teclado = ReplyKeyboardMarkup(keyboard = [
@@ -772,7 +763,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Auto VIP: Timeframe")],
                 [KeyboardButton( text = "Mínimo de hits" ),
                  KeyboardButton( text = "Assertividade mínima" ),
-                 KeyboardButton( text = "Editar configurações" )]])
+                 KeyboardButton( text = "Configurações" )]])
             verificador = True
         if verificador:
             self.enviar_mensagem("Qual das opções?", reply_markup = teclado)
@@ -845,8 +836,11 @@ EURJPY 31/12/2000 CALL M5 02:30
                         for x in opcoes[value[0]]]])
             else:
                 mensagem = f"Digite a nova informação para {text}: "
-                if value[2] == str and value[0] != "paridade":
-                    mensagem = "Pegue os ciclos no site: https://jdaniielc.github.io/Ciclos/"
+                if value[0] in ["ciclos_soros", "ciclos_gale"]:
+                    mensagem = """As linhas são os ciclos e colunas são gales:
+    1,2,3 (ciclo 1 com 2 gales)
+    4,5    (ciclo 2 com 1 gale)
+    6       (ciclo 3 sem gale)"""
                 elif value[2] == list:
                     mensagem = """Envie a lista no formato:
     01/01/2000 13:00 EURUSD-OTC PUT M1
@@ -854,8 +848,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                 teclado = ReplyKeyboardRemove()
             
             dicionario[text][1] = True
-            self.enviar_mensagem(mensagem, 
-                reply_markup = teclado)
+            self.enviar_mensagem(mensagem, reply_markup = teclado)
             return True
         return False
 
@@ -864,7 +857,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         Verifica se a mensagem está nas configurações avançadas
         Se estiver, devolve True caso contrário False
         '''
-        global ADMS, BOTNAME, rodando, \
+        global ADMS, rodando, \
             entrada_01, entrada_02, entrada_03
         
         if self.id not in ADMS:
@@ -886,7 +879,6 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         elif msg['text'] == "Atualizar informações":
             self.enviar_mensagem("Atualizando...")
             MongoDB.atualizar_infos()
-            BOTNAME = MongoDB.infos["nome"]
             ADMS = MongoDB.get_adms()
             entrada_01 = carregar_entradas(1)
             entrada_02 = carregar_entradas(2)
@@ -1060,19 +1052,14 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                         dicionario[key][1] = False
                         self.enviar_mensagem("Deve ser um número.", save = True)
                         return True
-                elif value[2] == str and value[0] != "paridade":
+                elif value[0] in ["ciclos_soros", "ciclos_gale"]:
                     try:
-                        # novo = list(map(lambda x: list(
-                        #     map(float, x.strip().split(","))), 
-                        # novo.strip().split("\n"))) 
-                        if novo != "0" and not numerization(novo, float):
-                            novo = json.loads(novo)
-                        else:
-                            raise ValueError("JSON != int!")    
+                        novo = list(map(lambda x: list(
+                            map(float, x.strip().split(","))), 
+                            novo.strip().split("\n")))   
                     except Exception as e:
-                        print(e)
-                        self.enviar_mensagem(
-                            "Não entendi, tente novamente: https://jdaniielc.github.io/Ciclos/")
+                        print(type(e), e)
+                        self.enviar_mensagem("Não entendi, tente novamente!")
                         return True
                 elif novo == "individual":
                     self.enviar_mensagem(

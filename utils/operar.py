@@ -65,6 +65,18 @@ class Operacao(IQ_API):
 						config['tipo_par'] == 'digital'
 					) else "binary"
 
+				self.saldo_inicial = self.API.get_balance()
+				if tipo_operacao == "3por1":
+					config["valor"] = max(round(self.saldo_inicial * 0.03), 2)
+					config["stopwin"] = max(round(self.saldo_inicial * 0.055), 2)
+					config["stoploss"] = max(round(self.saldo_inicial * 0.10), 2)
+					config["noticias_hora"] = 1
+					config["poshit"] = True
+					config["minimo"] = 70
+					config["assert"] = 95
+					config["auto"] = True
+					config["toros"] = 3
+
 				# Para soros
 				self.valor_inicial = config['valor']
 				self.ganhos_perdas = [0, 0]
@@ -106,7 +118,6 @@ class Operacao(IQ_API):
 					"gales": 0, "soros": 0
 				}
 
-				self.saldo_inicial = self.API.get_balance()
 				self.fim_da_operacao = False
 				if config['tendencia']:
 					self.config['correcao'] += 3
@@ -124,12 +135,12 @@ class Operacao(IQ_API):
 				
 				if tipo_operacao == "lista": 
 					self.operar_lista()
-				elif tipo_operacao == "estrategia": 
+				elif tipo_operacao in ["estrategia", "3por1"]: 
 					self.operar_estrategia()
-				elif tipo_operacao == "ranking": 
-					self.operar_top_ranking()
 				elif tipo_operacao == "chinesa": 
 					self.operar_chinesa()
+				elif tipo_operacao == "donchian": 
+					self.operar_donchian()
 				else:
 					self.operar_berman()
 
@@ -254,6 +265,7 @@ class Operacao(IQ_API):
 💲 Perca: $ {round(perda_total, 2)} | $ {-self.stoploss}
 ✴️ Assertividade: {round(assertividade, 2)}%
 					⚠️ Bot parado ⚠️''')
+					self.fim_da_operacao = False
 				self.fim_da_operacao = True
 				return True
 		return False
@@ -885,18 +897,18 @@ class Operacao(IQ_API):
 
 		def velas_por_estrategia_m5(par, estrategia, preset = []):
 			if "last of five" in estrategia:
-				velas = pegar_velas(par, 5, 5, preset)
+				velas = pegar_velas(par, 5, 5, velas = preset)
 			elif estrategia in ["três mosqueteiros", 
 				"triplicação", "não triplicação"]:
-				velas = pegar_velas(par, 2, 5, preset)
+				velas = pegar_velas(par, 2, 5, velas = preset)
 			elif "milhão" in estrategia:
-				velas = pegar_velas(par, 6, 5, preset)
+				velas = pegar_velas(par, 6, 5, velas = preset)
 			elif estrategia in ["torres gêmeas"]:
-				velas = [pegar_velas(par, 6, 5, preset)[0]]
+				velas = [pegar_velas(par, 6, 5, velas = preset)[0]]
 			elif estrategia in ["five flip", 'três vizinhos']:
-				velas = [pegar_velas(par, 1, 5, preset)[0]]
+				velas = [pegar_velas(par, 1, 5, velas = preset)[0]]
 			else:
-				velas = pegar_velas(par, 3, 5, preset)
+				velas = pegar_velas(par, 3, 5, velas = preset)
 			return velas
 
 		def entrada_estrategias_m15(estrategia, minutos, proxima = False):
@@ -913,19 +925,19 @@ class Operacao(IQ_API):
 
 		def velas_por_estrategia_m15(par, estrategia, preset = []):
 			if estrategia == "half hour":
-				velas = [pegar_velas(par, 2, 15, preset)[0]]
+				velas = [pegar_velas(par, 2, 15, velas = preset)[0]]
 			elif estrategia == "primeiros trocados":
-				velas = pegar_velas(par, 2, 15, preset)[0]
+				velas = pegar_velas(par, 2, 15, velas = preset)[0]
 				velas = ["call"] if velas.lower() == "put" else ["put"]
 			elif estrategia == "turn over":
-				velas = pegar_velas(par, 1, 15, preset)[0]
+				velas = pegar_velas(par, 1, 15, velas = preset)[0]
 				velas = ["call"] if velas.lower() == "put" else ["put"]
 			elif "mhi" in estrategia:
-				velas = pegar_velas(par, 3, 15, preset)
+				velas = pegar_velas(par, 3, 15, velas = preset)
 			elif estrategia == "torres gêmeas":
-				velas = [pegar_velas(par, 4, 15, preset)[0]]
+				velas = [pegar_velas(par, 4, 15, velas = preset)[0]]
 			else:
-				velas = pegar_velas(par, 4, 15, preset)
+				velas = pegar_velas(par, 4, 15, velas = preset)
 			return velas
 		
 		def verifica_entrada(estrategia, timeframe, 
@@ -952,8 +964,8 @@ class Operacao(IQ_API):
 				velas = velas_por_estrategia_m5(paridade, estrategia, preset)
 			else:
 				velas = velas_por_estrategia_m15(paridade, estrategia, preset)
-			self.mostrar_mensagem(" ".join(velas).replace("CALL", "🟢"
-				).replace("PUT", "🔴").replace("DOJI", "⚪️"))
+			if len(velas) > 0 and type(velas[0]) == str:
+				self.mostrar_mensagem(self.format_candles(" ".join(velas)))
 			return velas
 
 		def pegar_catalogacao():
@@ -1110,51 +1122,6 @@ class Operacao(IQ_API):
 			self.esperar_proximo_minuto()
 		self.verificar_stop()
 
-	def operar_top_ranking(self):
-		reverso = self.config.get("reverso", False)
-		inicio = self.config.get("ranking-inicio", 1)
-		final = self.config.get("ranking-final", 1000)
-		self.last_user_id = 0
-		if inicio < 1: inicio = 1
-		if final <= inicio: final = inicio + 1
-
-		self.mostrar_mensagem(f"🔹 Esperando entradas do top ranking ({inicio} - {final}) operando {'conta' if reverso else 'a favor'}")
-		while not self.verificar_stop():
-			time.sleep(randint(0, 300))
-			try:
-				trader, paridade = self.online_top_ranking(inicio, final)
-			except: 
-				trader = False
-				traceback.print_exc()
-			
-			if trader:
-				direcao = "CALL" if randint(0, 1) else "PUT"
-				if reverso:
-					direcao = "CALL" if direcao == "PUT" else "PUT"
-
-				tipo, payout = self.recebe_payout(paridade, self.tempo)
-
-				if self.verificar_tendencia(paridade, direcao, self.tempo):
-					continue
-
-				if (self.ativar_noticias and not 
-					self.verificar_noticias(paridade)):
-						continue
-
-				if self.verificar_stop():
-					break
-				
-				if self.config["minimo"] / 100 <= payout:
-					threading.Thread(
-						target = self.operar, daemon = True,
-						args=(self.valor, paridade, direcao, 
-							self.tempo, payout, tipo)).start()
-					self.mostrar_mensagem(
-						f"{trader}\n{paridade} M{self.tempo}\nDireção: {direcao}")
-		
-		time.sleep(1)
-		self.verificar_stop()
-
 	def operar_chinesa(self):
 		last_update, paridades = self.update_abertas()
 		SSMA_1 = self.config.get("chinesa_1", 3)
@@ -1192,14 +1159,15 @@ class Operacao(IQ_API):
 					if payout_minimo <= payout:
 						self.operar(self.valor, paridade, 
 							dev_direction, self.tempo, payout, tipo)
+						if self.verificar_stop():
+							time.sleep(1)
+							break
+
 				time.sleep(0.1)
 			time.sleep(5)
 
 			if (time.time() - last_update) > 600:
 				last_update, paridades = self.update_abertas()
-		
-		time.sleep(1)
-		self.verificar_stop()
 
 	def operar_berman(self):
 		last_update, paridades = self.update_abertas()
@@ -1238,3 +1206,87 @@ class Operacao(IQ_API):
 		
 		time.sleep(1)
 		self.verificar_stop()
+
+	def operar_donchian(self):
+		def update_abertas_binary():
+			try:
+				abertas = self.API.get_all_open_time()
+				turbo = abertas["turbo"]
+				paridades = set([x for x in turbo if turbo[x]["open"]])
+				last_update = time.time()
+			except Exception as e:
+				self.mostrar_mensagem(f"Não consegui obter as paridades abertas...")
+				self.API.connect()
+				return [], time.time() + 500
+			return paridades, last_update
+		
+		self.mostrar_mensagem("🔸 Operando Donchian + Fractal 🔸")
+		paridades, last_update = update_abertas_binary()
+		self.tempo = 3
+
+		while not self.verificar_stop():
+			for paridade in paridades:
+				try:
+					velas = self.API.get_candles(paridade, 60, 21, time.time())
+				except:
+					continue
+				taxas_min = []
+				taxas_max = []
+				
+				for candles in velas:
+					taxas_min.append(round(candles['min'], 6))
+					taxas_max.append(round(candles['max'], 6))
+				
+				# Donchian
+				maior = sorted(taxas_max, reverse=True)[0]
+				menor = sorted(taxas_min)[0]
+				
+				# Fractal
+				fractal = None
+				ultima = velas[-1]
+				penultima = velas[-2]
+				antipenultima = velas[-3]
+				if (penultima['max'] > antipenultima['max'] 
+					and penultima['max'] > ultima['max']):
+					fractal = 'CALL'
+				elif (penultima['min'] < antipenultima['min'] 
+					and penultima['min'] < ultima['min']):
+					fractal = 'PUT'
+					
+				# Ultimas 3 velas respeitam os limites do Donchian
+				limite_acima = False if (
+					ultima['max'] > maior or 
+					penultima['max'] > maior or 
+					antipenultima['max'] > maior
+				) else True
+				limite_abaixo = False if (
+					ultima['min'] < menor or 
+					penultima['min'] < menor or 
+					antipenultima['min'] < menor
+				) else True
+				
+				if fractal is not None:
+					is_max = round(penultima['max'], 6) >= maior
+					is_min = round(penultima['min'], 6) <= menor
+					if (fractal == 'CALL' and is_max and limite_acima) or (
+						fractal == 'PUT' and is_min and limite_abaixo
+					):
+						_, payout = self.recebe_payout(paridade, self.tempo)
+						payout_minimo = self.config.get("minimo", 0) / 100
+						direcao = "CALL" if fractal == "PUT" else "PUT"
+
+						if (self.ativar_noticias and not 
+							self.verificar_noticias(paridade)):
+							continue
+						
+						if payout_minimo <= payout:
+							self.operar(self.valor, paridade, 
+								direcao, 3, payout, "binary")
+							if self.verificar_stop():
+								time.sleep(1)
+								break
+						
+			time.sleep(5)
+			if (time.time() - last_update) > 600:
+				paridades, last_update = update_abertas_binary()
+		

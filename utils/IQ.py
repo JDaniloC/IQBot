@@ -480,8 +480,10 @@ class IQ_API:
                     hit = False
             return hit
 
-        def traduzir(response):
-            pct, par, estrategia = response[:3]
+        def verify_minoria(response):
+            pct = response["win"]
+            par = response["par"]
+            estrategia = response["estrategia"]
 
             maioria = "minoria"
             fatias = estrategia.lower().split()
@@ -492,26 +494,21 @@ class IQ_API:
                 estrategia = "milhão"
             elif "mhi" == estrategia[:3].lower():
                 estrategia = estrategia.upper()
+            
             return pct, par.upper(), (estrategia, maioria)
 
-        if   gale == 2: _gale = "porcentagemGale2"
-        elif gale == 1: _gale = "porcentagemGale1"
-        else:           _gale = "porcentagemWinDePrimeira"
-        data = requests.get(
-            f"https://ocatalogador.com/api/{_gale}/M{timeframe}")
-        try:
-            resultado = json.loads(data.text)['Todos']
-            for analise in resultado:
-                if _assert > analise[0]:
-                    continue
-
-                candles = analise[3][0][-hits:]
-                if (poshit and is_hit(candles)) or not poshit:
-                    return traduzir(analise)
-            return False, False, False
-        except Exception as e:
-            print("Catalogar:", e) 
-            return False, False, False
+        data = requests.get(f"https://backend.ocatalogador.com/api/v1/catalogue/Todos/M{timeframe}/Todas/24/G{gale}")
+        resultado = data.json()
+        print(resultado)
+        for analise in resultado:
+            if _assert > analise["win"]:
+                print("Assertividade", analise["win"])
+                continue
+            
+            candle = analise["quadrantes"][-hits:]   
+            if (poshit and is_hit(candle)) or not poshit:
+                return verify_minoria(analise)
+        return False, False, False
 
     @staticmethod
     def esperarAte(horas, minutos, segundos = 0, 
@@ -590,6 +587,7 @@ class IQ_API:
         time.sleep(espera)
 
     def format_candles(self, text):
+        if type(text) != str: return text
         return (text.replace("CALL", "🟢")
                     .replace("PUT", "🔴")
                     .replace("DOJI", "⚪️"))
