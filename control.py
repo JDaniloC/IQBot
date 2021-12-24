@@ -1,33 +1,50 @@
 from admin.controlador import *
+import bottle, json
 
-controlador = Control()
-server = socket(AF_INET, SOCK_DGRAM)
-server.bind(('', SERVER_PORT))
-print(f"Server preparado para receber. na porta {SERVER_PORT}")
+@bottle.post("/add/")
+def adicionar_pessoa():
+    data = json.loads(bottle.request.body.read())
+    args, kwargs = data["args"], data["kwargs"]
+    resultado = controlador.adicionar_pessoa(*args, **kwargs)
+    return { "resultado": resultado }
 
-try:
-    while True:
-        message, address = server.recvfrom(2048)
-        command, args, kwargs = get_command_and_args(message)
-        if command == "add":
-            funcao = controlador.adicionar_pessoa
-        elif command == "stop":
-            funcao = controlador.parar_operacao
-        elif command == "log":
-            funcao = controlador.pegar_log
-        elif command == "delete":
-            funcao = controlador.deletar_instancias
-        elif command == "list":
-            funcao = controlador.mostrar_usuarios
-        elif command == "send":
-            funcao = controlador.enviar_comando
-        else:
-            funcao = lambda *args, **kwargs: "Comando não reconhecido"
-        try:
-            server.sendto(json.dumps({
-                "result": funcao(*args, **kwargs),
-            }).encode(), address)
-        except Exception as e: print(type(e), e)
-except KeyboardInterrupt:
-    server.close()
-    controlador.deletar_instancias()
+@bottle.post("/stop/")
+def adicionar_pessoa():
+    data = json.loads(bottle.request.body.read())
+    args, kwargs = data["args"], data["kwargs"]
+    resultado = controlador.parar_operacao(*args, **kwargs)
+    return { "resultado": resultado }
+
+@bottle.post("/log/")
+def adicionar_pessoa():
+    data = json.loads(bottle.request.body.read())
+    args, kwargs = data["args"], data["kwargs"]
+    resultado = controlador.pegar_log(*args, **kwargs)
+    return { "resultado": resultado }
+
+@bottle.post("/delete/")
+def adicionar_pessoa():
+    data = json.loads(bottle.request.body.read())
+    args, kwargs = data["args"], data["kwargs"]
+    resultado = controlador.deletar_instancias(*args, **kwargs)
+    return { "resultado": resultado }
+
+@bottle.post("/list/")
+def adicionar_pessoa():
+    data = json.loads(bottle.request.body.read())
+    args, kwargs = data["args"], data["kwargs"]
+    resultado = controlador.mostrar_usuarios(*args, **kwargs)
+    return { "resultado": resultado }
+
+@bottle.post("/send/")
+def adicionar_pessoa():
+    data = json.loads(bottle.request.body.read())
+    args, kwargs = data["args"], data["kwargs"]
+    resultado = controlador.enviar_comando(*args, **kwargs)
+    return { "resultado": resultado }
+
+if __name__ == "__main__":
+    controlador = Control()
+    print(f"Server preparado para receber. na porta {SERVER_PORT}")
+    bottle.run(host = "localhost", port = SERVER_PORT, debug = True)
+

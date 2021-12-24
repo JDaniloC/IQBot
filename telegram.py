@@ -188,7 +188,6 @@ class Assistente(amanobot.helper.ChatHandler):
             "Estratégias - timeframe": ["autotime", False, tuple],
 
             "Estratégias: Automático": ["auto", False, bool],
-            "Estratégias: Catalogador": ["catalogador", False, tuple],
             "Min ciclos válidos": ["autocycles", False, int],
             "Assertividade mínima": ["assert", False, int],
             "Mínimo de hits": ["hits", False, tuple],
@@ -791,11 +790,10 @@ EURJPY 31/12/2000 CALL M5 02:30
         elif msg['text'] == "✳️ Opções de estratégias":
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Estratégias: Automático" ),
-                 KeyboardButton( text = "Estratégias: Catalogador" )],
+                 KeyboardButton( text = "Mínimo de hits" )],
                 [KeyboardButton( text = "Min ciclos válidos" ),
                  KeyboardButton( text = "Assertividade mínima" )],
-                [KeyboardButton( text = "Mínimo de hits" ),
-                 KeyboardButton( text = "⚙️ Editar configurações ⚙️" )]])
+                [KeyboardButton( text = "⚙️ Editar configurações ⚙️" )]])
             verificador = True
         elif msg['text'] == "🔩 Outras Opções ⚙️":
             teclado = ReplyKeyboardMarkup(keyboard = [
@@ -842,7 +840,7 @@ EURJPY 31/12/2000 CALL M5 02:30
                     "tipo_soros": ["normal", "ciclos"],
                     "tipo_stop": ["movel", "fixo"], "hits": [1, 2, 3], 
                     "taxas_vela": ["retração", "reversão"],
-                    "catalogador": ["velho", "novo"], "tipo_gale": [
+                    "tipo_gale": [
                         "sorosgale porcentagem", "martingale", 
                         "sorosgale", "ciclos", "nenhum"],  
                     "tipo_martin": ["seguro", "leve", 

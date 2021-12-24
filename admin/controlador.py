@@ -1,6 +1,6 @@
-import time, json, bottle, requests, threading
 from configparser import RawConfigParser
 from subprocess import check_output
+import time, requests, subprocess
 from utils import ENV_NAME
 from os import system 
 
@@ -149,8 +149,7 @@ class Control:
         regiao = regions[self.regiao]
         name = "instancia" + str(len(self.instancias))
         print(f"Criando a VM de nome: {name}")
-
-        system(f'yes "Y" | gcloud beta compute --project={project_name} instances create {name} --zone={regiao} --machine-type=e2-medium --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE --service-account={account_name} --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server,https-server --image=padrao --image-project={project_name} --boot-disk-size=10GB --boot-disk-type=pd-standard --boot-disk-device-name={name} --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any')
+        system(f'yes "Y" | gcloud compute instances create {name} --project={project_name} --zone={regiao} --machine-type=e2-medium --network-interface=network-tier=PREMIUM,subnet=default --maintenance-policy=MIGRATE --service-account={account_name} --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server,https-server --create-disk=auto-delete=yes,boot=yes,device-name={name},image=projects/{project_name}/global/images/padrao,mode=rw,size=10,type=projects/{project_name}/zones/{regiao}/diskTypes/pd-balanced --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any')
         status = -1
         while status != 0:
             status = system(f"gcloud compute ssh {name} --zone {regiao} --command='chmod 777 iqbot/setup.sh;./iqbot/setup.sh'")
@@ -190,14 +189,17 @@ class Control:
         E devolve todos os usuários deletados
         '''
         usuarios = []
+        self.creating = True
         for instancia in self.instancias:
             usuarios.extend(instancia.get_people())
-            threading.Thread(system, args = (
-                f'yes "Y" | gcloud compute instances delete --zone {instancia.region} {instancia.name}',), daemon = True).start()
+            answer = subprocess.Popen(('yes', '"Y"'), stdout=subprocess.PIPE)
+            subprocess.Popen(f'gcloud compute instances delete \
+                --zone {instancia.region} {instancia.name}', 
+                shell = True, stdin = answer.stdout)
         self.instancias = []
         self.ao_vivo = []
         self.regiao = 0
-        self.creating = False
+        self.criar_instancia()
         return usuarios
 
     def mostrar_usuarios(self):
@@ -220,48 +222,6 @@ class Control:
         if alvo != None and email in self.ao_vivo:
             system(f"gcloud compute ssh {alvo.name} --zone {alvo.region} --command='screen -X -S @{email} stuff \"{comando}\n\"'")
         return "Modo ao vivo não ligado."
-
-@bottle.post("/add/")
-def adicionar_pessoa():
-    data = json.loads(bottle.request.body.read())
-    args, kwargs = data["args"], data["kwargs"]
-    resultado = controlador.adicionar_pessoa(*args, **kwargs)
-    return { "resultado": resultado }
-
-@bottle.post("/stop/")
-def adicionar_pessoa():
-    data = json.loads(bottle.request.body.read())
-    args, kwargs = data["args"], data["kwargs"]
-    resultado = controlador.parar_operacao(*args, **kwargs)
-    return { "resultado": resultado }
-
-@bottle.post("/log/")
-def adicionar_pessoa():
-    data = json.loads(bottle.request.body.read())
-    args, kwargs = data["args"], data["kwargs"]
-    resultado = controlador.pegar_log(*args, **kwargs)
-    return { "resultado": resultado }
-
-@bottle.post("/delete/")
-def adicionar_pessoa():
-    data = json.loads(bottle.request.body.read())
-    args, kwargs = data["args"], data["kwargs"]
-    resultado = controlador.deletar_instancias(*args, **kwargs)
-    return { "resultado": resultado }
-
-@bottle.post("/list/")
-def adicionar_pessoa():
-    data = json.loads(bottle.request.body.read())
-    args, kwargs = data["args"], data["kwargs"]
-    resultado = controlador.mostrar_usuarios(*args, **kwargs)
-    return { "resultado": resultado }
-
-@bottle.post("/send/")
-def adicionar_pessoa():
-    data = json.loads(bottle.request.body.read())
-    args, kwargs = data["args"], data["kwargs"]
-    resultado = controlador.enviar_comando(*args, **kwargs)
-    return { "resultado": resultado }
 
 class Client:
     def __init__(self):
@@ -289,8 +249,3 @@ class Client:
     
     def mostrar_usuarios(self, *args, **kwargs):
         return self.send("list", args, kwargs)
-
-if __name__ == "__main__":
-    controlador = Control()
-    print(f"Server preparado para receber. na porta {SERVER_PORT}")
-    bottle.run(host = "localhost", port = SERVER_PORT, debug = True)
