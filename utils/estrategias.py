@@ -434,7 +434,6 @@ class Estrategias(Operacao):
         is_poshit = self.config.get("poshit", 0) > 0
         gales_number = self.config.get("autogale", 2)
         auto_timeframe = self.config.get("autotime", 1)
-        catalogador = self.config.get("catalogador", "old")
         posgale = self.config.get('posgale', 0)
         _assert = self.config.get("assert", 0)
         hits = self.config.get("hits", 0)
@@ -460,7 +459,7 @@ class Estrategias(Operacao):
         while not self.verificar_stop() and not porcentagem:
             porcentagem, paridade, estrategia = self.catalogar_estrategia(
                 auto_timeframe, gales_number, is_poshit, posgale,
-                ciclos, hits, _assert, catalogador)
+                ciclos, hits, _assert)
 
             if not porcentagem:
                 self.mostrar_mensagem(without_cataloguer_result_msg())

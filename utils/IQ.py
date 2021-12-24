@@ -338,20 +338,15 @@ class IQ_API:
         return result
 
     def catalogar_estrategia(self, timeframe, gale, poshit, posgale,
-            ciclos = 0, hits = 0,  _assert = 0, catalogador = "old"):
+            ciclos = 0, hits = 0,  _assert = 0):
         try:
-            if catalogador == "novo":
-                if not poshit: hits = 0
-                assets = self.config.get("assets", [])
-                strategies = self.config.get("strategies", [])
-                
-                resultado = self.bear_catalogador(timeframe, 
-                    gale, ciclos, hits, posgale, _assert, 
-                    assets, strategies)
-            else:
-                resultado = self.ocatalogador(timeframe, 
-                    gale, poshit, ciclos, hits, _assert, 
-                    self.get_all_open_time())
+            if not poshit: hits = 0
+            assets = self.config.get("assets", [])
+            strategies = self.config.get("strategies", [])
+            
+            resultado = self.bear_catalogador(timeframe, 
+                gale, ciclos, hits, posgale, _assert, 
+                assets, strategies)
         except Exception as e: 
             self.mostrar_mensagem(abort_cataloguer_msg())
             self.mostrar_mensagem(str(type(e)) + str(e), True)
@@ -430,51 +425,6 @@ class IQ_API:
         if reason == "": reason = "Desconhecido..."
         self.mostrar_mensagem(cataloguer_error_msg(reason))
 
-        return False, False, False
-
-    def ocatalogador(self, timeframe, gale, 
-        poshit, ciclos, hits, _assert, payouts):
-        def is_hit(candles):
-            hit = True
-            for candle in candles:
-                if candle in ["W", "D"] or (
-                    candle == "G1" and gale != "0"
-                ) or (candle == "G2" and gale == "2"):
-                    hit = False
-            return hit
-
-        def verify_minoria(response):
-            pct = response["win"]
-            par = response["par"]
-            estrategia = response["estrategia"]
-
-            estrategia = estrategia.lower()
-            if ("mhi" in estrategia and
-                "maioria" not in estrategia):
-                estrategia = f"{estrategia} minoria"
-
-            return pct, par, estrategia
-
-        def verify_ciclos(trades: list):
-            return ciclos < (len(trades) - trades.count("D"))
-
-        if   gale == "2": gName = "G2"
-        elif gale == "1": gName = "G1"
-        else:             gName = "G0"
-        data = requests.get(f"https://backend.ocatalogador.com/api/v1/catalogue/Todos/{timeframe}/Todas/24/{gName}")
-        resultado = data.json()
-        for analise in resultado:
-            if not verify_ciclos(analise["quadrantes"]
-                ) or _assert > analise["win"]:
-                continue
-            
-            candle = analise["quadrantes"][-hits:]   
-            if (poshit and is_hit(candle)) or not poshit:
-                if payouts:
-                    its_ok = self.verify_payouts(analise["par"], payouts)
-                    if not its_ok: continue
-       
-                return verify_minoria(analise)
         return False, False, False
 
     @staticmethod
