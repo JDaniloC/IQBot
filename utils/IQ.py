@@ -499,10 +499,8 @@ class IQ_API:
 
         data = requests.get(f"https://backend.ocatalogador.com/api/v1/catalogue/Todos/M{timeframe}/Todas/24/G{gale}")
         resultado = data.json()
-        print(resultado)
         for analise in resultado:
             if _assert > analise["win"]:
-                print("Assertividade", analise["win"])
                 continue
             
             candle = analise["quadrantes"][-hits:]   
@@ -583,7 +581,7 @@ class IQ_API:
             seconds = 50 * minutos)
         ).replace(second = seconds) - timedelta(seconds = correcao)
         ).timestamp() - time.time())
-        print("espera", espera)
+
         time.sleep(espera)
 
     def format_candles(self, text):
