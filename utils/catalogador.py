@@ -4,7 +4,7 @@ from datetime import time as time_day
 from bot import pegar_comando_lista
 from utils.IQ import IQ_API
 from utils import ENV_NAME
-import time, amanobot
+import amanobot
 
 config = RawConfigParser()
 config.read(ENV_NAME)
@@ -60,7 +60,7 @@ class Catalogador(IQ_API):
         def cataloga(par, dias, timeframe):
             data = []
             datas_testadas = []
-            time_ = time.time()
+            time_ = (datetime.utcnow() - timedelta(hours = 3)).timestamp()
             sair = False
             conta_erros = 0
             while sair == False:
@@ -120,7 +120,7 @@ Catalogando {dias} dias de M{timeframe} até {limite} sinais com {porcentagem}% 
         catalogacao = {}
         for par in P['digital']:
             if P['digital'][par]['open'] == True:
-                timer = int(time.time())
+                timer = int((datetime.utcnow() - timedelta(hours = 3)).timestamp())
                 self.mostrar_mensagem(f' CATALOGANDO - {par}...')
                 
                 catalogacao.update({par: cataloga(par, dias, timeframe)})	
@@ -153,7 +153,7 @@ Catalogando {dias} dias de M{timeframe} até {limite} sinais com {porcentagem}% 
                                 catalogacao[par][horario]['mg'+str(i+1)]['%'] = 'N/A'
                 
                 self.mostrar_mensagem(
-                    f'Finalizado em {int(time.time()) - timer} segundos.')
+                    f'Finalizado em {int((datetime.utcnow() - timedelta(hours = 3)).timestamp()) - timer} segundos.')
         
         entradas, resultado = [], []
         texto_entradas, conta_texto = "", 0
@@ -197,7 +197,7 @@ Catalogando {dias} dias de M{timeframe} até {limite} sinais com {porcentagem}% 
         entradas.sort(key = lambda x: x["timestamp"])
         contagem = 0
         for entrada in entradas:
-            if entrada["timestamp"] > time.time():
+            if entrada["timestamp"] > (datetime.utcnow() - timedelta(hours = 3)).timestamp():
                 contagem += 1
                 if contagem < limite:
                     resultado.append(entrada)
