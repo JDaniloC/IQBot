@@ -589,7 +589,7 @@ class IQ_API:
             seconds = 50 * minutos)
         ).replace(second = seconds) - timedelta(seconds = correcao)
         ).timestamp() - time.time())
-        print("espera", espera)
+
         time.sleep(espera)
 
     def format_candles(self, text):
