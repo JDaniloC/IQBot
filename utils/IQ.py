@@ -359,39 +359,52 @@ Valor: R$ {round(valor, 2)}
             ).replace("PUT", "🔴").replace("DOJI", "⚪️")
 
     @staticmethod
-    def catalogar_estrategia(timeframe, gale, poshit):
-        def is_hit(candles):
-            hit = True
-            for candle in candles:
-                if candle in ["W", "D"] or (
-                    candle == "G1" and gale != "0"
-                ) or (candle == "G2" and gale == "2"):
-                    hit = False
-            return hit
+    def catalogar_estrategia(timeframe: int, gale: int, poshit: int, 
+                             hits: int, _assert: int) -> tuple:
 
-        def verify_minoria(response):
-            pct = response["win"]
-            par = response["par"]
-            estrategia = response["estrategia"]
+        def verify_minoria(estrategia):
+            maioria = "minoria"
+            fatias = estrategia.lower().split()
+            if len(fatias) == 2 and fatias[1] == "maioria":
+                estrategia = fatias[0]
+                maioria = "maioria"
+            if fatias[0] == "milhão":
+                estrategia = "milhão"
+            elif "mhi" == estrategia[:3].lower():
+                estrategia = fatias[0]
+            
+            return estrategia.lower(), maioria
 
-            estrategia = estrategia.lower()
-            if ("mhi" in estrategia and
-                "maioria" not in estrategia):
-                estrategia = f"{estrategia} minoria"
+        data = requests.get(
+            f"https://catalogador.herokuapp.com/api/catalogacao/M{timeframe}/{gale}/",
+            headers = { 
+                "poshit": str(hits), 
+                "posgale": "1" if poshit else "0",
+                "assert": str(_assert),
+                "strategies": ",".join([
+                    'C3', 'DAKA','FIVE FLIP', 'GABA', 'HALF HOUR','HOPE',
+                    'LAST OF FIVE','MELHOR DE 3', 'MHI MAIORIA','MHI MINORIA','VITUXO'
+                    'MHI2 MAIORIA','MHI2 MINORIA', 'MHI3 MAIORIA','MHI3 MINORIA',
+                    'MILHÃO MAIORIA','MILHÃO MINORIA', 'MSF', 'PADRÃO 23', 'PADRÃO 3X1',
+                    'PADRÃO IMPAR', 'POWER','PRIMEIROS TROCADOS','R7','SEVEN FLIP',
+                    'TORRES GÊMEAS','TRIPLICAÇÃO','TRÊS MOSQUETEIROS','TRÊS VIZINHOS',
+                    'TURN OVER',
+                ]),
+            })
 
-            return pct, par, estrategia
+        resultado = json.loads(data.text)
+        trades = resultado['trades']
+        for analise in trades:
+            paridade = analise["asset"]
+            estrategia = analise["strategy"]
+            percentage = analise["percents"][0]
+                
+            return percentage, paridade, verify_minoria(estrategia)
+        
+        print(resultado)
 
-        if   gale == "2": gName = "G2"
-        elif gale == "1": gName = "G1"
-        else:             gName = "G0"
-        data = requests.get(f"https://backend.ocatalogador.com/api/v1/catalogue/Todos/{timeframe}/Todas/24/{gName}")
-        resultado = data.json()
-        for analise in resultado:
-            candle = analise["quadrantes"][-1:]   
-            if (poshit and is_hit(candle)) or not poshit:
-                return verify_minoria(analise)
         return False, False, False
-
+    
     @staticmethod
     def esperarAte(horas, minutos, segundos = 0, data = (), tolerancia = 0, output = False):
         '''
