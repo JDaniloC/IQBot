@@ -359,28 +359,20 @@ Valor: R$ {round(valor, 2)}
             ).replace("PUT", "🔴").replace("DOJI", "⚪️")
 
     @staticmethod
-    def catalogar_estrategia(timeframe: int, gale: int, poshit: int, 
-                             hits: int, _assert: int) -> tuple:
-
+    def catalogar_estrategia(timeframe: int, gale: int, poshit: int) -> tuple:
+        
         def verify_minoria(estrategia):
-            maioria = "minoria"
-            fatias = estrategia.lower().split()
-            if len(fatias) == 2 and fatias[1] == "maioria":
-                estrategia = fatias[0]
-                maioria = "maioria"
-            if fatias[0] == "milhão":
-                estrategia = "milhão"
-            elif "mhi" == estrategia[:3].lower():
-                estrategia = fatias[0]
+            estrategia = estrategia.lower()
+            if ("mhi" in estrategia and
+                "maioria" not in estrategia):
+                estrategia = f"{estrategia} minoria"
             
-            return estrategia.lower(), maioria
-
+            return estrategia
+        
         data = requests.get(
-            f"https://catalogador.herokuapp.com/api/catalogacao/M{timeframe}/{gale}/",
+            f"https://catalogador.herokuapp.com/api/catalogacao/{timeframe}/{gale}/",
             headers = { 
-                "poshit": str(hits), 
-                "posgale": "1" if poshit else "0",
-                "assert": str(_assert),
+                "poshit": "1" if poshit else "0", 
                 "strategies": ",".join([
                     'C3', 'DAKA','FIVE FLIP', 'GABA', 'HALF HOUR','HOPE',
                     'LAST OF FIVE','MELHOR DE 3', 'MHI MAIORIA','MHI MINORIA','VITUXO'
