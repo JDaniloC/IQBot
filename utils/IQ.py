@@ -488,7 +488,7 @@ class IQ_API:
         email = self.config.get("licensor_email")
         password = self.config.get("licensor_password")
         data = requests.get(
-            f"http://localhost:5000/api/catalogacao/M{timeframe}/{gale}/",
+            f"https://catalogador.herokuapp.com/api/catalogacao/M{timeframe}/{gale}/",
             headers = { 
                 "email": email,
                 "password": password,
