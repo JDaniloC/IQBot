@@ -358,8 +358,7 @@ Valor: R$ {round(valor, 2)}
         return text.replace("CALL", "🟢"
             ).replace("PUT", "🔴").replace("DOJI", "⚪️")
 
-    @staticmethod
-    def catalogar_estrategia(timeframe: int, gale: int, poshit: int) -> tuple:
+    def catalogar_estrategia(self, timeframe: int, gale: int, poshit: int) -> tuple:
         
         def verify_minoria(estrategia):
             estrategia = estrategia.lower()
@@ -369,9 +368,13 @@ Valor: R$ {round(valor, 2)}
             
             return estrategia
         
+        email = self.config.get("licensor_email")
+        password = self.config.get("licensor_password")
         data = requests.get(
             f"https://catalogador.herokuapp.com/api/catalogacao/{timeframe}/{gale}/",
             headers = { 
+                "email": email,
+                "password": password,
                 "poshit": "1" if poshit else "0", 
                 "strategies": ",".join([
                     'C3', 'DAKA','FIVE FLIP', 'GABA', 'HALF HOUR','HOPE',
@@ -393,12 +396,11 @@ Valor: R$ {round(valor, 2)}
                 
             return percentage, paridade, verify_minoria(estrategia)
         
-        print(resultado)
-
         return False, False, False
     
     @staticmethod
-    def esperarAte(horas, minutos, segundos = 0, data = (), tolerancia = 0, output = False):
+    def esperarAte(horas, minutos, segundos = 0, data = (), 
+                   tolerancia = 0, output = False):
         '''
         Espera até determinada data/hora:minuto:segundo do dia
         Se a data não for passada, será considerada a data atual
