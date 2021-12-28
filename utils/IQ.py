@@ -400,9 +400,13 @@ class IQ_API:
         posgale: int, _assert: int, assets: list, strategies: list) -> tuple:
 
         payout_min = self.config.get("minimo", 0)
+        email = self.config.get("licensor_email")
+        password = self.config.get("licensor_password")
         data = requests.get(
             f"https://catalogador.herokuapp.com/api/catalogacao/{timeframe}/{gale}/",
             headers = { 
+                "email": email,
+                "password": password,
                 "poshit": str(hits), 
                 "cycles": str(ciclos),
                 "posgale": str(posgale),
