@@ -469,8 +469,7 @@ class IQ_API:
     def get_SSMA(dataframe: pandas.DataFrame, period: int):
         return finta.TA.SSMA(dataframe, period)
     
-    @staticmethod
-    def catalogar_estrategia(timeframe: int, gale: int, poshit: int, 
+    def catalogar_estrategia(self, timeframe: int, gale: int, poshit: int, 
                              hits: int, _assert: int) -> tuple:
 
         def verify_minoria(estrategia):
@@ -486,9 +485,13 @@ class IQ_API:
             
             return estrategia.lower(), maioria
 
+        email = self.config.get("licensor_email")
+        password = self.config.get("licensor_password")
         data = requests.get(
-            f"https://catalogador.herokuapp.com/api/catalogacao/M{timeframe}/{gale}/",
+            f"http://localhost:5000/api/catalogacao/M{timeframe}/{gale}/",
             headers = { 
+                "email": email,
+                "password": password,
                 "poshit": str(hits), 
                 "posgale": "1" if poshit else "0",
                 "assert": str(_assert),

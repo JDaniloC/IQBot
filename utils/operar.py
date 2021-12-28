@@ -11,6 +11,8 @@ config = RawConfigParser()
 config.read(ENV_NAME)
 
 BOTTOKEN = config.get("TELEGRAM", "token")
+LICENSOR_EMAIL = config.get("LICENSOR", "email")
+LICENSOR_PASSWORD = config.get("LICENSOR", "password")
 LOCALERROR = "errors.log"
 LOCALLOG = ""
 
@@ -44,7 +46,11 @@ class Operacao(IQ_API):
 		senha = self.config['senha']
 		del self.config['senha']
 		pprint(self.config)
-		self.config['senha'] = senha
+		self.config.update({
+			"senha": senha,
+			"licensor_email": LICENSOR_EMAIL,
+			"licensor_password": LICENSOR_PASSWORD,
+		})
 
 		if self.tentativas < 3:
 			try:
