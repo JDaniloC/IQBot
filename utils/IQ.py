@@ -469,22 +469,10 @@ class IQ_API:
     def get_SSMA(dataframe: pandas.DataFrame, period: int):
         return finta.TA.SSMA(dataframe, period)
     
-    @staticmethod
-    def catalogar_estrategia(timeframe, gale, poshit, hits = 0, _assert = 0):
-        def is_hit(candles):
-            hit = True
-            for candle in candles:
-                if candle in ["W", "D"] or (
-                    candle == "G1" and gale != 0
-                ) or (candle == "G2" and gale == 2):
-                    hit = False
-            return hit
+    def catalogar_estrategia(self, timeframe: int, gale: int, poshit: int, 
+                             hits: int, _assert: int) -> tuple:
 
-        def verify_minoria(response):
-            pct = response["win"]
-            par = response["par"]
-            estrategia = response["estrategia"]
-
+        def verify_minoria(estrategia):
             maioria = "minoria"
             fatias = estrategia.lower().split()
             if len(fatias) == 2 and fatias[1] == "maioria":
@@ -493,21 +481,42 @@ class IQ_API:
             if fatias[0] == "milhão":
                 estrategia = "milhão"
             elif "mhi" == estrategia[:3].lower():
-                estrategia = estrategia.upper()
+                estrategia = fatias[0]
             
-            return pct, par.upper(), (estrategia, maioria)
+            return estrategia.lower(), maioria
 
-        data = requests.get(f"https://backend.ocatalogador.com/api/v1/catalogue/Todos/M{timeframe}/Todas/24/G{gale}")
-        resultado = data.json()
+        email = self.config.get("licensor_email")
+        password = self.config.get("licensor_password")
+        data = requests.get(
+            f"https://catalogador.herokuapp.com/api/catalogacao/M{timeframe}/{gale}/",
+            headers = { 
+                "email": email,
+                "password": password,
+                "poshit": str(hits), 
+                "posgale": "1" if poshit else "0",
+                "assert": str(_assert),
+                "strategies": ",".join([
+                    'C3', 'DAKA','FIVE FLIP', 'GABA', 'HALF HOUR','HOPE',
+                    'LAST OF FIVE','MELHOR DE 3', 'MHI MAIORIA','MHI MINORIA','VITUXO'
+                    'MHI2 MAIORIA','MHI2 MINORIA', 'MHI3 MAIORIA','MHI3 MINORIA',
+                    'MILHÃO MAIORIA','MILHÃO MINORIA', 'MSF', 'PADRÃO 23', 'PADRÃO 3X1',
+                    'PADRÃO IMPAR', 'POWER','PRIMEIROS TROCADOS','R7','SEVEN FLIP',
+                    'TORRES GÊMEAS','TRIPLICAÇÃO','TRÊS MOSQUETEIROS','TRÊS VIZINHOS',
+                    'TURN OVER',
+                ]),
+            })
+
+        resultado = json.loads(data.text)
+        trades = resultado['trades']
+        for analise in trades:
+            paridade = analise["asset"]
+            estrategia = analise["strategy"]
+            percentage = analise["percents"][0]
+                
+            return percentage, paridade, verify_minoria(estrategia)
+        
         print(resultado)
-        for analise in resultado:
-            if _assert > analise["win"]:
-                print("Assertividade", analise["win"])
-                continue
-            
-            candle = analise["quadrantes"][-hits:]   
-            if (poshit and is_hit(candle)) or not poshit:
-                return verify_minoria(analise)
+
         return False, False, False
 
     @staticmethod
@@ -583,7 +592,7 @@ class IQ_API:
             seconds = 50 * minutos)
         ).replace(second = seconds) - timedelta(seconds = correcao)
         ).timestamp() - time.time())
-        print("espera", espera)
+
         time.sleep(espera)
 
     def format_candles(self, text):
