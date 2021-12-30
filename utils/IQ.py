@@ -469,7 +469,7 @@ class IQ_API:
     def get_SSMA(dataframe: pandas.DataFrame, period: int):
         return finta.TA.SSMA(dataframe, period)
     
-    def catalogar_estrategia(self, timeframe: int, gale: int, poshit: int, 
+    def catalogar_estrategia(self, timeframe: int, gale: int, poshit: bool, 
                              hits: int, _assert: int) -> tuple:
 
         def verify_minoria(estrategia):
@@ -492,8 +492,7 @@ class IQ_API:
             headers = { 
                 "email": email,
                 "password": password,
-                "poshit": str(hits), 
-                "posgale": "1" if poshit else "0",
+                "poshit": str(hits) if poshit else "0", 
                 "assert": str(_assert),
                 "strategies": ",".join([
                     'C3', 'DAKA','FIVE FLIP', 'GABA', 'HALF HOUR','HOPE',
@@ -515,8 +514,9 @@ class IQ_API:
                 
             return percentage, paridade, verify_minoria(estrategia)
         
-        print(resultado)
-
+        if len(trades) == 0:
+            self.mostrar_mensagem(f'Motivo: {resultado["reason"]}')
+        
         return False, False, False
 
     @staticmethod

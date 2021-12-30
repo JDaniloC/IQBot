@@ -100,6 +100,8 @@ class Assistente(amanobot.helper.ChatHandler):
 
         self.entrada = False
 
+        self.lista_usuarios = [] 
+        self.indice_lista_usuarios = 0
         self.add_entrada = "-"        
         self.iniciar_operacao = False
         self.parar_bot = False
@@ -894,13 +896,19 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             else:
                 users = MongoDB.usuarios_cadastrados()
             # Faz um botão para cada e-mail
-            lista_usuarios = [] 
+            self.lista_usuarios = [] 
+            self.indice_lista_usuarios = 0
             for user in users:
                 email = user['email']
-                lista_usuarios.append([KeyboardButton(text = email)])
-            if len(lista_usuarios) > 0:
+                self.lista_usuarios.append([KeyboardButton(text = email)])
+            if len(self.lista_usuarios) > 0:
+                keyboard = self.lista_usuarios[:100]
+                if len(keyboard) == 100:
+                    keyboard += [[KeyboardButton(text = "Próximo")]]
                 self.enviar_mensagem("Escolha:",
-                    reply_markup = ReplyKeyboardMarkup(keyboard = lista_usuarios))
+                    reply_markup = ReplyKeyboardMarkup(
+                        keyboard = keyboard
+                    ))
                 if msg['text'] == "Aprovar usuários":
                     self.alteracoes_avancadas['aprovar'] = True
                     self.alteracoes_avancadas['plano'] = True
@@ -966,13 +974,13 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         if self.alteracoes_avancadas['adm_in']:
             MongoDB.adiciona_adm(int(msg))
             ADMS = MongoDB.get_adms()
-            self.enviar_mensagem("Adminstrador adicionado.")
+            self.enviar_mensagem("Administrador adicionado.")
             self.alteracoes_avancadas["adm_in"] = False
             return True
         elif self.alteracoes_avancadas['adm_out']:
             MongoDB.remover_adm(int(msg))
             ADMS = MongoDB.get_adms()
-            self.enviar_mensagem("Adminstrador removido.")
+            self.enviar_mensagem("Administrador removido.")
             self.alteracoes_avancadas["adm_out"] = False
             return True
         elif self.alteracoes_avancadas['plano'] == True:
@@ -1018,7 +1026,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
 
     def confirmar_mapeamento(self, dicionario, novo):
         '''
-        Mapea o dicionário para ver se há um valor verdadeiro
+        Mapeia o dicionário para ver se há um valor verdadeiro
         Se houver verifica se o novo valor está correto
         Devolve um bool, usado para confirmar_alteracao/avancado
         '''
@@ -1105,13 +1113,27 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         return False
 
     def listar_usuarios(self):
-        if os.name != "nt":
+        if os.name != "nt" and self.id in ADMS:
             instancias = controlador.mostrar_usuarios()
             for instancia, usuarios in instancias.items():
                 self.enviar_mensagem(instancia, save = True)
                 for usuario in usuarios:
                     self.enviar_mensagem(usuario, save = True)
-        
+
+    def proxima_pagina(self, message):
+        if self.id in ADMS and message["text"] == "Próximo":
+            self.indice_lista_usuarios += 100
+            index = self.indice_lista_usuarios
+            keyboard = self.lista_usuarios[index: index + 100]
+            if len(keyboard) == 100:
+                keyboard += [[KeyboardButton(text = "Próximo")]]
+            self.enviar_mensagem("Escolha:",
+                reply_markup = ReplyKeyboardMarkup(
+                    keyboard = keyboard
+                ))
+            return True
+        return False
+    
     def desligar_bot(self):
         global rodando
         if os.name != "nt":
@@ -1135,6 +1157,8 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.login(msg)         # [0] Login
         elif self.iniciar_operacao:
             self.operar(msg)        # [3] Opções
+        elif self.proxima_pagina(msg):
+            pass
         elif self.salvar_alteracoes_avancadas(msg) in [True, None]:
             if not self.alteracoes_avancadas['plano']:
                 self.gerenciar()    # [4] Avançadas (ADM)
@@ -1217,11 +1241,11 @@ def printProgressBar (iteration, total, prefix = '', suffix = '',
         print()
 
 if __name__ == "__main__":
-    print("Carregando...")
-    printProgressBar(0, 20, prefix = 'Progress:', suffix = 'Complete', length = 30)
-    for i in range(20):
-        time.sleep(0.1)
-        printProgressBar(i + 1, 20, prefix = 'Progress:', suffix = 'Complete', length = 50)
+    # print("Carregando...")
+    # printProgressBar(0, 20, prefix = 'Progress:', suffix = 'Complete', length = 30)
+    # for i in range(20):
+    #     time.sleep(0.1)
+    #     printProgressBar(i + 1, 20, prefix = 'Progress:', suffix = 'Complete', length = 50)
 
     problema = False
     bot = amanobot.DelegatorBot(TOKEN, [
