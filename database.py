@@ -42,14 +42,14 @@ class Mongo:
         '''
         Verifica se o e-mail está em aprovação
         '''
-        objct = self.users_em_aprovacao.find_one({'email':email})
-        if not objct:
+        user = self.users_em_aprovacao.find_one({'email':email})
+        if not user:
             return False
         return True
 
     def verifica_licenca(self, email):
-        objct = self.users_collection.find_one({'email':email})
-        if not objct:
+        user = self.users_collection.find_one({'email':email})
+        if not user:
             return False
         return True
 
@@ -58,8 +58,6 @@ class Mongo:
         Tira o e-mail de em aprovação e coloca no rol de usuários
         '''
         user = self.apagar_cadastro(email)
-        if self.users_collection.count_documents({}) >= 100:
-            return False
         if user:
             user = users_schema.user
             user['email'] = email
