@@ -1303,7 +1303,7 @@ class Operacao(IQ_API):
 			INFERIOR_LINE -= 1
 			SUPERIOR_LINE += 1
 
-		self.mostrar_mensagem(f"""🔸 Operando Value Chart 🔸
+		self.mostrar_mensagem(f"""🔸 Price Action no value chart 🔸
 		⏰ Timeframe: M{self.tempo}
 		📈 Linha superior: {SUPERIOR_LINE}
 		📉 Linha inferior: {INFERIOR_LINE}
