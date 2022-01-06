@@ -48,7 +48,8 @@ user = {
     "tipo_tendencia": "sma",
     "tendencia": False,
     
-    "reverso": False,
-    "ranking-inicio": 1,
-    "ranking-final": 100
+    "vchart_candles": 7,
+    "vchart_high": 10,
+    "vchart_low": -10,
+    "vchart_pct": 100
 }

@@ -159,6 +159,11 @@ class Assistente(amanobot.helper.ChatHandler):
             "Auto VIP: Gales": ["autogale", False, tuple],
             "Mínimo de hits": ["hits", False, tuple],
             "Assertividade mínima": ["assert", False, int],
+
+            "Value Chart: velas": ["vchart_candles", False, int],
+            "Value Chart: l. superior": ["vchart_high", False, int],
+            "Value Chart: l. inferior": ["vchart_low", False, int],
+            "Value Chart: porcentagem": ["vchart_pct", False, int],
         }
 
         self.informacoes = {}
@@ -469,13 +474,13 @@ EURJPY 31/12/2000 CALL M5 02:30
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Operar Lista/Taxas" ),
                  KeyboardButton( text = "Operar Estratégias" ),
-                 KeyboardButton( text = "Lista de sinais" )],
+                 KeyboardButton( text = "Operar Auto VIP")],
                 [KeyboardButton( text = "Catalogar sinais"),
                  KeyboardButton( text = "Operar Chinesa"),
-                 KeyboardButton( text = "Operar Auto VIP")],
+                 KeyboardButton( text = "Estratégia 3 por 1" )],
                 [KeyboardButton( text = "Operar Donchian" ),
                  KeyboardButton( text = "Operar Berman" ),
-                 KeyboardButton( text = "Estratégia 3 por 1" )],
+                 KeyboardButton( text = "Operar Value Chart" )],
                 [KeyboardButton( text = "Configurações" ),
                  KeyboardButton( text = "Parar Bot" ),
                  KeyboardButton( text = "Sair da conta" )]
@@ -514,6 +519,9 @@ EURJPY 31/12/2000 CALL M5 02:30
             return self.operar(msg)
         elif texto == "Estratégia 3 por 1":
             self.tipo_operacao = "3por1"
+            return self.operar(msg)
+        elif texto == "Operar Value Chart":
+            self.tipo_operacao = "chart"
             return self.operar(msg)
         elif texto == "Catalogar sinais":
             self.enviar_mensagem("Carregando...")
@@ -671,7 +679,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                 "Tipo de gale": "Gerenciamento",
                 "Tipo de martingale": "Martingale e Soros",
                 "Seguir tendência": "Tendência e notícias",
-                "Paridade": "Auto Trade"
+                "Paridade": "Auto Trade",
+                "Value Chart: velas": "Value Chart",
             }
             mensagem = ""
             for key, value in self.mapeamento.items():
@@ -698,9 +707,10 @@ EURJPY 31/12/2000 CALL M5 02:30
                      KeyboardButton( text = "Tendência e notícias" )],
                     [KeyboardButton( text = "Gerenciamento" ),
                      KeyboardButton( text = "Martingale e Soros" )],
-                    [KeyboardButton( text = "Ver configurações" ),
+                    [KeyboardButton( text = "Value Chart" ),
                      KeyboardButton( text = "Estratégias")],
-                    [KeyboardButton( text = "Voltar ao menu" )]
+                    [KeyboardButton( text = "Lista de sinais" ),
+                     KeyboardButton( text = "Voltar ao menu" )]
             ], resize_keyboard = True))
             return True
         else:
@@ -754,6 +764,14 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Período da tendência" )],
                 [KeyboardButton( text = "Configurações" )]
                 ])
+            verificador = True
+        elif msg['text'] == 'Value Chart':
+            teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "Value Chart: velas"),
+                 KeyboardButton( text = "Value Chart: porcentagem" )],
+                [KeyboardButton( text = "Value Chart: l. inferior" ),
+                 KeyboardButton( text = "Value Chart: l. superior" )],
+                [KeyboardButton( text = "Configurações" )]])
             verificador = True
         elif msg['text'] == "Estratégias":
             teclado = ReplyKeyboardMarkup(keyboard = [

@@ -1,6 +1,7 @@
-import time, numpy, requests, json, threading, random, finta, pandas
+import time, numpy, requests, json, threading, finta, pandas
 from iqoptionapi.stable_api import IQ_Option
 from datetime import datetime, timedelta
+from functools import reduce
 
 class IQ_API:
     def __init__(self, login, senha):
@@ -93,19 +94,6 @@ class IQ_API:
                 ) else False
         self.add_payout_cache(paridade, "binary", result)
         return result
-
-    def abertas(self):
-        paridades = { "turbo": [], "binary": [] }
-        abertas = self.API.get_all_open_time()
-        turbo = abertas["turbo"]
-        binaria = abertas["binary"]
-        digital = abertas["digital"]
-        paridades["turbo"] = set(
-            [x for x in turbo if turbo[x]["open"]] + 
-            [x for x in digital if digital[x]["open"]])
-        paridades["binary"] = set([x for x in binaria if binaria[x]["open"]])
-        paridades["binary"] = paridades["binary"].intersection(paridades["turbo"])
-        return paridades
 
     def payout_abertas(self, paridades = False):
         '''
@@ -331,41 +319,6 @@ class IQ_API:
     def format_dir(self, text):
         return text.replace("CALL", "⬆️").replace("PUT", "⬇️")
 
-    def online_top_ranking(self, inicio = 1, final = 100, filtro = "Worldwide"):
-        '''
-        Procura o primeiro dos X traders online.
-        '''
-        ranking = []
-        contador = 0
-        while contador < 2 and ranking == []:
-            ranking = self.API.get_leader_board(filtro, inicio, final, 0)
-            contador += 1
-
-        if ranking != [] and ranking is not None:
-            paridades_abertas = self.abertas()['turbo']
-            for position in ranking['result']['positional']:
-                trader = ranking['result']['positional'][position]
-                user_id = trader['user_id']
-                if user_id == self.last_user_id: continue
-                info = self.API.get_users_availability(user_id)
-
-                if info["statuses"][0]["status"] == "online":    
-                    self.last_user_id = user_id
-                    ativos = self.API.get_all_ACTIVES_OPCODE()
-                    key_list = list(ativos.keys())
-                    value_list = list(ativos.values())
-
-                    if "selected_asset_id" in info["statuses"][0]:
-                        asset_id = info["statuses"][0]["selected_asset_id"]
-                    else: asset_id = 1
-
-                    paridade = key_list[value_list.index(asset_id)]
-                    if paridade not in paridades_abertas: 
-                        paridade = random.choice(list(paridades_abertas))
-                        print(paridade)
-                    return f"[{trader['flag']}] {position}° {trader['user_name']}", paridade
-        return [], ""
-
     def berman_strategy(self, paridade: str, 
         ema_period: int, bbands_period: int) -> tuple:
         from talib.abstract import BBANDS, EMA
@@ -419,9 +372,14 @@ class IQ_API:
         return dataframe
         
     def update_abertas(self) -> tuple:
-        abertas = self.abertas()
-        last_update = time.time()
-        paridades = set(abertas["turbo"]).union(abertas["binary"])
+        try:
+            abertas = self.API.get_all_open_time()
+            turbo, last_update = abertas["turbo"], time.time()
+            paridades = set([x for x in turbo if turbo[x]["open"]])
+        except:
+            self.mostrar_mensagem(f"Não consegui obter as paridades abertas...")
+            self.API.connect()
+            last_update, paridades = time.time() + 500, []
         return last_update, paridades
 
     @staticmethod
@@ -469,6 +427,57 @@ class IQ_API:
     def get_SSMA(dataframe: pandas.DataFrame, period: int):
         return finta.TA.SSMA(dataframe, period)
     
+    @staticmethod
+    def list_sma(candles, periodo):
+        candles = candles[:periodo]
+        candle_sum = reduce((lambda last, x: last + x), candles)
+        return candle_sum / len(candles)
+    
+    def candle_chart_range(self, candle_amount: int, 
+                           high: list, low: list, close: list) -> float:
+        def access(array, index):
+            if abs(round(index)) >= len(array):
+                return 0
+            return array[abs(round(index))]
+        
+        if candle_amount > 7:
+            quadrantes = round(candle_amount / 5)
+            high_sorted = sorted(high[quadrantes:], reverse=True)
+            low_sorted = sorted(low[quadrantes:])
+
+            has_one_quadrante = quadrantes == 1
+            previous = high_sorted[0] - low_sorted[0]
+
+            var_1 = abs(close[0] - close[quadrantes]) if (
+                previous == 0 and has_one_quadrante) else -quadrantes
+            previous = access(high_sorted, -quadrantes+1) - access(low_sorted, -quadrantes)
+
+            var_2 = abs(access(close, -quadrantes) - access(close, -quadrantes*2)) if (
+                previous == 0 and has_one_quadrante) else previous
+            previous = access(high_sorted, -quadrantes*2) - access(low_sorted, -quadrantes*2)
+            
+            var_3 = abs(access(close, -quadrantes*2) - access(close, -quadrantes*3)) if (
+                previous == 0 and has_one_quadrante) else previous
+            previous = access(high_sorted, -quadrantes*3) - access(low_sorted, -quadrantes*3)
+            
+            var_4 = abs(access(close, -quadrantes*3) - access(close, -quadrantes*4)) if (
+                previous == 0 and has_one_quadrante) else previous
+            previous = access(high_sorted, -quadrantes*4) - access(low_sorted, -quadrantes*4)
+            
+            var_5 = abs(access(close, -quadrantes*4) - access(close, -quadrantes*5)) if (
+                previous == 0 and has_one_quadrante) else previous
+            
+            left_range = ((var_1 + var_2 + var_3 + var_4 + var_5) / 5) * .2
+        else:
+            candle_delta = [abs(x - close[1]) for x in close]
+            var0 = candle_delta if (
+                candle_delta[0] > (high[0] - low[0]) or high[0] == low[0]
+            ) else [high[x] - low[x] for x in range(len(high))]
+            
+            left_range = self.list_sma(var0, 5) * .2
+        
+        return left_range
+
     def catalogar_estrategia(self, timeframe: int, gale: int, poshit: bool, 
                              hits: int, _assert: int) -> tuple:
 

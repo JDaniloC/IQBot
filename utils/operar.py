@@ -147,6 +147,8 @@ class Operacao(IQ_API):
 					self.operar_chinesa()
 				elif tipo_operacao == "donchian": 
 					self.operar_donchian()
+				elif tipo_operacao == "chart":
+					self.operar_value_chart()
 				else:
 					self.operar_berman()
 
@@ -1214,20 +1216,8 @@ class Operacao(IQ_API):
 		self.verificar_stop()
 
 	def operar_donchian(self):
-		def update_abertas_binary():
-			try:
-				abertas = self.API.get_all_open_time()
-				turbo = abertas["turbo"]
-				paridades = set([x for x in turbo if turbo[x]["open"]])
-				last_update = time.time()
-			except Exception as e:
-				self.mostrar_mensagem(f"Não consegui obter as paridades abertas...")
-				self.API.connect()
-				return [], time.time() + 500
-			return paridades, last_update
-		
 		self.mostrar_mensagem("🔸 Operando Donchian + Fractal 🔸")
-		paridades, last_update = update_abertas_binary()
+		last_update, paridades = self.update_abertas()
 		self.tempo = 3
 
 		while not self.verificar_stop():
@@ -1294,5 +1284,86 @@ class Operacao(IQ_API):
 						
 			time.sleep(5)
 			if (time.time() - last_update) > 600:
-				paridades, last_update = update_abertas_binary()
+				last_update, paridades = self.update_abertas()
+		
+	def operar_value_chart(self):		
+		TIMEFRAME = self.tempo * 60
+		CANDLE_AMOUNT = self.config.get("vchart_candles", 7)
+		SUPERIOR_LINE = self.config.get("vchart_high", 10)
+		INFERIOR_LINE = self.config.get("vchart_low", -10)
+		PERCENT_OFFSET = self.config.get("vchart_pct", 100)
+
+		if CANDLE_AMOUNT == 0: CANDLE_AMOUNT = 1
+		if PERCENT_OFFSET < 0: PERCENT_OFFSET = 0
+		if INFERIOR_LINE > 0: -INFERIOR_LINE
+
+		if INFERIOR_LINE > SUPERIOR_LINE:
+			SUPERIOR_LINE, INFERIOR_LINE = INFERIOR_LINE, SUPERIOR_LINE
+		elif INFERIOR_LINE == SUPERIOR_LINE:
+			INFERIOR_LINE -= 1
+			SUPERIOR_LINE += 1
+
+		self.mostrar_mensagem(f"""🔸 Operando Value Chart 🔸
+		⏰ Timeframe: M{self.tempo}
+		📈 Linha superior: {SUPERIOR_LINE}
+		📉 Linha inferior: {INFERIOR_LINE}
+		📊 Quantidade de velas: {CANDLE_AMOUNT}
+		📊 Porcentagem de entrada: {PERCENT_OFFSET}%
+		""")
+		
+		last_update, paridades = self.update_abertas()
+
+		for paridade in paridades:
+			self.API.start_candles_stream(paridade, TIMEFRAME, CANDLE_AMOUNT)
+
+		while not self.verificar_stop():
+			for paridade in paridades:
+				candles = self.API.get_realtime_candles(paridade, TIMEFRAME).copy()
+				
+				open = list(reversed([ candles[x]['open'] for x in candles ]))
+				close = list(reversed([ candles[x]['close'] for x in candles ]))
+				high = list(reversed([ candles[x]['max'] for x in candles ]))
+				low = list(reversed([ candles[x]['min'] for x in candles ]))
+				
+				left_range = self.candle_chart_range(CANDLE_AMOUNT, high, low, close)
+				
+				average = [(high[x] + low[x]) / 2 for x in range(len(high))]
+				average_sma = self.list_sma(average, CANDLE_AMOUNT)
+				v_close = (close[0] - average_sma) / left_range
+				direction = "CALL" if open[0] > close[0] else "PUT"
+
+				try:
+					inferior = round((v_close / SUPERIOR_LINE) * 100, 2)
+					superior = round((v_close / INFERIOR_LINE) * 100, 2)		
+				except:
+					inferior, superior = 0, 0
+
+				# print(f"{paridade} Inferior: {inferior}% | Superior {superior}%", end="\r")
+				if inferior >= PERCENT_OFFSET and direction == "PUT":
+					direcao = "PUT"
+				elif superior >= PERCENT_OFFSET and direction == "CALL":
+					direcao = "CALL"
+				else: 
+					direcao = ""
+
+				if direcao:
+					tipo, payout = self.recebe_payout(paridade, self.tempo)
+					payout_minimo = self.config.get("minimo", 0) / 100
+
+					if (self.ativar_noticias and not 
+						self.verificar_noticias(paridade)):
+						continue
+					
+					if payout_minimo <= payout:
+						self.operar(self.valor, paridade, 
+							direcao, self.tempo, payout, tipo)
+						
+						if self.verificar_stop():
+							time.sleep(1)
+							break
+
+				time.sleep(0.1)
+			if (time.time() - last_update) > 600:
+				last_update, paridades = self.update_abertas()
+			
 		
