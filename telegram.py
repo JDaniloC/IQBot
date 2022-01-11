@@ -137,6 +137,7 @@ class Assistente(amanobot.helper.ChatHandler):
 
         self.entrada = False
 
+        self.ultima_resposta = None
         self.ultimo_comando = {"text": ""}
         self.add_entrada = "-"        
         self.parar_bot = False
@@ -242,6 +243,8 @@ class Assistente(amanobot.helper.ChatHandler):
 
     def enviar_mensagem(self, message, reply_markup = None, 
         edit = False, delete = True, save = False):
+        if (message, reply_markup) == self.ultima_resposta: return message
+        self.ultima_resposta = (message, reply_markup)
         try:
             if edit:
                 self.bot.editMessageText(self.message_id, message)
