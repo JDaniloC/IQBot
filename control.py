@@ -46,5 +46,12 @@ def adicionar_pessoa():
 if __name__ == "__main__":
     controlador = Control()
     print(f"Server preparado para receber. na porta {SERVER_PORT}")
-    bottle.run(host = "localhost", port = SERVER_PORT, debug = True)
-
+    try:
+        bottle.run(host = "localhost", 
+                   port = SERVER_PORT, 
+                   debug = True)
+    except KeyboardInterrupt:
+        print("Deletando instâncias...")
+        resultado = controlador.deletar_instancias()
+        print(resultado)
+        input("Clique Enter para sair")

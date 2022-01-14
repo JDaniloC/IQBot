@@ -1162,7 +1162,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         if not self.autenticacao:
             return False
         
-        if msg['text'].lower() == 'carregar config':
+        if msg['text'].lower() in ["carregar config", "/carregar"]:
             self.esperar_config = True
             self.enviar_mensagem("Envie a configuração:")
             return True
@@ -1230,6 +1230,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             key: [value[0], False, value[2]]
             for key, value in self.mapeamento.items()}
         self.iniciar_operacao = False
+        self.esperar_config = False
         self.parar_bot = False
         self.comandos()
         return True
