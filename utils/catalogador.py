@@ -4,7 +4,7 @@ from datetime import time as time_day
 from bot import pegar_comando_lista
 from utils.IQ import IQ_API
 from utils import ENV_NAME
-import time, amanobot
+import amanobot
 
 config = RawConfigParser()
 config.read(ENV_NAME)
@@ -40,8 +40,7 @@ class Catalogador(IQ_API):
     def __init__(self, verboso = False):
         self.verboso = verboso
 
-        super().__init__(
-            "hiyivo1180@tmail7.com", "senha123")
+        super().__init__("binifo4010@hagendes.com", "senha123")
         self.mudar_treino()
 
     def mostrar_mensagem(self, mensagem):
@@ -61,7 +60,7 @@ class Catalogador(IQ_API):
         def cataloga(par, dias, timeframe):
             data = []
             datas_testadas = []
-            time_ = time.time()
+            time_ = (datetime.utcnow() - timedelta(hours = 3)).timestamp()
             sair = False
             conta_erros = 0
             while sair == False:
@@ -70,8 +69,10 @@ class Catalogador(IQ_API):
                 velas.reverse()
                 
                 for x in velas:	
-                    if datetime.fromtimestamp(x['from']).strftime('%Y-%m-%d') not in datas_testadas: 
-                        datas_testadas.append(datetime.fromtimestamp(x['from']).strftime('%Y-%m-%d'))
+                    from_hour = datetime.utcfromtimestamp(
+                        x['from']) - timedelta(hours=3)
+                    if from_hour.strftime('%Y-%m-%d') not in datas_testadas: 
+                        datas_testadas.append(from_hour.strftime('%Y-%m-%d'))
                         
                     if len(datas_testadas) <= dias:
                         x.update({'cor': 'verde' if x['open'] < x['close'] else 'vermelha' if x['open'] > x['close'] else 'doji'})
@@ -84,17 +85,23 @@ class Catalogador(IQ_API):
                     time_ = int(velas[-1]['from'] - 1)
                 else:
                     conta_erros += 1
-                    if conta_erros == 5:
+                    if conta_erros == 3:
                         self.mostrar_mensagem(f"""
 Não consegui pegar as velas, verifique as configurações:
 Catalogando {dias} dias de M{timeframe} até {limite} sinais com {porcentagem}% até {martingale} gales das {inicio} - {final}
                         """)
-                        return
+                        return {}
 
             analise = {}
             for velas in data:
-                horario = datetime.fromtimestamp(velas['from']).strftime('%H:%M')
-                if horario not in analise : analise.update({horario: {'verde': 0, 'vermelha': 0, 'doji': 0, '%': 0, 'dir': ''}})	
+                from_hour = datetime.utcfromtimestamp(
+                    velas['from']) - timedelta(hours=3)
+                horario = from_hour.strftime('%H:%M')
+                if horario not in analise : 
+                    analise.update({ horario: {
+                        'vermelha': 0, 'verde': 0, 
+                        'doji': 0, 'dir': '', '%': 0, 
+                    }})	
                 analise[horario][velas['cor']] += 1
                 
                 try:
@@ -113,7 +120,7 @@ Catalogando {dias} dias de M{timeframe} até {limite} sinais com {porcentagem}% 
         catalogacao = {}
         for par in P['digital']:
             if P['digital'][par]['open'] == True:
-                timer = int(time.time())
+                timer = int((datetime.utcnow() - timedelta(hours = 3)).timestamp())
                 self.mostrar_mensagem(f' CATALOGANDO - {par}...')
                 
                 catalogacao.update({par: cataloga(par, dias, timeframe)})	
@@ -127,7 +134,10 @@ Catalogando {dias} dias de M{timeframe} até {limite} sinais com {porcentagem}% 
 
                             catalogacao[par][horario].update({'mg'+str(i+1): {'verde': 0, 'vermelha': 0, 'doji': 0, '%': 0} })
 
-                            mg_time = str(datetime.strptime((datetime.now()).strftime('%Y-%m-%d ') + str(mg_time), '%Y-%m-%d %H:%M') + timedelta(minutes=timeframe))[11:-3]
+                            now_time = datetime.utcnow() - timedelta(hours=3)
+                            mg_time = str(datetime.strptime(now_time.strftime(
+                                '%Y-%m-%d ') + str(mg_time), '%Y-%m-%d %H:%M') + 
+                                timedelta(minutes=timeframe))[11:-3]
                             
                             if mg_time in catalogacao[par]:
                                 catalogacao[par][horario]['mg'+str(i+1)]['verde'] += catalogacao[par][mg_time]['verde'] + soma['verde']
@@ -143,11 +153,11 @@ Catalogando {dias} dias de M{timeframe} até {limite} sinais com {porcentagem}% 
                                 catalogacao[par][horario]['mg'+str(i+1)]['%'] = 'N/A'
                 
                 self.mostrar_mensagem(
-                    f'Finalizado em {int(time.time()) - timer} segundos.')
+                    f'Finalizado em {int((datetime.utcnow() - timedelta(hours = 3)).timestamp()) - timer} segundos.')
         
         entradas, resultado = [], []
         texto_entradas, conta_texto = "", 0
-        hoje = datetime.now().strftime('%d/%m/%Y')
+        hoje = (datetime.utcnow() - timedelta(hours = 3)).strftime('%d/%m/%Y')
         
         try: 
             inicio = time_day(*tuple(map(int, inicio.split(":"))))
@@ -177,15 +187,17 @@ Catalogando {dias} dias de M{timeframe} até {limite} sinais com {porcentagem}% 
                     
                     texto_entrada = f"{hoje} {horario} {par} {direction} M{timeframe}\n"
                     entrada = pegar_comando_lista(texto_entrada)
-                    if entrada != {} and inicio <= datetime.fromtimestamp(
-                        entrada["timestamp"]).time() <= final:
-                        entradas.append(entrada)
+                    if entrada != {}:
+                        trade_hour = datetime.utcfromtimestamp(
+                            entrada["timestamp"]) - timedelta(hours = 3)
+                        if inicio <= trade_hour.time() <= final:
+                            entradas.append(entrada)
 
         self.mostrar_mensagem("Ordenando e removendo entradas antigas.")
         entradas.sort(key = lambda x: x["timestamp"])
         contagem = 0
         for entrada in entradas:
-            if entrada["timestamp"] > time.time():
+            if entrada["timestamp"] > (datetime.utcnow() - timedelta(hours = 3)).timestamp():
                 contagem += 1
                 if contagem < limite:
                     resultado.append(entrada)

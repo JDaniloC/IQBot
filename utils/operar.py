@@ -10,6 +10,8 @@ config.read(ENV_NAME)
 
 BOTTOKEN = config.get("TELEGRAM", "token")
 APIURL = config.get("LICENSOR", "licensorURL")
+LICENSOR_EMAIL = config.get("LICENSOR", "email")
+LICENSOR_PASSWORD = config.get("LICENSOR", "password")
 LOCALERROR = "errors.log"
 LOCALLOG = ""
 
@@ -35,7 +37,11 @@ class Operacao(IQ_API):
 		senha = self.config['senha']
 		del self.config['senha']
 		from pprint import pprint; pprint(self.config)
-		self.config['senha'] = senha
+		self.config.update({
+			"senha": senha,
+			"licensor_email": LICENSOR_EMAIL,
+			"licensor_password": LICENSOR_PASSWORD
+		})
 
 		self.mostrar_mensagem(f"📝 Entrando na {config['email']}")
 		for _ in range(3):

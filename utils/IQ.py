@@ -326,99 +326,35 @@ class IQ_API:
         return text.replace("CALL", "🟢"
             ).replace("PUT", "🔴").replace("DOJI", "⚪️")
 
-    def get_all_open_time(self):
-        '''
-        Retorna todos os horários de abertura de todas as opções
-        '''
-        result = None
-        def wait_for_all_open_time():
-            nonlocal result
-            result = self.API.get_all_open_time()
-        thread = threading.Thread(target=wait_for_all_open_time)
-        thread.start()
-        thread.join(10)
-        return result
-
-    def catalogar_estrategia(self, timeframe, gale, poshit, posgale,
-            ciclos = 0, hits = 0,  _assert = 0, catalogador = "old"):
-        try:
-            if catalogador == "novo":
-                if not poshit: hits = 0
-                assets = self.config.get("assets", [])
-                strategies = self.config.get("strategies", [])
-                
-                resultado = self.bear_catalogador(timeframe, 
-                    gale, ciclos, hits, posgale, _assert, 
-                    assets, strategies)
-            else:
-                resultado = self.ocatalogador(timeframe, 
-                    gale, poshit, ciclos, hits, _assert, 
-                    self.get_all_open_time())
-        except Exception as e: 
-            self.mostrar_mensagem("Ocorreu um problema no catalogador...")
-            self.mostrar_mensagem(str(type(e)) + str(e), True)
-            resultado = False, False, False
-
-        return resultado
-
-    def verify_payouts(self, paridade, payouts):
-        if not payouts: return True
-
-        if_err = {"open": False}
-        binaria = payouts["turbo"].get(paridade, if_err)["open"]
-        digital = payouts["digital"].get(paridade, if_err)["open"]
+    def catalogar_estrategia(self, timeframe: int, gale: int, poshit: int) -> tuple:
         
-        if self.tipo == "digital":
-            its_ok = digital                        
-        elif self.tipo == "binary": 
-            its_ok = binaria
-        else:
-            its_ok = digital or binaria
-
-        if its_ok:
-            timeframe = int(self.config["autotime"][1:])
-            payout = round(100 * self.recebe_payout(
-                paridade, timeframe)[1])
-            if payout < self.config['minimo']:
-                its_ok = False
-        return its_ok
-    
-    def verify_payouts_bear(self, analise):
-        its_ok = True
-        if analise.get("payout"):
-            digital = analise["payout"]["digital"]
-            binaria = analise["payout"]["binary"]
-            if self.tipo == "digital":
-                payout = digital 
-            elif self.tipo == "binary": 
-                payout = binaria
-            else:
-                payout = digital if digital > binaria else binaria
-
-            if (payout * 100) < self.config['minimo']:
-                its_ok = False
-        else:
-            paridades_abertas = self.get_all_open_time()
-            its_ok = self.verify_payouts(
-                analise["asset"], paridades_abertas)
-        return its_ok
-
-    def bear_catalogador(self, timeframe: int, gale: int, ciclos: int, hits: int, 
-        posgale: int, _assert: int, assets: list, strategies: list) -> tuple:
-
-        payout_min = self.config.get("minimo", 0)
+        def verify_minoria(estrategia):
+            estrategia = estrategia.lower()
+            if ("mhi" in estrategia and
+                "maioria" not in estrategia):
+                estrategia = f"{estrategia} minoria"
+            
+            return estrategia
+        
+        email = self.config.get("licensor_email")
+        password = self.config.get("licensor_password")
         data = requests.get(
             f"https://catalogador.herokuapp.com/api/catalogacao/{timeframe}/{gale}/",
             headers = { 
-                "poshit": str(hits), 
-                "cycles": str(ciclos),
-                "posgale": str(posgale),
-                "assert": str(_assert),
-                "tipo": str(self.tipo),
-                "payout": str(payout_min),
-                "assets": ",".join(assets),
-                "strategies": ",".join(strategies),
+                "email": email,
+                "password": password,
+                "poshit": "1" if poshit else "0", 
+                "strategies": ",".join([
+                    'C3', 'DAKA','FIVE FLIP', 'GABA', 'HALF HOUR','HOPE',
+                    'LAST OF FIVE','MELHOR DE 3', 'MHI MAIORIA','MHI MINORIA','VITUXO'
+                    'MHI2 MAIORIA','MHI2 MINORIA', 'MHI3 MAIORIA','MHI3 MINORIA',
+                    'MILHÃO MAIORIA','MILHÃO MINORIA', 'MSF', 'PADRÃO 23', 'PADRÃO 3X1',
+                    'PADRÃO IMPAR', 'POWER','PRIMEIROS TROCADOS','R7','SEVEN FLIP',
+                    'TORRES GÊMEAS','TRIPLICAÇÃO','TRÊS MOSQUETEIROS','TRÊS VIZINHOS',
+                    'TURN OVER',
+                ]),
             })
+
         resultado = json.loads(data.text)
         trades = resultado['trades']
         for analise in trades:
@@ -426,60 +362,13 @@ class IQ_API:
             estrategia = analise["strategy"]
             percentage = analise["percents"][0]
                 
-            return percentage, paridade, estrategia
+            return percentage, paridade, verify_minoria(estrategia)
         
-        reason = resultado.get("reason", "Está catalogando...")
-        if reason == "": reason = "Desconhecido..."
-        self.mostrar_mensagem(f"Não conseguiu catalogar: {reason}")
-
         return False, False, False
-
-    def ocatalogador(self, timeframe, gale, 
-        poshit, ciclos, hits, _assert, payouts):
-        def is_hit(candles):
-            hit = True
-            for candle in candles:
-                if candle in ["W", "D"] or (
-                    candle == "G1" and gale != "0"
-                ) or (candle == "G2" and gale == "2"):
-                    hit = False
-            return hit
-
-        def verify_minoria(response):
-            pct, par, estrategia = response
-
-            estrategia = estrategia.lower()
-            if ("mhi" in estrategia and
-                "maioria" not in estrategia):
-                estrategia = f"{estrategia} minoria"
-
-            return pct, par, estrategia
-
-        def verify_ciclos(trades: list):
-            return ciclos < (len(trades) - trades.count("D"))
-
-        if   gale == "2": gName = "porcentagemGale2"
-        elif gale == "1": gName = "porcentagemGale1"
-        else:             gName = "porcentagemWinDePrimeira"
-        data = requests.get(f"https://ocatalogador.com/api/{gName}/{timeframe}")
-        resultado = json.loads(data.text)['Todos']
-        for analise in resultado:
-            if not verify_ciclos(analise[3][0]
-                ) or _assert > analise[0]:
-                continue
-            
-            candle = analise[3][0][-hits:]   
-            if (poshit and is_hit(candle)) or not poshit:
-                if payouts:
-                    its_ok = self.verify_payouts(analise[1], payouts)
-                    if not its_ok: continue
-       
-                return verify_minoria(analise[:3])
-        return False, False, False
-
+    
     @staticmethod
-    def esperarAte(horas, minutos, segundos = 0, 
-        data = (), tolerancia = 0, output = False):
+    def esperarAte(horas, minutos, segundos = 0, data = (), 
+                   tolerancia = 0, output = False):
         '''
         Espera até determinada data/hora:minuto:segundo do dia
         Se a data não for passada, será considerada a data atual
