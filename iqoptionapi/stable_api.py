@@ -291,19 +291,21 @@ class IQ_Option:
         # for binary option turbo and binary
         OPEN_TIME = nested_dict(3, dict)
         binary_data = self.get_all_init_v2()
+
         binary_list = ["binary", "turbo"]
-        for option in binary_list:
-            if option in binary_data:
-                for actives_id in binary_data[option]["actives"]:
-                    active = binary_data[option]["actives"][actives_id]
-                    name = str(active["name"]).split(".")[1]
-                    if active["enabled"] == True:
-                        if active["is_suspended"] == True:
-                            OPEN_TIME[option][name]["open"] = False
+        if binary_data:
+            for option in binary_list:
+                if option in binary_data:
+                    for actives_id in binary_data[option]["actives"]:
+                        active = binary_data[option]["actives"][actives_id]
+                        name = str(active["name"]).split(".")[1]
+                        if active["enabled"] == True:
+                            if active["is_suspended"] == True:
+                                OPEN_TIME[option][name]["open"] = False
+                            else:
+                                OPEN_TIME[option][name]["open"] = True
                         else:
-                            OPEN_TIME[option][name]["open"] = True
-                    else:
-                        OPEN_TIME[option][name]["open"] = active["enabled"]
+                            OPEN_TIME[option][name]["open"] = active["enabled"]
 
         # for digital
         digital_data = self.get_digital_underlying_list_data()["underlying"]
@@ -508,6 +510,7 @@ class IQ_Option:
         cont = 0
         while True:
             try:
+                if ACTIVES not in OP_code.ACTIVES: return []
                 self.api.getcandles(
                     OP_code.ACTIVES[ACTIVES], interval, count, endtime)
                 contador = 0
@@ -523,7 +526,7 @@ class IQ_Option:
                 cont += 1 
                 logging.error('**error** (get_candles) precisa se reconectar')
                 self.connect()
-                if cont == 5:
+                if cont == 3:
                     return []
 
         return self.api.candles.candles_data
@@ -777,6 +780,7 @@ class IQ_Option:
 
     def check_win_v4(self, id_number):
         while True:
+            time.sleep(0.1)
             try:
                 if self.api.socket_option_closed[id_number] != None:
                     break
@@ -819,7 +823,7 @@ class IQ_Option:
             action = order['instrument_dir']
             lose = order['buy_amount']
             payout = self.get_digital_payout(active)
-            if not payout: payout = 0.7
+            payout = payout / 100 if payout else 0.7
             win_amount = round(lose * payout, 2)
         
         self.start_candles_stream(active, 1, 1)
@@ -1159,6 +1163,10 @@ class IQ_Option:
         start_duration = position["instrument_id"].find("PT") + 2
         end_duration = start_duration + \
             position["instrument_id"][start_duration:].find("M")
+        if start_duration > end_duration:
+            start_duration = position['instrument_id'].find("00T") + 3
+            end_duration = start_duration + \
+                position["instrument_id"][start_duration:].find("M")
 
         duration = int(position["instrument_id"][start_duration:end_duration])
         z2 = False
@@ -1600,21 +1608,21 @@ class IQ_Option:
             time.sleep(0.2)
         return self.api.users_availability
 
-    def get_digital_payout(self, active):
+    def get_digital_payout(self, active, seconds = 5):
         self.api.digital_payout = None
         asset_id = OP_code.ACTIVES[active]
 
         self.api.subscribe_digital_price_splitter(asset_id)
 
-        count = 0
+        start = time.time()
         while self.api.digital_payout is None:
-            count += 1
+            if seconds and int(time.time() - start) > seconds:
+                break
             time.sleep(0.1)
-            if count == 30: return False
 
         self.api.unsubscribe_digital_price_splitter(asset_id)
 
-        return self.api.digital_payout
+        return self.api.digital_payout if self.api.digital_payout else 0
 
     def logout(self):
         self.api.logout()

@@ -104,7 +104,6 @@ Catalogando {dias} dias de M{timeframe} até {limite} sinais com {porcentagem}% 
                         'vermelha': 0, 'verde': 0, 
                         'doji': 0, 'dir': '', '%': 0, 
                     }})	
-	
                 analise[horario][velas['cor']] += 1
                 
                 try:
