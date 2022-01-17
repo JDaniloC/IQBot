@@ -1226,12 +1226,17 @@ class Operacao(IQ_API):
 					velas = self.API.get_candles(paridade, 60, 21, time.time())
 				except:
 					continue
+				if len(velas) == 0: continue
+
 				taxas_min = []
 				taxas_max = []
 				
 				for candles in velas:
 					taxas_min.append(round(candles['min'], 6))
 					taxas_max.append(round(candles['max'], 6))
+				
+				if len(taxas_min) == 1 or len(taxas_max) == 1:
+					continue
 				
 				# Donchian
 				maior = sorted(taxas_max, reverse=True)[0]
@@ -1319,7 +1324,8 @@ class Operacao(IQ_API):
 		while not self.verificar_stop():
 			for paridade in paridades:
 				candles = self.API.get_realtime_candles(paridade, TIMEFRAME).copy()
-				
+				if len(candles) <= 1: continue
+
 				open = list(reversed([ candles[x]['open'] for x in candles ]))
 				close = list(reversed([ candles[x]['close'] for x in candles ]))
 				high = list(reversed([ candles[x]['max'] for x in candles ]))

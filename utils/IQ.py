@@ -335,11 +335,12 @@ class IQ_API:
             'volume': numpy.empty(quantidade)
         }
         
-        for x in range(0, quantidade):
+        for x in range(quantidade):
             for key in dados:
                 new_key = key.replace(
                     "high", "max"
                 ).replace("low", "min")
+                if x >= len(dados[key]): continue
                 dados[key][x] = velas[x][new_key]
 
         saida = EMA(dados, timeperiod=ema_period)
@@ -444,6 +445,8 @@ class IQ_API:
             quadrantes = round(candle_amount / 5)
             high_sorted = sorted(high[quadrantes:], reverse=True)
             low_sorted = sorted(low[quadrantes:])
+
+            if len(high_sorted) < 1 or len(low_sorted) < 1: return 0
 
             has_one_quadrante = quadrantes == 1
             previous = high_sorted[0] - low_sorted[0]
