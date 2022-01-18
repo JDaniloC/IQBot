@@ -73,12 +73,12 @@ class Operacao(IQ_API):
 
 				self.saldo_inicial = self.API.get_balance()
 				if tipo_operacao == "3por1":
-					config["valor"] = max(round(self.saldo_inicial * 0.03), 2)
+					config["valor"] = max(round(self.saldo_inicial * 0.02), 2)
 					config["stopwin"] = max(round(self.saldo_inicial * 0.055), 2)
 					config["stoploss"] = max(round(self.saldo_inicial * 0.10), 2)
 					config["noticias_hora"] = 1
 					config["poshit"] = True
-					config["minimo"] = 70
+					config["minimo"] = 80
 					config["assert"] = 95
 					config["auto"] = True
 					config["toros"] = 3

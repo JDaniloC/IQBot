@@ -798,21 +798,44 @@ class IQ_Option:
                 return result['msg']['closed_options'][0]['win'], (result['msg']['closed_options'][0]['win_amount'] - result['msg']['closed_options'][0]['amount'] if result['msg']['closed_options'][0]['win'] != 'equal' else 0)
             time.sleep(1)
 
+    def get_open_trades(self, limit: int = 10):
+        """
+        Return the open trades information
+        """
+        all_infos = self.get_optioninfo_v2(limit)['msg']
+        open_trades = all_infos.get('open_options', [])
+        win_amount = lambda order: order['win_amount'] - order['sum']
+        return [{
+            "win_amount": round(win_amount(order), 2),
+            "expiration": order['exp_time'],
+            "direction": order['dir'],
+            "asset": order['active'],
+            "value": order['value'],
+            "loss": order['sum'],
+            "id": order["id"]
+        } for order in open_trades]
+
     # Function by Danilo ( https://t.me/DaniloCarmo )
     def check_win_v5(self, id_number, mode, delay = 0):
         if mode != "digital":
-            result = self.get_optioninfo_v2(10)
-            order = None
-            for option in result['msg']['open_options']:
-                if option['id'] == id_number:
-                    order = option
-                    break
-            active = order['active']
+            order, count = None, 0
+            while order is None:
+                open_trades = self.get_open_trades()
+                for option in open_trades:
+                    if option['id'] == id_number:
+                        order = option
+                        break
+                if count == 5:
+                    return "error", 0
+                elif count > 0:
+                    time.sleep(0.1)
+                count += 1
+            lose = order['loss']
             value = order['value']
-            expiration = order['exp_time']
-            action = order['dir']
-            lose = order['sum']
-            win_amount = round(order['win_amount'] - lose, 2)
+            active = order['asset']
+            action = order['direction']
+            expiration = order['expiration']
+            win_amount = order["win_amount"]
         else:
             order = None
             while not order:
