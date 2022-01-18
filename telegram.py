@@ -477,10 +477,9 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Operar Auto VIP")],
                 [KeyboardButton( text = "Catalogar sinais"),
                  KeyboardButton( text = "Operar Chinesa"),
-                 KeyboardButton( text = "Estratégia 3 por 1" )],
-                [KeyboardButton( text = "Operar Donchian" ),
-                 KeyboardButton( text = "Operar Berman" ),
-                 KeyboardButton( text = "Operar Price Action" )],
+                 KeyboardButton( text = "Config VIP" )],
+                [KeyboardButton( text = "Lista de sinais" ),
+                 KeyboardButton( text = "Operar Berman" )],
                 [KeyboardButton( text = "Configurações" ),
                  KeyboardButton( text = "Parar Bot" ),
                  KeyboardButton( text = "Sair da conta" )]
@@ -517,7 +516,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         elif texto == "Operar Donchian":
             self.tipo_operacao = "donchian"
             return self.operar(msg)
-        elif texto == "Estratégia 3 por 1":
+        elif texto == "Config VIP":
             self.tipo_operacao = "3por1"
             return self.operar(msg)
         elif texto == "Operar Price Action":
