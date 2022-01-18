@@ -327,6 +327,9 @@ class IQ_API:
         velas = self.API.get_candles(
             paridade, self.tempo * 60, 
             quantidade, time.time())
+        if velas is None or len(velas) == 0:
+            return 0, 0, 0, 0
+
         dados = {
             'open': numpy.empty(quantidade),
             'high': numpy.empty(quantidade), 
@@ -340,7 +343,6 @@ class IQ_API:
                 new_key = key.replace(
                     "high", "max"
                 ).replace("low", "min")
-                if x >= len(dados[key]): continue
                 dados[key][x] = velas[x][new_key]
 
         saida = EMA(dados, timeperiod=ema_period)
