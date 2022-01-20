@@ -445,7 +445,7 @@ class Operacao(IQ_API):
 					f"🔸 Operando no {ciclo_atual + 1}° Ciclo: R$ {round(valor, 2)}")
 
 		resultado, lucro = None, 0
-		for i in range(2):
+		for _ in range(2):
 			try:
 				resultado, lucro, tipo = self.ordem(
 					paridade, ordem, tempo, valor, tipo, 
@@ -1215,18 +1215,31 @@ class Operacao(IQ_API):
 		time.sleep(1)
 		self.verificar_stop()
 
+	def print_hour(self, message: str):
+		hour = datetime.fromtimestamp(
+			datetime.utcnow().timestamp() - 10800
+		).strftime(f'%H:%M')
+		print(f"{hour} {message}")
+
 	def operar_donchian(self):
 		self.mostrar_mensagem("🔸 Operando Donchian + Fractal 🔸")
 		last_update, paridades = self.update_abertas()
 		self.tempo = 3
 
 		while not self.verificar_stop():
+			self.print_hour(f"Beginning of while")
 			for paridade in paridades:
+				self.print_hour(f"Inside for {paridade}")
 				try:
-					velas = self.API.get_candles(paridade, 60, 21, time.time())
+					velas = self.API.get_candles(
+						paridade, 60, 21, time.time())
 				except:
+					time.sleep(0.1)
 					continue
-				if len(velas) == 0: continue
+
+				if len(velas) == 0: 
+					time.sleep(0.1)
+					continue
 
 				taxas_min = []
 				taxas_max = []
@@ -1236,6 +1249,7 @@ class Operacao(IQ_API):
 					taxas_max.append(round(candles['max'], 6))
 				
 				if len(taxas_min) == 1 or len(taxas_max) == 1:
+					time.sleep(0.1)
 					continue
 				
 				# Donchian
@@ -1281,12 +1295,15 @@ class Operacao(IQ_API):
 							continue
 						
 						if payout_minimo <= payout:
+							self.print_hour(f"Operando {paridade} {direcao}")
 							self.operar(self.valor, paridade, 
 								direcao, 3, payout, "binary")
+							self.print_hour(f"Fim da operação")
 							if self.verificar_stop():
 								time.sleep(1)
 								break
 						
+				time.sleep(0.1)
 			time.sleep(5)
 			if (time.time() - last_update) > 600:
 				last_update, paridades = self.update_abertas()
@@ -1322,9 +1339,14 @@ class Operacao(IQ_API):
 			self.API.start_candles_stream(paridade, TIMEFRAME, CANDLE_AMOUNT)
 
 		while not self.verificar_stop():
+			self.print_hour(f"Beginning of while")
 			for paridade in paridades:
-				candles = self.API.get_realtime_candles(paridade, TIMEFRAME).copy()
-				if len(candles) <= 1: continue
+				self.print_hour(f"Inside the for {paridade}")
+				candles = self.API.get_realtime_candles(
+					paridade, TIMEFRAME).copy()
+				if len(candles) <= 1: 
+					time.sleep(0.1)
+					continue
 
 				open = list(reversed([ candles[x]['open'] for x in candles ]))
 				close = list(reversed([ candles[x]['close'] for x in candles ]))
@@ -1344,7 +1366,6 @@ class Operacao(IQ_API):
 				except:
 					inferior, superior = 0, 0
 
-				# print(f"{paridade} Inferior: {inferior}% | Superior {superior}%", end="\r")
 				if inferior >= PERCENT_OFFSET and direction == "PUT":
 					direcao = "PUT"
 				elif superior >= PERCENT_OFFSET and direction == "CALL":
@@ -1361,14 +1382,17 @@ class Operacao(IQ_API):
 						continue
 					
 					if payout_minimo <= payout:
+						self.print_hour(f"Operando {paridade} {direcao}")
 						self.operar(self.valor, paridade, 
 							direcao, self.tempo, payout, tipo)
+						self.print_hour(f"Fim da operação")
 						
 						if self.verificar_stop():
 							time.sleep(1)
 							break
 
 				time.sleep(0.1)
+			time.sleep(5)
 			if (time.time() - last_update) > 600:
 				last_update, paridades = self.update_abertas()
 			

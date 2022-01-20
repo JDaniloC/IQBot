@@ -1298,7 +1298,7 @@ class IQ_Option:
             time.sleep(0.1)
             if time.time() - start >= 60 * 30: break
         order_data = self.get_async_order(
-            buy_order_id)["position-changed"]["msg"]
+            buy_order_id)["position-changed"].get("msg", None)
         if order_data != None:
             if order_data["status"] == "closed":
                 if order_data["close_reason"] == "expired":
