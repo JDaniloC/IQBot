@@ -445,11 +445,11 @@ class Operacao(IQ_API):
 					f"🔸 Operando no {ciclo_atual + 1}° Ciclo: R$ {round(valor, 2)}")
 
 		resultado, lucro = None, 0
+		delay = self.config.get('delay', False)
 		for _ in range(2):
 			try:
-				resultado, lucro, tipo = self.ordem(
-					paridade, ordem, tempo, valor, tipo, 
-					self.config['delay'], self.config["scalper"])
+				resultado, lucro, tipo = self.ordem(paridade, 
+					ordem, tempo, valor, tipo, delay)
 				break
 			except Exception as e:
 				self.mostrar_mensagem(
@@ -611,6 +611,12 @@ class Operacao(IQ_API):
 	💰 $ {round(valor, 2)} | $ 0,00 💰"""))
 			time.sleep(3)          
 			mostra_resultado()
+		else:
+			result_method = 'histórico' if delay == False else 'taxa'
+			self.mostrar_mensagem(self.format_dir(f"""
+A IQ Option não devolveu o resultado por {result_method}!
+{paridade.upper()}|{tipo.capitalize()} M{tempo} {ordem.upper()}
+	💰 $ {round(valor, 2)} | $ 0,00 💰"""))
 		return resultado
 
 	def operar_lista(self):
@@ -1206,6 +1212,7 @@ class Operacao(IQ_API):
 					if payout_minimo <= payout:
 						self.operar(self.valor, paridade, 
 							direcao, self.tempo, payout, tipo)
+						time.sleep(60)
 				time.sleep(0.1)
 			time.sleep(5)
 
@@ -1227,9 +1234,7 @@ class Operacao(IQ_API):
 		self.tempo = 3
 
 		while not self.verificar_stop():
-			self.print_hour(f"Beginning of while")
 			for paridade in paridades:
-				self.print_hour(f"Inside for {paridade}")
 				try:
 					velas = self.API.get_candles(
 						paridade, 60, 21, time.time())
@@ -1295,10 +1300,10 @@ class Operacao(IQ_API):
 							continue
 						
 						if payout_minimo <= payout:
-							self.print_hour(f"Operando {paridade} {direcao}")
-							self.operar(self.valor, paridade, 
-								direcao, 3, payout, "binary")
-							self.print_hour(f"Fim da operação")
+							resultado = self.operar(self.valor, 
+								paridade, direcao, 3, payout, "binary")
+							self.print_hour(f"Fim da operação:", resultado)
+							time.sleep(60)
 							if self.verificar_stop():
 								time.sleep(1)
 								break
@@ -1339,9 +1344,7 @@ class Operacao(IQ_API):
 			self.API.start_candles_stream(paridade, TIMEFRAME, CANDLE_AMOUNT)
 
 		while not self.verificar_stop():
-			self.print_hour(f"Beginning of while")
 			for paridade in paridades:
-				self.print_hour(f"Inside the for {paridade}")
 				candles = self.API.get_realtime_candles(
 					paridade, TIMEFRAME).copy()
 				if len(candles) <= 1: 
@@ -1382,10 +1385,10 @@ class Operacao(IQ_API):
 						continue
 					
 					if payout_minimo <= payout:
-						self.print_hour(f"Operando {paridade} {direcao}")
-						self.operar(self.valor, paridade, 
+						resultado = self.operar(self.valor, paridade, 
 							direcao, self.tempo, payout, tipo)
-						self.print_hour(f"Fim da operação")
+						self.print_hour(f"Fim da operação:", resultado)
+						time.sleep(60)
 						
 						if self.verificar_stop():
 							time.sleep(1)
