@@ -1302,7 +1302,7 @@ A IQ Option não devolveu o resultado por {result_method}!
 						if payout_minimo <= payout:
 							resultado = self.operar(self.valor, 
 								paridade, direcao, 3, payout, "binary")
-							self.print_hour(f"Fim da operação:", resultado)
+							self.print_hour(f"Fim da operação: {resultado}")
 							time.sleep(60)
 							if self.verificar_stop():
 								time.sleep(1)
@@ -1387,7 +1387,7 @@ A IQ Option não devolveu o resultado por {result_method}!
 					if payout_minimo <= payout:
 						resultado = self.operar(self.valor, paridade, 
 							direcao, self.tempo, payout, tipo)
-						self.print_hour(f"Fim da operação:", resultado)
+						self.print_hour(f"Fim da operação: {resultado}")
 						time.sleep(60)
 						
 						if self.verificar_stop():
