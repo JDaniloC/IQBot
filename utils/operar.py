@@ -613,10 +613,8 @@ class Operacao(IQ_API):
 			mostra_resultado()
 		else:
 			result_method = 'histórico' if delay == False else 'taxa'
-			self.mostrar_mensagem(self.format_dir(f"""
-A IQ Option não devolveu o resultado por {result_method}!
-{paridade.upper()}|{tipo.capitalize()} M{tempo} {ordem.upper()}
-	💰 $ {round(valor, 2)} | $ 0,00 💰"""))
+			self.mostrar_mensagem(f"A IQ Option não permitiu obter o resultado por {result_method}!")
+			self.conectar(mensagem = False)
 		return resultado
 
 	def operar_lista(self):

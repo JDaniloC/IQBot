@@ -16,7 +16,7 @@ class IQ_API:
             raise ConnectionError(" ❌ Não conseguiu se conectar, reveja a senha ❌ ")
 
     def mostrar_mensagem(self, msg): print(msg)
-    def conectar(self, tentativas = 5):
+    def conectar(self, tentativas = 5, mensagem = True):
         '''
         Método para se conectar a plataforma.
 
@@ -31,10 +31,12 @@ class IQ_API:
         self.API.connect()
         for tentativas in range(tentativas):
             if self.API.check_connect():
-                self.mostrar_mensagem("✅ Conectado com sucesso ✅")
+                if mensagem:
+                    self.mostrar_mensagem("✅ Conectado com sucesso ✅")
                 return True
             else:
-                self.mostrar_mensagem(" ⏱ Tentando se conectar ⏱")
+                if mensagem:
+                    self.mostrar_mensagem(" ⏱ Tentando se conectar ⏱")
                 self.API.connect()
                 time.sleep(1)
         return False
@@ -176,7 +178,7 @@ class IQ_API:
 
         return payouts
     
-    def catalogar_erros(self, mensagem):
+    def catalogar_erros(self, mensagem, tipo, trying):
         def is_in_list(nome, lista):
             for item in lista:
                 if item in nome.lower():
@@ -187,7 +189,9 @@ class IQ_API:
             mensagem = "Ativo fechado nesta modalidade/timeframe."
         elif "invalid instrument" in mensagem:
             mensagem = "Paridade não encontrada na digital pela IQ." 
-        self.mostrar_mensagem("❌ A IQ não permitiu: \n" + mensagem)
+        novo_tipo = "binária" if tipo == "digital" else "digital"
+        self.mostrar_mensagem(f"❌ A IQ não permitiu a operação: \n\
+{mensagem}" + f" tentando operar na {novo_tipo}" if trying else "")
 
     def ordem(self, paridade, direcao = "call", tempo = 1, 
         valor = 1, tipo = "binary", delay = False, 
@@ -217,13 +221,11 @@ class IQ_API:
             if tipo == "digital":
                 identificador = str(identificador['message'])
             else: identificador = str(identificador)
-            self.catalogar_erros(identificador)
+            self.catalogar_erros(identificador, tipo, trying)
             
             if not trying:
                 if self.tipo != "auto": 
                     self.tipo = "binary" if self.tipo == "digital" else "digital"
-                self.mostrar_mensagem("❌ Erro na operação, tentando operar na " + 
-                    ("binária" if tipo == "digital" else "digital"))
                 tipo = "binary" if tipo == "digital" else "digital"
                 
                 opcoes_modalidade = self.payout_cache.get(paridade.upper())
