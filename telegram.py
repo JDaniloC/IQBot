@@ -137,6 +137,7 @@ class Assistente(amanobot.helper.ChatHandler):
 
         self.entrada = False
 
+        self.ultima_resposta = None
         self.ultimo_comando = {"text": ""}
         self.add_entrada = "-"        
         self.parar_bot = False
@@ -242,6 +243,8 @@ class Assistente(amanobot.helper.ChatHandler):
 
     def enviar_mensagem(self, message, reply_markup = None, 
         edit = False, delete = True, save = False):
+        if (message, reply_markup) == self.ultima_resposta: return message
+        self.ultima_resposta = (message, reply_markup)
         try:
             if edit:
                 self.bot.editMessageText(self.message_id, message)
@@ -1159,7 +1162,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         if not self.autenticacao:
             return False
         
-        if msg['text'].lower() == 'carregar config':
+        if msg['text'].lower() in ["carregar config", "/carregar"]:
             self.esperar_config = True
             self.enviar_mensagem("Envie a configuração:")
             return True
@@ -1227,6 +1230,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             key: [value[0], False, value[2]]
             for key, value in self.mapeamento.items()}
         self.iniciar_operacao = False
+        self.esperar_config = False
         self.parar_bot = False
         self.comandos()
         return True

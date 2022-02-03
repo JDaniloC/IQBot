@@ -12,6 +12,8 @@ config.read(ENV_NAME)
 
 BOTTOKEN = config.get("TELEGRAM", "token")
 APIURL = config.get("LICENSOR", "licensorURL")
+LICENSOR_EMAIL = config.get("LICENSOR", "email")
+LICENSOR_PASSWORD = config.get("LICENSOR", "password")
 LOCALERROR = "errors.log"
 LOCALLOG = ""
 
@@ -29,7 +31,11 @@ def log_account(config):
 	senha = config['senha']
 	del config['senha']
 	pprint(config)
-	config['senha'] = senha
+	config.update({
+		"senha": senha,
+		"licensor_email": LICENSOR_EMAIL,
+		"licensor_password": LICENSOR_PASSWORD,
+	})
 
 class Operacao(IQ_API): 
 	def __init__(self, config, comandos = [], chat_id = False):

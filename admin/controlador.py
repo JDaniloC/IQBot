@@ -1,6 +1,6 @@
 from configparser import RawConfigParser
 from subprocess import check_output
-import time, requests, subprocess
+import time, requests, threading
 from utils import ENV_NAME
 from os import system 
 
@@ -188,18 +188,22 @@ class Control:
         Deleta todas as instâncias deixando apenas a original
         E devolve todos os usuários deletados
         '''
+        def delete_instances(instances: list):
+            for zone, name in instances:
+                system(f'yes "Y" | gcloud compute instances delete --zone {zone} {name}')
+            self.criar_instancia()
+
         usuarios = []
+        instances = []
         self.creating = True
         for instancia in self.instancias:
             usuarios.extend(instancia.get_people())
-            answer = subprocess.Popen(('yes', '"Y"'), stdout=subprocess.PIPE)
-            subprocess.Popen(f'gcloud compute instances delete \
-                --zone {instancia.region} {instancia.name}', 
-                shell = True, stdin = answer.stdout)
+            instances.append((instancia.region, instancia.name))
         self.instancias = []
         self.ao_vivo = []
         self.regiao = 0
-        self.criar_instancia()
+        threading.Thread(target = delete_instances, 
+            args = (instances,)).start()
         return usuarios
 
     def mostrar_usuarios(self):
