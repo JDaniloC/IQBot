@@ -57,27 +57,30 @@ class Mongo:
         '''
         Tira o e-mail de em aprovação e coloca no rol de usuários
         '''
-        user = self.apagar_cadastro(email)
-        if user:
-            user = users_schema.user
-            user['email'] = email
-            if plano == "teste":
-                user['timestamp'] = time.time() + 43200
-            elif plano == "semanal":
-                user['timestamp'] = time.time() + 604800
-            elif plano == "mensal":
-                user['timestamp'] = time.time() + 2592000
-            elif plano == "trimestral":
-                user['timestamp'] = time.time() + 7776000
-            elif plano == "semestral":
-                user['timestamp'] = time.time() + 15552000
-            else:
-                user['timestamp'] = time.time() + 31104000
-            user['plano'] = plano
-            user["_id"] = time.time()
-            self.users_collection.insert_one(user)
-            return True
-        return False
+        user = users_schema.user
+        user['email'] = email
+        if plano == "teste":
+            user['timestamp'] = time.time() + 43200
+        elif plano == "semanal":
+            user['timestamp'] = time.time() + 604800
+        elif plano == "mensal":
+            user['timestamp'] = time.time() + 2592000
+        elif plano == "trimestral":
+            user['timestamp'] = time.time() + 7776000
+        elif plano == "semestral":
+            user['timestamp'] = time.time() + 15552000
+        elif plano == "anual":
+            user['timestamp'] = time.time() + 31104000
+        elif int(plano.strip()) < 550:
+            user['timestamp'] = time.time() + 86400 * int(
+                plano.strip())
+        else: return False
+
+        user['plano'] = plano
+        user["_id"] = time.time()
+        self.apagar_cadastro(email)
+        self.users_collection.insert_one(user)
+        return True
 
     def renovar_licenca(self, email, plano):
         '''

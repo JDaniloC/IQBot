@@ -1003,7 +1003,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             self.alteracoes_avancadas["adm_out"] = False
             return True
         elif self.alteracoes_avancadas['plano'] == True:
-            self.enviar_mensagem("Escolha o tipo de plano",
+            self.enviar_mensagem("Escolha o tipo de plano, ou digite um número de dias:",
                 reply_markup = ReplyKeyboardMarkup(keyboard = [
                     [KeyboardButton( text = "teste" ),
                      KeyboardButton( text = "semanal" )],
@@ -1020,7 +1020,8 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                 self.enviar_mensagem("Usuário aprovado.")
             else:
                 self.enviar_mensagem(
-                    "Esse usuário não está no cadastro!", save = True)
+                    "Não existe licença vitalícia!",
+                save = True)
             self.alteracoes_avancadas["aprovar"] = False
             self.alteracoes_avancadas['plano'] = False
             return True
