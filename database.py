@@ -96,8 +96,14 @@ class Mongo:
             data = time.time() + 7776000
         elif plano == "semestral":
             data = time.time() + 15552000
-        else:
+        elif plano == "anual":
             data = time.time() + 31104000
+        elif int(plano.strip()) < 550:
+            data = time.time() + 86400 * int(
+                plano.strip())
+        else: 
+            data = time.time() + 86400
+
         self.users_collection.find_one_and_update(
             {'email':email}, {'$set': {
                 'timestamp': data,
