@@ -1,4 +1,5 @@
-import time, numpy, requests, json, threading, finta, pandas
+import time, numpy, requests, json, threading, finta, pandas, statistics
+from .conversor import convert_lines_to_list
 from iqoptionapi.stable_api import IQ_Option
 from datetime import datetime, timedelta
 from functools import reduce
@@ -628,3 +629,63 @@ class IQ_API:
             return True
         except:
             return False
+
+    def catalogar_taxas(self, timeframe: int, candles: int, 
+                        hits: int, paridades: list) -> list:
+        def intersect_range(x: range, y: range) -> bool:
+            return x[0] <= y[-1] and x[-1] >= y[0]
+        
+        def middle_intersection(x, y):
+            intersection = set(x).intersection(set(y))
+            return statistics.median(intersection)
+        
+        def create_range(number: int, multiply_factor: int = 1) -> range:
+            number = round(multiply_factor * number)
+            return range(number - RANGE_UNIT, number + RANGE_UNIT)
+
+        RANGE_UNIT = 1
+        result = []
+        
+        all_paridades = self.API.get_all_open_time()
+        for par in all_paridades['digital']:
+            if par not in paridades: continue
+            velas = self.API.get_candles(par, timeframe * 60, candles, time.time())
+
+            multiply_factor = 100000
+            intersect_list = set()
+            range_list = set()
+            hit_dict = dict()
+            for candle in velas:
+                for value in [candle["open"], candle["close"], candle["min"], candle["max"]]:
+                    value = create_range(value, multiply_factor)
+                    was_intersected = False
+                    for range_item in range_list:
+                        if intersect_range(range_item, value):
+                            range_list.remove(range_item)
+                            new_value = middle_intersection(range_item, value)
+                            new_range = create_range(new_value)
+                            range_list.add(new_range)
+                            if new_range not in hit_dict:
+                                hit_dict[new_range] = hit_dict.get(range_item, 0)
+                            hit_dict[new_range] += 1
+                            
+                            range_hits = hit_dict[new_range]
+                            if range_hits >= hits:
+                                taxas_value = round(new_value / multiply_factor, 5)
+                                intersect_list.add(taxas_value)
+                            was_intersected = True
+                            break
+                    if not was_intersected:
+                        range_list.add(value)
+
+            result.append((par, intersect_list))
+        
+        list_string = ""
+        for paridade, intersect in result:
+            for value in intersect:
+                string = f"{paridade} {value}"
+                print(string)
+                list_string += string + "\n"
+        entradas = convert_lines_to_list(list_string.split("\n"), False)
+
+        return entradas

@@ -1,6 +1,6 @@
-import time, pprint, amanobot, os, sys, json
 from configparser import RawConfigParser
 from datetime import timedelta, datetime
+import time, pprint, amanobot, os, sys
 
 from amanobot.loop import MessageLoop
 from amanobot.namedtuple import (
@@ -10,7 +10,7 @@ from amanobot.namedtuple import (
 from amanobot.delegate import (
     pave_event_space, per_chat_id, create_open)
 
-from bot import pegar_comando, escreve_erros
+from bot import convert_lines_to_list, escreve_erros
 from utils.catalogador import Catalogador
 from controlador import Control
 from database import Mongo
@@ -142,7 +142,6 @@ class Assistente(amanobot.helper.ChatHandler):
             "Máximo de soros": ["max_soros", False, int],
             "Máximo de gales": ["max_gale", False, int],
             "Tipo soros": ["tipo_soros", False, tuple],
-            "Taxas: próxima vela": ["taxas_vela", False, tuple],
 
             "Seguir tendência": ["tendencia", False, bool],
             "Notícias: toros": ["toros", False, tuple],
@@ -164,6 +163,11 @@ class Assistente(amanobot.helper.ChatHandler):
             "Price Action: l. superior": ["vchart_high", False, int],
             "Price Action: l. inferior": ["vchart_low", False, int],
             "Price Action: porcentagem": ["vchart_pct", False, int],
+            
+            "Taxas: próxima vela": ["taxas_vela", False, tuple],
+            "Auto Taxas: velas": ["taxas_candles", False, int],
+            "Auto Taxas: acertos": ["taxas_hits", False, int],
+            "Auto Taxas: timeframe": ["taxas_time", False, tuple],
         }
 
         self.informacoes = {}
@@ -421,7 +425,7 @@ EURJPY 31/12/2000 CALL M5 02:30
         '''
         lista = []
         for linha in entradas:
-            nova = pegar_comando(linha)
+            nova = convert_lines_to_list(linha, False)
             if nova != {}:
                 lista.append(nova)
         return lista
@@ -473,14 +477,14 @@ EURJPY 31/12/2000 CALL M5 02:30
         if self.autenticacao:
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Operar Lista/Taxas" ),
+                 KeyboardButton( text = "Operar Auto Taxas" ),
+                 KeyboardButton( text = "Operar Price Action" )], 
+                [KeyboardButton( text = "Estratégia 3 por 1" ),
                  KeyboardButton( text = "Operar Estratégias" ),
                  KeyboardButton( text = "Operar Auto VIP")],
-                [KeyboardButton( text = "Catalogar sinais"),
-                 KeyboardButton( text = "Operar Chinesa"),
-                 KeyboardButton( text = "Estratégia 3 por 1" )],
                 [KeyboardButton( text = "Operar Donchian" ),
-                 KeyboardButton( text = "Operar Berman" ),
-                 KeyboardButton( text = "Operar Price Action" )],
+                 KeyboardButton( text = "Operar Chinesa"),
+                 KeyboardButton( text = "Operar Berman" )],
                 [KeyboardButton( text = "Configurações" ),
                  KeyboardButton( text = "Parar Bot" ),
                  KeyboardButton( text = "Sair da conta" )]
@@ -519,6 +523,9 @@ EURJPY 31/12/2000 CALL M5 02:30
             return self.operar(msg)
         elif texto == "Estratégia 3 por 1":
             self.tipo_operacao = "3por1"
+            return self.operar(msg)
+        elif texto == "Operar Auto Taxas":
+            self.tipo_operacao = "taxas"
             return self.operar(msg)
         elif texto == "Operar Price Action":
             self.tipo_operacao = "chart"
@@ -679,8 +686,8 @@ EURJPY 31/12/2000 CALL M5 02:30
                 "Tipo de gale": "Gerenciamento",
                 "Tipo de martingale": "Martingale e Soros",
                 "Seguir tendência": "Tendência e notícias",
+                "Price Action: velas": "Price Action e Taxas",
                 "Paridade": "Auto Trade",
-                "Price Action: velas": "Price Action",
             }
             mensagem = ""
             for key, value in self.mapeamento.items():
@@ -708,8 +715,10 @@ EURJPY 31/12/2000 CALL M5 02:30
                     [KeyboardButton( text = "Gerenciamento" ),
                      KeyboardButton( text = "Martingale e Soros" )],
                     [KeyboardButton( text = "Price Action" ),
+                     KeyboardButton( text = "Auto taxas" ),
                      KeyboardButton( text = "Estratégias")],
-                    [KeyboardButton( text = "Lista de sinais" ),
+                    [KeyboardButton( text = "Catalogar sinais"),
+                     KeyboardButton( text = "Lista de sinais" ),
                      KeyboardButton( text = "Voltar ao menu" )]
             ], resize_keyboard = True))
             return True
@@ -760,7 +769,6 @@ EURJPY 31/12/2000 CALL M5 02:30
                 [KeyboardButton( text = "Notícias: horas" ),
                  KeyboardButton( text = "Notícias: minutos" )],
                 [KeyboardButton( text = "Tipo de tendência" ),
-                 KeyboardButton( text = "Taxas: próxima vela" ),
                  KeyboardButton( text = "Período da tendência" )],
                 [KeyboardButton( text = "Configurações" )]
                 ])
@@ -771,6 +779,14 @@ EURJPY 31/12/2000 CALL M5 02:30
                  KeyboardButton( text = "Price Action: porcentagem" )],
                 [KeyboardButton( text = "Price Action: l. inferior" ),
                  KeyboardButton( text = "Price Action: l. superior" )],
+                [KeyboardButton( text = "Configurações" )]])
+            verificador = True
+        elif msg['text'] == 'Auto taxas':
+            teclado = ReplyKeyboardMarkup(keyboard = [
+                [KeyboardButton( text = "Taxas: próxima vela"),
+                 KeyboardButton( text = "Auto Taxas: velas" )],
+                [KeyboardButton( text = "Auto Taxas: acertos" ),
+                 KeyboardButton( text = "Auto Taxas: timeframe" )],
                 [KeyboardButton( text = "Configurações" )]])
             verificador = True
         elif msg['text'] == "Estratégias":
@@ -814,15 +830,14 @@ EURJPY 31/12/2000 CALL M5 02:30
                     "autotime": [1, 5, 15], "vez_gale": ["vela", "sinal"],
                     "tipo_par": ["binary", "digital", "auto"],
                     "tipo_lista": ["casa", "propria"],
-                    "tipo_conta": ["treino", "real"],
                     "tipo_soros": ["normal", "ciclos"],
                     "tipo_stop": ["movel", "fixo"], "hits": [1, 2, 3],
                     "taxas_vela": ["retração", "reversão"],
                     "tipo_milhao": ["Minoria", "Maioria"],
-                    "tipo_gale": [
+                    "taxas_time": [1, 5, 15, 30, 60, 120, 240],
+                    "tipo_conta": ["treino", "real"], "tipo_gale": [
                         "martingale", "sorosgale", "ciclos", "nenhum"],
-                    "tipo_tendencia": [
-                        "medias móveis simples", "velas"],
+                    "tipo_tendencia": ["medias móveis simples", "velas"],
                     "tipo_martin": [
                         "seguro", "leve", "agressivo", "individual"],
                     "estrategia": ["Milhão", "MHI", "MHI2", 

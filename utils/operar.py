@@ -149,6 +149,8 @@ class Operacao(IQ_API):
 					self.operar_donchian()
 				elif tipo_operacao == "chart":
 					self.operar_value_chart()
+				elif tipo_operacao == "taxas":
+					self.operar_auto_taxas()
 				else:
 					self.operar_berman()
 
@@ -1397,4 +1399,115 @@ class Operacao(IQ_API):
 			if (time.time() - last_update) > 600:
 				last_update, paridades = self.update_abertas()
 			
+	def operar_auto_taxas(self):
+		def subscribe_assets():
+			last_update, paridades = self.update_abertas()
+			for paridade in paridades:
+				if paridade not in subscribe_list:
+					subscribe_list.append(paridade)
+					self.API.start_candles_stream(
+						paridade, 60, CANDLE_AMOUNT)
+			return last_update, paridades
+
+		def update_taxas_dict(paridades: list):
+			taxas_list = self.catalogar_taxas(TIMEFRAME, 
+				CANDLE_AMOUNT, HIT_AMOUNT, paridades)
+			taxas_per_asset_dict = {}  
+			for comando in taxas_list:
+				paridade = comando['par']
+				valor = (comando['taxa'], comando['timeframe'])
+				if paridade not in taxas_per_asset_dict:
+					taxas_per_asset_dict[paridade] = [valor]
+				else:
+					taxas_per_asset_dict[paridade].append(valor)
+			taxas_dict_update = (time.time() + TIMEFRAME * 
+								 60 * CANDLE_AMOUNT)
+			return taxas_per_asset_dict, taxas_dict_update
+
+		TIMEFRAME = int(self.config.get("taxas_time", 1))
+		HIT_AMOUNT = self.config.get("taxas_hits", 1) - 1
+		CANDLE_AMOUNT = self.config.get("taxas_candles", 5)
+
+		if CANDLE_AMOUNT <= 0: CANDLE_AMOUNT = 1
+		if HIT_AMOUNT <= 0: HIT_AMOUNT = 1
+
+		timeframe_text = f'M{TIMEFRAME}' if (
+			self.tempo < 60
+		) else f'H{TIMEFRAME/60}'
+
+		self.mostrar_mensagem(f""" 🔸 Auto taxas 🔸
+		⏰ Timeframe: {timeframe_text}
+		📉 Quantidade de velas: {CANDLE_AMOUNT}
+		🎯 Quantidade de acertos: {HIT_AMOUNT + 1}
+		""")
+		subscribe_list = []
+		last_taxas_dict = {}
+		last_update, paridades = subscribe_assets()
+		taxas_per_asset_dict, taxas_dict_update = update_taxas_dict(paridades)
 		
+		while not self.verificar_stop():
+			for paridade in paridades:
+				candles = self.API.get_realtime_candles(paridade, 60).copy()
+				if len(candles) <= 1: 
+					time.sleep(0.1)
+					continue
+
+				try:
+					first_one = list(candles.keys())[0]
+					abertura = candles[first_one]['open']
+					fechamento = candles[first_one]['close']
+				except:
+					traceback.print_exc()
+					time.sleep(0.1)
+					continue
+				
+				removed_index = 0
+				taxas = taxas_per_asset_dict.get(paridade, [])
+				for index, (taxa, timeframe) in enumerate(taxas.copy()):
+					ultimo = last_taxas_dict.get(paridade, taxa)
+					timeframe = self.tempo if not timeframe else timeframe
+					if (fechamento >= taxa and ultimo < taxa or 
+						fechamento <= taxa and ultimo > taxa):
+
+						direcao = "call" if abertura > fechamento else "put"
+						tipo, payout = self.recebe_payout(paridade, timeframe)
+
+						if (self.ativar_noticias and
+							not self.verificar_noticias(paridade)):
+							continue
+
+						if self.config["minimo"] / 100 <= payout:
+							self.mostrar_mensagem(f"Taxas: {paridade} {taxa} ")
+
+							if self.config.get("taxas_vela", "retração") != "retração":
+								self.esperar_proximo_minuto(seconds = 59)
+								velas = self.API.get_candles(paridade, 
+									60 * timeframe, 1, time.time())
+								direcao = velas[0]["close"] - velas[0]["open"]
+								direcao = "call" if direcao < 0 else "put"
+
+							if tipo == "binary" and timeframe == 5:
+								atual = datetime.utcnow()
+								if ((atual.minute % 5 == 4 and atual.second < 30) 
+									or atual.minute % 5 < 4): 
+									timeframe = 5 - (atual.minute % 5)
+
+							self.operar(self.valor, paridade, direcao, 
+										timeframe, payout, tipo)
+						else:
+							self.mostrar_mensagem(f"{paridade} {taxa} não atende o payout mínimo {payout} {self.config['minimo']}")
+
+						try: 
+							taxas.pop(index - removed_index)
+							taxas_per_asset_dict[paridade] = taxas
+							removed_index += 1
+						except: traceback.print_exc()
+				last_taxas_dict[paridade] = fechamento
+				time.sleep(self.config['correcao'])
+			time.sleep(5)
+			if (time.time() - last_update) > 600:
+				last_update, paridades = subscribe_assets()
+			print(taxas_dict_update - time.time())
+			if (taxas_dict_update - time.time()) < 0:
+				print("Atualizando taxas")
+				taxas_per_asset_dict, taxas_dict_update = update_taxas_dict(paridades)

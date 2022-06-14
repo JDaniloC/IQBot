@@ -1,6 +1,6 @@
-from utils.operar import Operacao, escreve_erros, IQ_API
+from utils.conversor import convert_lines_to_list
+from utils.operar import Operacao, escreve_erros
 from configparser import RawConfigParser
-from datetime import datetime
 from sys import argv
 import re, logging
 
@@ -14,113 +14,6 @@ LOCALAJUDA = "misc/ajuda.txt"
 LOCALCONFIG = "config/config.txt"
 
 print("\n[Comando para parar: Ctrl + C]\n")
-
-def datetime_brazil():
-    return datetime.fromtimestamp(
-        datetime.utcnow().timestamp() - 10800)
-
-def pegar_comando_lista(texto):
-    '''
-    Recebe um texto e devolve:
-    {
-        "data": [dia, mes, ano],
-        "hora": [hora, minuto]
-        "par": paridade,
-        "ordem": ordem,
-        "timeframe": int
-        "tipo": "lista"
-    }
-    No qual o conteúdo das listas são inteiros
-    '''
-    def timestamp(data, hora):
-        return datetime(
-            data[2], data[1], data[0], hora[0], hora[1]
-        ).timestamp()
-    try:
-        data = re.search(r'\d{2}\W\d{2}\W\d{4}', texto)
-        if data:
-            data = [int(x) for x in re.split(r"\W", data[0])]
-        else:
-            hoje = datetime_brazil()
-            data = [hoje.day, hoje.month, hoje.year]
-        hora = re.search(r'\d{2}:\d{2}', texto)[0]
-        hora = [int(x) for x in re.split(r'\W', hora)]
-        par = re.search(r'[A-Za-z]{6}(-OTC)?', 
-            texto.upper().replace("/", ""))[0]
-        ordem = re.search(r'CALL|PUT', texto.upper())[0].lower()
-        timeframe = re.search(
-            r'[MH][1-6]?[0-5]', texto.upper())
-        if timeframe: 
-            if "M" in timeframe[0].upper(): 
-                timeframe = int(timeframe[0].strip("M"))
-            else: 
-                timeframe = int(timeframe[0].strip("H")) * 60
-        else: timeframe = 0
-    except Exception as e:
-        return {}
-
-    return {
-        "data": data,
-        "hora": hora,
-        "par": par,
-        "ordem": ordem,
-        "timeframe": timeframe,
-        "tipo": "lista",
-        "timestamp": timestamp(data, hora)
-    }
-
-def pegar_comando_taxas(texto):
-    '''
-    Recebe um texto e devolve:
-    {
-        "par": paridade,
-        "taxa": int
-        "tipo": "taxas"
-    }
-    '''
-    try:
-        timeframe = re.search(r'[MH][1-6]?[0-5]', texto.upper())
-        if timeframe: 
-            texto = re.sub(r'[MH][1-6]?[0-5]', r'', texto.upper())
-            if "M" in timeframe[0].upper(): 
-                timeframe = int(timeframe[0].strip("M"))
-            else: 
-                timeframe = int(timeframe[0].strip("H")) * 60
-        else: timeframe = 0
-
-        primeiro, segundo = re.split(r"[^\w.-]+", texto.strip())
-        par = re.search(r'[A-Za-z]{6}(-OTC)?', 
-            primeiro.upper().replace("/", ""))
-        if not par:
-            par = re.search(r'[A-Za-z]{6}(-OTC)?', 
-                segundo.upper().replace("/", ""))[0]
-            taxa = float(primeiro)
-        else:
-            par = par[0]
-            taxa = float(segundo)
-    except Exception as e:
-        print(type(e), e)
-        print(f"Revise o comando {texto}")
-        return {}
-        
-    return {
-        "par": par, 
-        "taxa": taxa, 
-        "tipo": "taxas",
-        "timeframe": timeframe,
-        "timestamp": datetime_brazil()
-    }
-
-def pegar_comando(texto):
-    '''
-    Verifica se a entrada é de lista ou taxas
-    e devolve um dicionário no qual um dos valores
-    é {tipo: lista|taxa}.
-    '''
-    comando = pegar_comando_lista(texto)
-    if comando == {}:
-        comando = pegar_comando_taxas(texto)
-    return comando
 
 def abrir_arquivo(nome):
     '''
@@ -138,23 +31,10 @@ def abrir_arquivo(nome):
     comandos = []
     for entrada in entradas:
         if entrada not in ['', '\n']:
-            comando = pegar_comando(entrada)
+            comando = convert_lines_to_list(entrada)
             if comando != {}:
                 comandos.append(comando)
-    comandos.sort(key = lambda x: x["timestamp"])
-    for entrada in comandos:
-        del entrada["timestamp"]
     return comandos
-
-def numerico(x):
-    '''
-    Verifica se a string pode ser convertida para float
-    '''
-    try:
-        float(x)
-        return True
-    except:
-        return False
 
 def atualizar(config, arquivo, tipo, label, func = str, error = ""):
     try:
@@ -214,24 +94,6 @@ def configuracoes(nome = LOCALCONFIG):
 
     return config
 
-def ver_gales(perdaInicial, taxa):
-    '''
-    Mostra na tela os tipos de martingale até a 10° perda
-    '''
-    tipos = ["SIMPLES", "LEVE", "AGRESSIVO", "SEGURO", "PESSOAL"]
-    for tipo in tipos:
-        print(tipo, "\n")
-        if tipo == "PESSOAL":
-            tipo = float(input("Digite o fator multiplicativo: "))
-        lucro = perdaInicial//taxa
-        perda = perdaInicial
-        valor = perdaInicial
-        for j in range(10):
-            valor = IQ_API.martingale(tipo, taxa, perda, valor, lucro)
-            print(f"Perdeu {round(perda, 2)} vai investir {round(valor, 2)} e vai ganhar {round(valor * taxa, 2)} onde o lucro vai ser {round(valor * taxa - perda, 2)}")
-            perda += valor
-        print()
-
 def recebe_comandos(comandos):
     '''
     Recebe os comandos do terminal e computa algum resultado
@@ -240,29 +102,7 @@ def recebe_comandos(comandos):
         2 - Segue a operação do entradas.txt
     '''
     if comandos != []:
-        if comandos[0] in ["-t", "teste"]:
-            config = configuracoes()
-            for key, value in config.items():
-                print(key, value)
-            
-            print()
-            
-            operacoes = abrir_arquivo("config/entradas")
-            for operacao in operacoes:
-                data = "/".join([str(x) for x in operacao['data']])
-                hora = ":".join([str(x) for x in operacao['hora']])
-                print(f"Data: {data}\nHora: {hora}\nParidade: {operacao['par']}\nOrdem: {operacao['ordem']}")
-            
-            return config
-        elif comandos[0] in ["-m", "martin"]:
-            perdaInicial = float(input("Digite a perda inicial: "))
-            taxa = float(input("Digite a taxa (profit) [0 - 1]: "))
-            ver_gales(perdaInicial, taxa)
-        elif comandos[0] in ['-c', 'config'] and len(comandos[0:]) != 1:
-            config = configuracoes(comandos[1])
-            comandos = abrir_arquivo(config["arquivo"])
-            Operacao(config, comandos)
-        elif comandos[0] in ["-h", "ajuda"]:
+        if comandos[0] in ["-h", "ajuda"]:
             with open(LOCALAJUDA, "r+") as file:
                 for i in file:
                     print(i.strip())
