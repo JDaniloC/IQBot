@@ -1507,7 +1507,5 @@ class Operacao(IQ_API):
 			time.sleep(5)
 			if (time.time() - last_update) > 600:
 				last_update, paridades = subscribe_assets()
-			print(taxas_dict_update - time.time())
 			if (taxas_dict_update - time.time()) < 0:
-				print("Atualizando taxas")
 				taxas_per_asset_dict, taxas_dict_update = update_taxas_dict(paridades)
