@@ -424,18 +424,6 @@ EURJPY 31/12/2000 CALL M5 02:30
         reply_markup = ReplyKeyboardRemove())
             return True
     
-    def pegar_entrada(self, entradas):
-        '''
-        Método que recebe as entradas e verifica se há um comando
-        Devolve a lista de entradas que conseguiu extrair
-        '''
-        lista = []
-        for linha in entradas:
-            nova = convert_lines_to_list(linha, False)
-            if nova != {}:
-                lista.append(nova)
-        return lista
-
     def confirmar_entradas(self, msg):
         '''
         Método que recebe a mensagem de entradas, trata e salva.
@@ -446,9 +434,9 @@ EURJPY 31/12/2000 CALL M5 02:30
                  
         if self.add_entrada != "-":
             
-            def processa_entradas(escolha, texto):
-                MongoDB.set_entradas(escolha, 
-                    self.pegar_entrada(texto))
+            def processa_entradas(escolha, entradas):
+                lista = convert_lines_to_list(entradas, False)
+                MongoDB.set_entradas(escolha, lista)
                 
             self.enviar_mensagem("Processando...")
             # Procura o início das velas
@@ -1137,7 +1125,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                             self.enviar_mensagem("Deve ser um número! Tente novamente", save = True)
                             return True
                 elif value[2] == list:
-                    novo = self.pegar_entrada(novo.split("\n"))
+                    novo = convert_lines_to_list(novo.split("\n"), False)
                 elif value[2] == bool:
                     novo = bool(novo.strip() == "Sim")
                 elif value[0] in ["tempo", "toros", "hits",
