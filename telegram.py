@@ -7,8 +7,8 @@ from amanobot.namedtuple import (
     ReplyKeyboardMarkup, KeyboardButton, 
     ReplyKeyboardRemove, InlineKeyboardMarkup, 
     InlineKeyboardButton)
-from amanobot.delegate import (
-    pave_event_space, per_chat_id, create_open)
+from amanobot.delegate import (create_open,
+            pave_event_space, per_chat_id)
 
 from bot import convert_lines_to_list, escreve_erros
 from utils.catalogador import Catalogador
@@ -88,6 +88,8 @@ mapeamento_avancado = {
     "Catalogar: Dias": ["cat_days", False, int],
     "Catalogar: Porcentagem": ["cat_perct", False, int],
     "Catalogar: Martingale": ["cat_mg", False, int],
+    "Catalogar: Velas": ["cat_candles", False, int],
+    "Catalogar: Acertos": ["cat_hits", False, int],
 }
 
 # O bot
@@ -349,12 +351,16 @@ class Assistente(amanobot.helper.ChatHandler):
             Dias: analisar últimos 1-30 dias
             Porcentagem: mínimo 0-100%
             Martingale: até 0-2 gales
+            Velas: para taxas, de 5 em diante
+            Acertos: para taxas, de 2 em diante
             """
             teclado = ReplyKeyboardMarkup(keyboard = [
                 [KeyboardButton( text = "Catalogar: Timeframe" ),
                  KeyboardButton( text = "Catalogar: Dias" )],
                 [KeyboardButton( text = "Catalogar: Porcentagem" ),
                  KeyboardButton( text = "Catalogar: Martingale" )],
+                [KeyboardButton( text = "Catalogar: Velas" ),
+                 KeyboardButton( text = "Catalogar: Acertos" )],
                 [KeyboardButton( text = "Gerenciar" )]
             ])
             verificador = True
@@ -530,25 +536,12 @@ EURJPY 31/12/2000 CALL M5 02:30
         elif texto == "Operar Price Action":
             self.tipo_operacao = "chart"
             return self.operar(msg)
-        elif texto == "Catalogar sinais":
-            self.enviar_mensagem("Carregando...")
-            sinais = MongoDB.get_entradas(3)
-            conf = MongoDB.get_avancadas()
-            conf_catalogador = (
-                conf["cat_time"], conf["cat_days"], 
-                conf["cat_perct"], conf["cat_mg"])
-            if len(sinais) == 0 or (len(sinais) > 0 and 
-                (datetime.now() - datetime.fromtimestamp(
-                    sinais[0]["timestamp"])).days > 0 or 
-                cache_catalogador != conf_catalogador):
-                if self.id not in ADMS:
-                    self.enviar_mensagem(
-                        "Peça para o administrador catalogar os sinais de hoje!", save = True)
-                    return True
-                self.catalogar_sinais()
-            self.informacoes["lista"] = MongoDB.get_entradas(3)
-            self.enviar_mensagem(
-                "Sinais catalogados adicionados à sua lista.", save = True)
+        elif texto == "Obter sinais":
+            self.catalogar_sinais_usuario()
+            self.comandos()
+            return True
+        elif texto == "Obter taxas":
+            self.catalogar_taxas_usuario()
             self.comandos()
             return True
         elif texto == "Ver configurações":
@@ -710,15 +703,16 @@ EURJPY 31/12/2000 CALL M5 02:30
             self.enviar_mensagem(
                 self.ver_configuracoes(), 
                 reply_markup = ReplyKeyboardMarkup( keyboard = [
+                    [KeyboardButton( text = "Obter sinais"),
+                     KeyboardButton( text = "Obter taxas" ),
+                     KeyboardButton( text = "Lista de sinais" )],
                     [KeyboardButton( text = "Geral e listas" ),
                      KeyboardButton( text = "Tendência e notícias" )],
                     [KeyboardButton( text = "Gerenciamento" ),
                      KeyboardButton( text = "Martingale e Soros" )],
-                    [KeyboardButton( text = "Price Action" ),
-                     KeyboardButton( text = "Auto taxas" ),
+                    [KeyboardButton( text = "Auto taxas" ),
                      KeyboardButton( text = "Estratégias")],
-                    [KeyboardButton( text = "Catalogar sinais"),
-                     KeyboardButton( text = "Lista de sinais" ),
+                    [KeyboardButton( text = "Price Action" ),
                      KeyboardButton( text = "Voltar ao menu" )]
             ], resize_keyboard = True))
             return True
@@ -958,6 +952,8 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                 self.enviar_mensagem("Nenhum usuário no banco", save = True)
         elif msg['text'] == "Catalogar":
             self.catalogar_sinais()
+        elif msg['text'] == "Catalogar taxas":
+            self.catalogar_taxas()
         elif msg['text'] == "Desligar VPS":
             self.parar_bot = True
             self.enviar_mensagem("Tem certeza? Isso irá desligar a VPS\n\
@@ -983,8 +979,66 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
             MongoDB.set_entradas(3, lista)
             entrada_03 = carregar_entradas(3)
         else:
-            self.enviar_mensagem(
-                "Nenhum sinal encontrado...", save = True)
+            self.enviar_mensagem("Nenhum sinal encontrado...", save = True)
+        return lista
+
+    def catalogar_taxas(self):
+        global entrada_02
+        catalogador = Catalogador(self.chat_id)
+        conf = MongoDB.get_avancadas()
+        lista = catalogador.catalogar_taxas(conf.get("cat_time", 1), 
+                conf.get("cat_candles", 5), conf.get("cat_hits", 2))
+
+        if lista != []:
+            MongoDB.set_entradas(2, lista)
+            entrada_02 = carregar_entradas(2)
+        else:
+            self.enviar_mensagem("Nenhum sinal encontrado...", save = True)
+        return lista
+
+    def catalogar_sinais_usuario(self):
+        self.enviar_mensagem("Carregando...")
+        sinais = MongoDB.get_entradas(3)
+        conf = MongoDB.get_avancadas()
+        conf_catalogador = (
+            conf["cat_time"], conf["cat_days"], 
+            conf["cat_perct"], conf["cat_mg"])
+        
+        is_able_to_catalog = len(sinais) == 0 or cache_catalogador != conf_catalogador
+        if len(sinais) > 0 and not is_able_to_catalog:
+            first_timestamp = datetime.fromtimestamp(sinais[0]["timestamp"])
+            difference_in_days = (datetime.now() - first_timestamp).days
+            is_able_to_catalog = difference_in_days > 0
+
+        if is_able_to_catalog:
+            if self.id not in ADMS:
+                self.enviar_mensagem(
+                    "Peça para o administrador catalogar os sinais de hoje!", save = True)
+                return True
+            sinais = self.catalogar_sinais()
+        
+        self.informacoes["lista"] = sinais
+        self.enviar_mensagem("Sinais catalogados adicionados à sua lista.", save = True)
+
+    def catalogar_taxas_usuario(self):
+        self.enviar_mensagem("Carregando...")
+        sinais = MongoDB.get_entradas(2)
+        is_able_to_catalog = len(sinais) == 0
+
+        if len(sinais) > 0 and not is_able_to_catalog:
+            first_timestamp = datetime.fromtimestamp(sinais[0]["timestamp"])
+            difference_in_days = (datetime.now() - first_timestamp).days
+            is_able_to_catalog = difference_in_days > 0
+        
+        if is_able_to_catalog:
+            if self.id not in ADMS:
+                self.enviar_mensagem(
+                    "Peça para o administrador catalogar os sinais de hoje!", save = True)
+                return True
+            sinais = self.catalogar_taxas()
+
+        self.informacoes["lista"] = sinais
+        self.enviar_mensagem("Sinais catalogados adicionados à sua lista.", save = True)
 
     def habilitar_alteracao(self, msg):
         '''

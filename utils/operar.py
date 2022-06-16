@@ -1409,9 +1409,9 @@ class Operacao(IQ_API):
 						paridade, 60, CANDLE_AMOUNT)
 			return last_update, paridades
 
-		def update_taxas_dict(paridades: list):
+		def update_taxas_dict():
 			taxas_list = self.catalogar_taxas(TIMEFRAME, 
-				CANDLE_AMOUNT, HIT_AMOUNT, paridades)
+							CANDLE_AMOUNT, HIT_AMOUNT)
 			taxas_per_asset_dict = {}  
 			for comando in taxas_list:
 				paridade = comando['par']
@@ -1443,7 +1443,7 @@ class Operacao(IQ_API):
 		subscribe_list = []
 		last_taxas_dict = {}
 		last_update, paridades = subscribe_assets()
-		taxas_per_asset_dict, taxas_dict_update = update_taxas_dict(paridades)
+		taxas_per_asset_dict, taxas_dict_update = update_taxas_dict()
 		
 		while not self.verificar_stop():
 			for paridade in paridades:
@@ -1494,6 +1494,7 @@ class Operacao(IQ_API):
 
 							self.operar(self.valor, paridade, direcao, 
 										timeframe, payout, tipo)
+							break
 						else:
 							self.mostrar_mensagem(f"{paridade} {taxa} não atende o payout mínimo {payout} {self.config['minimo']}")
 
@@ -1504,8 +1505,11 @@ class Operacao(IQ_API):
 						except: traceback.print_exc()
 				last_taxas_dict[paridade] = fechamento
 				time.sleep(self.config['correcao'])
+				if self.verificar_stop():
+					time.sleep(1)
+					break
 			time.sleep(5)
 			if (time.time() - last_update) > 600:
 				last_update, paridades = subscribe_assets()
 			if (taxas_dict_update - time.time()) < 0:
-				taxas_per_asset_dict, taxas_dict_update = update_taxas_dict(paridades)
+				taxas_per_asset_dict, taxas_dict_update = update_taxas_dict()
