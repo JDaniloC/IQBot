@@ -1,7 +1,7 @@
+from bot import convert_lines_to_list, convert_list_to_text
 from configparser import RawConfigParser
 from datetime import datetime, timedelta
 from datetime import time as time_day
-from bot import pegar_comando_lista
 from utils.IQ import IQ_API
 from utils import ENV_NAME
 import amanobot
@@ -21,21 +21,6 @@ def strDateHour(number:int) -> str:
 
 def current_time():
     return (datetime.utcnow() - timedelta(hours = 3)).timestamp()
-
-def carrega_entrada(comando):
-    direcao = comando["ordem"].lower()
-    timeframe = comando['timeframe']
-    if timeframe == 0:
-        timeframe = "Padrão"
-    else:
-        timeframe = f"M{comando['timeframe']}"
-    return f'''
-📊 Ativo: {comando["par"]}
-📅 Dia: {"/".join(list(map(strDateHour, comando["data"])))}
-⏱ Hora: {":".join(list(map(strDateHour, comando["hora"])))}   
-{'⬆' if direcao == "call" else '⬇'} Direção: {direcao.upper()} 
-⏰ Período: {timeframe}
-        '''
 
 class Catalogador(IQ_API): 
 
@@ -188,7 +173,7 @@ Catalogando {dias} dias de M{timeframe} até {limite} sinais com {porcentagem}% 
                     if not direction: continue
                     
                     texto_entrada = f"{hoje} {horario} {par} {direction} M{timeframe}\n"
-                    entrada = pegar_comando_lista(texto_entrada)
+                    entrada = convert_lines_to_list([texto_entrada], False)[0]
                     if entrada != {}:
                         trade_hour = datetime.utcfromtimestamp(
                             entrada["timestamp"]) - timedelta(hours = 3)
@@ -203,7 +188,7 @@ Catalogando {dias} dias de M{timeframe} até {limite} sinais com {porcentagem}% 
                 contagem += 1
                 if contagem < limite:
                     resultado.append(entrada)
-                    texto_entradas += carrega_entrada(entrada)
+                    texto_entradas += convert_list_to_text([entrada])[0]
                     conta_texto += 1
                     if conta_texto % 40 == 0:
                         self.mostrar_mensagem(texto_entradas)	

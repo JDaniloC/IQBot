@@ -1,32 +1,16 @@
+from utils.conversor import convert_lines_to_list, convert_list_to_text
 from admin.schema.users_schema import user as users_schema
 from utils.estrategias import Estrategias
 from utils.lista_taxa import ListaTaxa
 from utils.operar import escreve_erros
-from datetime import datetime
 from sys import argv, exit
-import re, logging, json
+import logging, json
 
 if argv[1:] and argv[1] == "-o":
     from admin.database import Mongo
     MongoDB = Mongo()
 
 logging.disable(level = (logging.DEBUG))
-
-ASSET_REGEX = r'[A-Za-z]{6}(-OTC)?'
-DATE_REGEX = r'\d{2}\W\d{2}\W\d{4}'
-TIME_REGEX = r'[MH][1-6]?[0-5]'
-HOUR_REGEX = r'\d{2}:\d{2}'
-DIR_REGEX = r'CALL|PUT'
-
-def numerico(x):
-    '''
-    Verifica se a string pode ser convertida para float
-    '''
-    try:
-        float(x)
-        return True
-    except:
-        return False
 
 def carregar_config(msg: str) -> dict:
     try:
@@ -54,134 +38,6 @@ def salvar_config(config: dict) -> str:
     
     return json.dumps(config, ensure_ascii=False)
     
-def datetime_brazil():
-    return datetime.fromtimestamp(
-        datetime.utcnow().timestamp() - 10800)
-
-def pegar_comando_lista(texto):
-    '''
-    Recebe um texto e devolve:
-    {
-        "data": [dia, mes, ano],
-        "hora": [hora, minuto]
-        "par": paridade,
-        "ordem": ordem,
-        "timeframe": int
-        "tipo": "lista"
-    }
-    No qual o conteúdo das listas são inteiros
-    '''
-    def timestamp(data, hora):
-        return datetime(
-            data[2], data[1], data[0], hora[0], hora[1]
-        ).timestamp()
-    
-    texto = texto.upper().replace("/", "")
-    try:
-        data = re.search(DATE_REGEX, texto)
-        if data:
-            data = [int(x) for x in re.split(r"\W", data[0])]
-        else:
-            hoje = datetime_brazil()
-            data = [hoje.day, hoje.month, hoje.year]
-        
-        hora = re.search(HOUR_REGEX, texto)[0]
-        hora = [int(x) for x in re.split(r'\W', hora)]
-
-        par = re.search(ASSET_REGEX, texto)[0]
-        ordem = re.search(DIR_REGEX, texto)[0].lower()
-        has_timeframe = re.search(TIME_REGEX, texto)
-        if has_timeframe: 
-            if "M" in has_timeframe[0]: 
-                timeframe = int(has_timeframe[0].strip("M"))
-            else: 
-                timeframe = int(has_timeframe[0].strip("H")) * 60
-        else: timeframe = 0
-    except:
-        return {}
-
-    return {
-        "par": par,
-        "data": data,
-        "hora": hora,
-        "ordem": ordem,
-        "tipo": "lista",
-        "timeframe": timeframe,
-        "timestamp": timestamp(data, hora)
-    }
-
-def pegar_comando_taxas(original_text: str) -> dict:
-    '''
-    Recebe um texto e devolve:
-    {
-        par: str,       # Paridade eg. EURUSD-OTC
-        taxa: int,      # A taxa eg. 1.12345
-        ordem: str,     # "" ou "PUT"|"CALL"
-        tipo: "taxas",  # Para ser identificado pelo bot
-        timeframe: int, # 0 ou um número se houver
-        timestamp: timestamp
-    }
-    '''
-    texto = original_text.strip().upper()
-    paridade, taxa, direction, timeframe = "", 0, "", 0
-    try:
-        has_timeframe = re.search(TIME_REGEX, texto)
-        if has_timeframe: 
-            texto = re.sub(TIME_REGEX, r'', texto).strip()
-            if "M" in has_timeframe[0]: 
-                timeframe = int(has_timeframe[0].strip("M"))
-            else: 
-                timeframe = int(has_timeframe[0].strip("H")) * 60
-        
-        partitions = re.split(r"[^\w.-]", texto)
-        for text_part in partitions: 
-            possible_asset = text_part.replace("/", "")
-            has_asset = re.search(ASSET_REGEX, possible_asset)
-            has_direction = re.search(DIR_REGEX, text_part)
-            if has_asset:
-                paridade = has_asset[0]
-            elif numerico(text_part): 
-                taxa = float(text_part)
-            elif has_direction:
-                direction = has_direction[0].lower()
-                    
-        if paridade == "" or taxa == 0:
-            raise ValueError("Faltando a paridade ou taxa!")
-        
-    except Exception as e:
-        print(type(e), e, original_text)
-        return {}
-        
-    return {
-        "par": paridade, 
-        "taxa": taxa, 
-        "tipo": "taxas",
-        "ordem": direction,
-        "timeframe": timeframe,
-        "timestamp": datetime_brazil()
-    }
-
-def pegar_comando(texto):
-    '''
-    Verifica se a entrada é de lista ou taxas
-    e devolve um dicionário no qual um dos valores
-    é {tipo: lista|taxa}.
-    '''
-    comando = pegar_comando_lista(texto)
-    if comando == {}:
-        comando = pegar_comando_taxas(texto)
-    return comando
-
-def numerico(x):
-    '''
-    Verifica se a string pode ser convertida para float
-    '''
-    try:
-        float(x)
-        return True
-    except:
-        return False
-
 def captura_erros(params, operar_lista, tentativas = 0):      
     if operar_lista: bot = ListaTaxa(*params)
     else: bot = Estrategias(*params)
