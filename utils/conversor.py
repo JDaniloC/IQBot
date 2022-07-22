@@ -29,9 +29,10 @@ def pegar_comando_lista(texto):
             data[2], data[1], data[0], hora[0], hora[1]
         ).timestamp()
     
-    texto = texto.upper().replace("/", "")
+    texto = texto.upper()
     try:
         data = re.search(DATE_REGEX, texto)
+        print(data)
         if data:
             data = [int(x) for x in re.split(r"\W", data[0])]
         else:
