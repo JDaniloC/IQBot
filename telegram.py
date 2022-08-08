@@ -12,8 +12,9 @@ from amanobot.delegate import (
     per_chat_id, pave_event_space, 
     create_open, per_callback_query_origin)
 
-from bot import (pegar_comando, escreve_erros, 
-    carregar_config, salvar_config)
+from bot import (convert_lines_to_list, escreve_erros, 
+                 carregar_config, salvar_config,
+                 convert_list_to_text)
 from admin.controlador import Client as Control
 from utils.catalogador import Catalogador
 from utils.checador import checa_sinais
@@ -36,47 +37,10 @@ def strDateHour(number:int) -> str:
     '''
     return str(number) if len(str(number)) != 1 else "0" + str(number)
 
-def carregar_entradas(opcao):
-    '''
-    Abre o arquivo de entradas e organiza de forma legível
-    Params:
-        opcao = 1 ou 2, para entrar no arquivo de entradas1/entradas2.txt
-    return:
-        lista de strings dessas entradas
-    '''
-    if type(opcao) != list:
-        lista = MongoDB.get_entradas(opcao)
-    else:
-        lista = opcao
-    lista.sort(key = lambda x: x["timestamp"])
-
-    lista_entradas = []
-    for linha in lista:
-        timeframe = linha['timeframe']
-        if timeframe == 0:
-            timeframe = "Padrão"
-        else:
-            timeframe = f"M{linha['timeframe']}"
-        direcao = linha["ordem"].upper()
-        direcao_sign = '⬆' if direcao == "CALL" else '⬇'
-
-        if linha["tipo"] == "taxas": 
-            lista_entradas.append(f"""
-📊 Ativo: {linha['par']}
-📈 Taxa: {linha['taxa']}
-⏰ Período: {timeframe}
-{f'{direcao_sign} Direção {direcao}' if direcao != "" else ""}
-            """)
-            continue
-
-        lista_entradas.append(f'''
-📊 Ativo: {linha["par"]}
-📅 Dia: {"/".join(list(map(strDateHour, linha["data"])))}
-⏱ Hora: {":".join(list(map(strDateHour, linha["hora"])))}   
-{direcao_sign} Direção: {direcao} 
-⏰ Período: {timeframe}
-        ''')
-    return lista_entradas
+def carregar_entradas(lista):
+    if type(lista) != list:
+        lista = MongoDB.get_entradas(lista)
+    return convert_list_to_text(lista)
 
 def exibir_configuracoes(mapeamento, infos, modalidade):
     headers = {
@@ -481,18 +445,6 @@ EURJPY 31/12/2000 CALL M5 02:30
 ...''',
         reply_markup = ReplyKeyboardRemove())
             return True
-    
-    def pegar_entrada(self, entradas):
-        '''
-        Método que recebe as entradas e verifica se há um comando
-        Devolve a lista de entradas que conseguiu extrair
-        '''
-        lista = []
-        for linha in entradas:
-            nova = pegar_comando(linha)
-            if nova != {}:
-                lista.append(nova)
-        return lista
 
     def confirmar_entradas(self, msg):
         '''
@@ -506,7 +458,7 @@ EURJPY 31/12/2000 CALL M5 02:30
             
             def processa_entradas(escolha, texto):
                 MongoDB.set_entradas(escolha, 
-                    self.pegar_entrada(texto))
+                    convert_lines_to_list(texto, False))
                 
             self.enviar_mensagem("Processando...")
             # Procura o início das velas
@@ -1094,7 +1046,7 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
                         self.enviar_mensagem("Deve ser um número! Tente novamente", save = True)
                         return True
                 elif value[2] == list:
-                    novo = self.pegar_entrada(novo.split("\n"))
+                    novo = convert_lines_to_list(novo.split("\n"), False)
                     self.comandos()
                 elif value[2] == bool:
                     novo = bool(novo.strip() == "Sim")
