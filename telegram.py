@@ -277,6 +277,7 @@ class Assistente(amanobot.helper.ChatHandler):
                     save = True)
                 self.comandos()
             else:
+                if self.id in account_list: del account_list[self.id]
                 self.enviar_mensagem("Sua licença expirou, peça para o administrador renovar.", save = True)
                 self.close()
         elif (MongoDB.verifica_cadastro(email)):
