@@ -3,7 +3,6 @@ from utils.investing import extrair_noticias
 from datetime import datetime, timedelta
 from configparser import RawConfigParser
 from utils.IQ import IQ_API
-from random import randint
 from utils import ENV_NAME
 from pprint import pprint
 
@@ -1409,9 +1408,9 @@ class Operacao(IQ_API):
 						paridade, 60, CANDLE_AMOUNT)
 			return last_update, paridades
 
-		def update_taxas_dict():
+		def update_taxas_dict(paridades: list):
 			taxas_list = self.catalogar_taxas(TIMEFRAME, 
-							CANDLE_AMOUNT, HIT_AMOUNT)
+				CANDLE_AMOUNT, HIT_AMOUNT, paridades)
 			taxas_per_asset_dict = {}  
 			for comando in taxas_list:
 				paridade = comando['par']
@@ -1443,7 +1442,7 @@ class Operacao(IQ_API):
 		subscribe_list = []
 		last_taxas_dict = {}
 		last_update, paridades = subscribe_assets()
-		taxas_per_asset_dict, taxas_dict_update = update_taxas_dict()
+		taxas_per_asset_dict, taxas_dict_update = update_taxas_dict(paridades)
 		
 		while not self.verificar_stop():
 			for paridade in paridades:
@@ -1512,4 +1511,4 @@ class Operacao(IQ_API):
 			if (time.time() - last_update) > 600:
 				last_update, paridades = subscribe_assets()
 			if (taxas_dict_update - time.time()) < 0:
-				taxas_per_asset_dict, taxas_dict_update = update_taxas_dict()
+				taxas_per_asset_dict, taxas_dict_update = update_taxas_dict(paridades)

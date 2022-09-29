@@ -630,7 +630,8 @@ class IQ_API:
         except:
             return False
 
-    def catalogar_taxas(self, timeframe: int, candles: int, hits: int) -> list:
+    def catalogar_taxas(self, timeframe: int, candles: int, 
+                        hits: int, paridades: list) -> list:
         def intersect_range(x: range, y: range) -> bool:
             return x[0] <= y[-1] and x[-1] >= y[0]
         
@@ -647,6 +648,7 @@ class IQ_API:
         
         all_paridades = self.API.get_all_open_time()
         for par in all_paridades['digital']:
+            if par not in paridades: continue
             velas = self.API.get_candles(par, timeframe * 60, candles, time.time())
 
             multiply_factor = 100000
