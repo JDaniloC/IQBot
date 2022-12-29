@@ -275,7 +275,7 @@ class Assistente(amanobot.helper.ChatHandler):
                 self.enviar_mensagem(
                     f"E-mail autenticado, seja bem-vindo Sr(a) {self.nome_usuario} sua licença expira em: {restante[:-10]}.",
                     save = True)
-                self.comandos()
+                self.menu_bots()
             else:
                 if self.id in account_list: del account_list[self.id]
                 self.enviar_mensagem("Sua licença expirou, peça para o administrador renovar.", save = True)
@@ -296,6 +296,31 @@ class Assistente(amanobot.helper.ChatHandler):
             else:
                 self.enviar_mensagem("Não é um e-mail válido!", save = True)
             self.close()
+    
+    def menu_bots(self):
+        """
+        Escolha dos bots disponíveis
+        """
+        self.enviar_mensagem("Escolha a plataforma que deseja operar",
+            reply_markup = ReplyKeyboardMarkup(keyboard = [[
+            KeyboardButton( text = "IQ Option" ),
+            KeyboardButton( text = "Quotex" ),
+            KeyboardButton( text = "Binomo" )
+        ]]))
+    
+    def confirmar_menu_bots(self, message_object: dict):
+        """
+        Confirmação do bot escolhido
+        """
+        message = message_object['text'].lower()
+        if message == "iq option":
+            self.comandos()
+            return True
+        elif message in ["quotex", "binomo"]:
+            self.enviar_mensagem("Plataforma não disponível no momento.", save = True)
+            self.menu_bots()
+            return True
+        return False
 
     def gerenciar(self):
         '''
@@ -1251,6 +1276,8 @@ Não importa a ordem das informações, e sim o formato de cada componente."""
         elif msg['text'].capitalize() in ["Voltar ao menu", "Menu"]:
             if not self.autenticacao: self.entrar()
             else: self.comandos()   # [1] Opções
+        elif self.confirmar_menu_bots(msg):
+            pass                    # [1] Bots
         elif self.submenu_comandos(msg):
             pass                    # [2] Opções
         elif self.submenu_configuracoes(msg):
