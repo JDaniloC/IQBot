@@ -2,6 +2,7 @@ config/
 iqcoding/
 .vscode
 .env
+.env2
 talib/
 
 # Byte-compiled / optimized / DLL files

@@ -258,6 +258,7 @@ class Operacao(IQ_API):
 				mensagem = "🔰 Placar Final 🔰"
 				if self.ganho_total >= self.stopwin:
 					mensagem = "🤑 Stop WIN batido! 🤑"
+					mensagem += "\nVolte amanhã ou assuma o Risco."
 				elif -self.stoploss >= self.perda_total:
 					mensagem = "🥵 Stop LOSS batido! 🥵"
 				placar = f"✅ {self.ganhos_perdas[0]} | {self.ganhos_perdas[1]} ❌"
